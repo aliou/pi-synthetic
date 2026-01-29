@@ -3,9 +3,9 @@ import { SYNTHETIC_MODELS } from "./models.js";
 
 export function registerSyntheticProvider(pi: ExtensionAPI): void {
   pi.registerProvider("synthetic", {
-    baseUrl: "https://api.synthetic.new/anthropic",
+    baseUrl: "https://api.synthetic.new/openai/v1",
     apiKey: "SYNTHETIC_API_KEY",
-    api: "anthropic-messages",
+    api: "openai-completions",
     models: SYNTHETIC_MODELS.map((model) => ({
       id: model.id,
       name: model.name,
@@ -14,6 +14,10 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
       cost: model.cost,
       contextWindow: model.contextWindow,
       maxTokens: model.maxTokens,
+      compat: {
+        supportsDeveloperRole: false,
+        maxTokensField: "max_tokens",
+      },
     })),
   });
 }

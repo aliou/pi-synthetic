@@ -33,7 +33,7 @@ src/
 ## Conventions
 
 - API key comes from environment (`SYNTHETIC_API_KEY`)
-- Uses Anthropic-compatible API at `https://api.synthetic.new/anthropic`
+- Uses OpenAI-compatible API at `https://api.synthetic.new/openai/v1`
 - Models are hardcoded in `src/providers/models.ts`
 - Update model list when Synthetic adds new models
 

@@ -15,6 +15,13 @@ export interface SyntheticModelConfig {
   };
   contextWindow: number;
   maxTokens: number;
+  compat?: {
+    supportsDeveloperRole?: boolean;
+    supportsReasoningEffort?: boolean;
+    maxTokensField?: "max_completion_tokens" | "max_tokens";
+    requiresToolResultName?: boolean;
+    requiresMistralToolIds?: boolean;
+  };
 }
 
 export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
