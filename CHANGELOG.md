@@ -1,5 +1,14 @@
 # @aliou/pi-synthetic
 
+## 0.2.0
+
+### Minor Changes
+
+- 58d21ca: Fix model configurations from Synthetic API
+
+  - Update maxTokens for all Synthetic models using values from models.dev (synthetic provider)
+  - Fix Kimi-K2-Instruct-0905 reasoning flag to false
+
 ## 0.1.0
 
 ### Minor Changes
