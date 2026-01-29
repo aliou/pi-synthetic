@@ -24,6 +24,9 @@ importers:
       '@mariozechner/pi-tui':
         specifier: ^0.50.1
         version: 0.50.3
+      '@sinclair/typebox':
+        specifier: ^0.34.48
+        version: 0.34.48
       '@types/node':
         specifier: ^25.0.10
         version: 25.1.0

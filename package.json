@@ -28,6 +28,7 @@
     "@changesets/cli": "^2.27.11",
     "@mariozechner/pi-coding-agent": "^0.50.1",
     "@mariozechner/pi-tui": "^0.50.1",
+    "@sinclair/typebox": "^0.34.48",
     "@types/node": "^25.0.10",
     "husky": "^9.1.7",
     "typescript": "^5.9.3"
