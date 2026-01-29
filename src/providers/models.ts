@@ -1,5 +1,6 @@
 // Hardcoded models from Synthetic API
 // Source: https://api.synthetic.new/openai/v1/models
+// maxTokens sourced from https://models.dev/api.json (synthetic provider)
 
 export interface SyntheticModelConfig {
   id: string;
@@ -17,6 +18,7 @@ export interface SyntheticModelConfig {
 }
 
 export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
+  // models.dev: synthetic/hf:zai-org/GLM-4.7 → ctx=200000, out=64000
   {
     id: "hf:zai-org/GLM-4.7",
     name: "zai-org/GLM-4.7",
@@ -29,8 +31,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 202752,
-    maxTokens: 65536,
+    maxTokens: 64000,
   },
+  // models.dev: synthetic/hf:MiniMaxAI/MiniMax-M2.1 → ctx=204800, out=131072
   {
     id: "hf:MiniMaxAI/MiniMax-M2.1",
     name: "MiniMaxAI/MiniMax-M2.1",
@@ -43,8 +46,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 196608,
-    maxTokens: 65536,
+    maxTokens: 131072,
   },
+  // models.dev: synthetic/hf:meta-llama/Llama-3.3-70B-Instruct → ctx=128000, out=32768
   {
     id: "hf:meta-llama/Llama-3.3-70B-Instruct",
     name: "meta-llama/Llama-3.3-70B-Instruct",
@@ -57,8 +61,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 131072,
-    maxTokens: 4096,
+    maxTokens: 32768,
   },
+  // models.dev: synthetic/hf:deepseek-ai/DeepSeek-V3-0324 → ctx=128000, out=128000
   {
     id: "hf:deepseek-ai/DeepSeek-V3-0324",
     name: "deepseek-ai/DeepSeek-V3-0324",
@@ -71,8 +76,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 131072,
-    maxTokens: 4096,
+    maxTokens: 128000,
   },
+  // models.dev: synthetic/hf:deepseek-ai/DeepSeek-R1-0528 → ctx=128000, out=128000
   {
     id: "hf:deepseek-ai/DeepSeek-R1-0528",
     name: "deepseek-ai/DeepSeek-R1-0528",
@@ -85,8 +91,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 131072,
-    maxTokens: 4096,
+    maxTokens: 128000,
   },
+  // models.dev: synthetic/hf:deepseek-ai/DeepSeek-V3.1 → ctx=128000, out=128000
   {
     id: "hf:deepseek-ai/DeepSeek-V3.1",
     name: "deepseek-ai/DeepSeek-V3.1",
@@ -99,8 +106,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 131072,
-    maxTokens: 4096,
+    maxTokens: 128000,
   },
+  // models.dev: synthetic/hf:deepseek-ai/DeepSeek-V3.1-Terminus → ctx=128000, out=128000
   {
     id: "hf:deepseek-ai/DeepSeek-V3.1-Terminus",
     name: "deepseek-ai/DeepSeek-V3.1-Terminus",
@@ -113,8 +121,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 131072,
-    maxTokens: 4096,
+    maxTokens: 128000,
   },
+  // models.dev: synthetic/hf:deepseek-ai/DeepSeek-V3.2 → ctx=162816, out=8000
   {
     id: "hf:deepseek-ai/DeepSeek-V3.2",
     name: "deepseek-ai/DeepSeek-V3.2",
@@ -127,8 +136,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 162816,
-    maxTokens: 4096,
+    maxTokens: 8000,
   },
+  // NOTE: not present in models.dev synthetic provider; maxTokens unchanged
   {
     id: "hf:Qwen/Qwen3-VL-235B-A22B-Instruct",
     name: "Qwen/Qwen3-VL-235B-A22B-Instruct",
@@ -143,10 +153,11 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     contextWindow: 256000,
     maxTokens: 4096,
   },
+  // models.dev: synthetic/hf:moonshotai/Kimi-K2-Instruct-0905 → ctx=262144, out=32768
   {
     id: "hf:moonshotai/Kimi-K2-Instruct-0905",
     name: "moonshotai/Kimi-K2-Instruct-0905",
-    reasoning: true,
+    reasoning: false,
     input: ["text"],
     cost: {
       input: 1.2,
@@ -155,8 +166,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 262144,
-    maxTokens: 4096,
+    maxTokens: 32768,
   },
+  // models.dev: synthetic/hf:moonshotai/Kimi-K2-Thinking → ctx=262144, out=262144
   {
     id: "hf:moonshotai/Kimi-K2-Thinking",
     name: "moonshotai/Kimi-K2-Thinking",
@@ -169,8 +181,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 262144,
-    maxTokens: 4096,
+    maxTokens: 262144,
   },
+  // models.dev: synthetic/hf:openai/gpt-oss-120b → ctx=128000, out=32768
   {
     id: "hf:openai/gpt-oss-120b",
     name: "openai/gpt-oss-120b",
@@ -183,8 +196,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 131072,
-    maxTokens: 4096,
+    maxTokens: 32768,
   },
+  // models.dev: synthetic/hf:Qwen/Qwen3-Coder-480B-A35B-Instruct → ctx=256000, out=32000
   {
     id: "hf:Qwen/Qwen3-Coder-480B-A35B-Instruct",
     name: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
@@ -197,8 +211,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 262144,
-    maxTokens: 4096,
+    maxTokens: 32000,
   },
+  // models.dev: synthetic/hf:Qwen/Qwen3-235B-A22B-Instruct-2507 → ctx=256000, out=32000
   {
     id: "hf:Qwen/Qwen3-235B-A22B-Instruct-2507",
     name: "Qwen/Qwen3-235B-A22B-Instruct-2507",
@@ -211,8 +226,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 262144,
-    maxTokens: 4096,
+    maxTokens: 32000,
   },
+  // models.dev: synthetic/hf:zai-org/GLM-4.6 → ctx=200000, out=64000
   {
     id: "hf:zai-org/GLM-4.6",
     name: "zai-org/GLM-4.6",
@@ -225,8 +241,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 202752,
-    maxTokens: 4096,
+    maxTokens: 64000,
   },
+  // models.dev: synthetic/hf:MiniMaxAI/MiniMax-M2 → ctx=196608, out=131000
   {
     id: "hf:MiniMaxAI/MiniMax-M2",
     name: "MiniMaxAI/MiniMax-M2",
@@ -239,8 +256,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 196608,
-    maxTokens: 4096,
+    maxTokens: 131000,
   },
+  // models.dev: synthetic/hf:moonshotai/Kimi-K2.5 → ctx=262144, out=65536
   {
     id: "hf:moonshotai/Kimi-K2.5",
     name: "moonshotai/Kimi-K2.5",
@@ -253,8 +271,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 262144,
-    maxTokens: 4096,
+    maxTokens: 65536,
   },
+  // models.dev: synthetic/hf:deepseek-ai/DeepSeek-V3 → ctx=128000, out=128000
   {
     id: "hf:deepseek-ai/DeepSeek-V3",
     name: "deepseek-ai/DeepSeek-V3",
@@ -267,8 +286,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 131072,
-    maxTokens: 4096,
+    maxTokens: 128000,
   },
+  // models.dev: synthetic/hf:Qwen/Qwen3-235B-A22B-Thinking-2507 → ctx=256000, out=32000
   {
     id: "hf:Qwen/Qwen3-235B-A22B-Thinking-2507",
     name: "Qwen/Qwen3-235B-A22B-Thinking-2507",
@@ -281,6 +301,6 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 262144,
-    maxTokens: 4096,
+    maxTokens: 32000,
   },
 ];
