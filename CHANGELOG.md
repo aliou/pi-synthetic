@@ -1,5 +1,16 @@
 # @aliou/pi-synthetic
 
+## 0.3.0
+
+### Minor Changes
+
+- 5f67daf: Switch from Anthropic to OpenAI API endpoints
+
+  - Change API endpoint from `/anthropic` to `/openai/v1`
+  - Update from `anthropic-messages` to `openai-completions` API
+  - Add compatibility flags for proper role handling (`supportsDeveloperRole: false`)
+  - Use standard `max_tokens` field instead of `max_completion_tokens`
+
 ## 0.2.0
 
 ### Minor Changes
