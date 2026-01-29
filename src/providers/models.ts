@@ -146,7 +146,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:moonshotai/Kimi-K2-Instruct-0905",
     name: "moonshotai/Kimi-K2-Instruct-0905",
-    reasoning: true,
+    reasoning: false,
     input: ["text"],
     cost: {
       input: 1.2,
