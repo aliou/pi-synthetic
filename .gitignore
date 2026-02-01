@@ -35,3 +35,7 @@ result-*
 
 # Husky
 .husky/_
+
+# Pi
+.pi/git
+.pi/npm
