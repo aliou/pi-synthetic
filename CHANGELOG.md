@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.4.2
+
+### Patch Changes
+
+- d9af905: Add demo video URL for the Pi package browser.
+
 ## 0.4.1
 
 ### Patch Changes
