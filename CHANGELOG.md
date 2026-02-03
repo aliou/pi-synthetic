@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.4.1
+
+### Patch Changes
+
+- aba3bb8: fix: use correct /v2/quotas endpoint for subscription access check
+
 ## 0.4.0
 
 ### Minor Changes
