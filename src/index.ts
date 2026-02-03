@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { registerQuotasCommand } from "./commands/quotas.js";
-import { registerSyntheticProvider } from "./providers/index.js";
-import { registerSyntheticWebSearchTool } from "./tools/search.js";
+import { registerQuotasCommand } from "./commands/quotas";
+import { registerSyntheticProvider } from "./providers/index";
+import { registerSyntheticWebSearchTool } from "./tools/search";
 
 export default async function (pi: ExtensionAPI) {
   registerSyntheticProvider(pi);

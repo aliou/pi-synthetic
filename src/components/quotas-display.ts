@@ -1,7 +1,7 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import { type Component, Container, Text } from "@mariozechner/pi-tui";
-import type { QuotasResponse } from "../types/quotas.js";
+import type { QuotasResponse } from "../types/quotas";
 
 export class QuotasDisplayComponent implements Component {
   private container: Container;

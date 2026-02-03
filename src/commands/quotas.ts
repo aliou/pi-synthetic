@@ -1,9 +1,9 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type { Component } from "@mariozechner/pi-tui";
-import { QuotasDisplayComponent } from "../components/quotas-display.js";
-import { QuotasErrorComponent } from "../components/quotas-error.js";
-import { QuotasLoadingComponent } from "../components/quotas-loading.js";
-import type { QuotasResponse } from "../types/quotas.js";
+import { QuotasDisplayComponent } from "../components/quotas-display";
+import { QuotasErrorComponent } from "../components/quotas-error";
+import { QuotasLoadingComponent } from "../components/quotas-loading";
+import type { QuotasResponse } from "../types/quotas";
 
 export function registerQuotasCommand(pi: ExtensionAPI): void {
   pi.registerCommand("synthetic:quotas", {
@@ -19,7 +19,7 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
         return;
       }
 
-      await ctx.ui.custom<void>((tui, theme, _kb, done) => {
+      const result = await ctx.ui.custom<void>((tui, theme, _kb, done) => {
         let currentComponent: Component = new QuotasLoadingComponent(theme);
 
         fetchQuotas()
@@ -50,6 +50,16 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
           },
         };
       });
+
+      // RPC fallback: custom() returned undefined
+      if (result === undefined) {
+        const quotas = await fetchQuotas();
+        if (!quotas) {
+          ctx.ui.notify("Failed to fetch quotas", "error");
+          return;
+        }
+        ctx.ui.notify(formatQuotasPlain(quotas), "info");
+      }
     },
   });
 }

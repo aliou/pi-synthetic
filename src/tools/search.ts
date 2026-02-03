@@ -105,7 +105,9 @@ export async function registerSyntheticWebSearchTool(pi: ExtensionAPI) {
       _toolCallId: string,
       params: SearchParamsType,
       signal: AbortSignal | undefined,
-      onUpdate: (result: AgentToolResult<WebSearchDetails>) => void,
+      onUpdate:
+        | ((result: AgentToolResult<WebSearchDetails>) => void)
+        | undefined,
       _ctx: ExtensionContext,
     ): Promise<AgentToolResult<WebSearchDetails>> {
       // Check for API key
@@ -119,7 +121,7 @@ export async function registerSyntheticWebSearchTool(pi: ExtensionAPI) {
       }
 
       // Send progress update
-      onUpdate({
+      onUpdate?.({
         content: [{ type: "text", text: "Searching..." }],
         details: { query: params.query },
       });

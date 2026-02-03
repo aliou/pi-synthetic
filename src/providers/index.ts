@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { SYNTHETIC_MODELS } from "./models.js";
+import { SYNTHETIC_MODELS } from "./models";
 
 export function registerSyntheticProvider(pi: ExtensionAPI): void {
   pi.registerProvider("synthetic", {

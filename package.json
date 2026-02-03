@@ -15,6 +15,9 @@
     ],
     "video": "https://assets.aliou.me/pi-extensions/demos/pi-synthetic.mp4"
   },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": ">=0.51.0"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "biome check",
