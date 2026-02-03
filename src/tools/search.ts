@@ -36,11 +36,10 @@ const SearchParams = Type.Object({
 
 type SearchParamsType = Static<typeof SearchParams>;
 
-// Check if API key has subscription access by calling usage endpoint
-// Subscription keys have content in the response, usage-based keys return empty array
+// Check if API key has subscription access by calling quotas endpoint
 async function hasSubscriptionAccess(apiKey: string): Promise<boolean> {
   try {
-    const response = await fetch("https://api.synthetic.new/v2/usage", {
+    const response = await fetch("https://api.synthetic.new/v2/quotas", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -52,8 +51,8 @@ async function hasSubscriptionAccess(apiKey: string): Promise<boolean> {
     }
 
     const data = await response.json();
-    // Subscription keys have content in the response array
-    return Array.isArray(data) && data.length > 0;
+    // Subscription keys return an object with subscription details
+    return data?.subscription?.limit > 0;
   } catch {
     return false;
   }
