@@ -12,7 +12,8 @@
   "pi": {
     "extensions": [
       "./src/index.ts"
-    ]
+    ],
+    "video": "https://assets.aliou.me/pi-extensions/demos/pi-synthetic.mp4"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
