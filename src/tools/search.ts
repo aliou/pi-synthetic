@@ -36,8 +36,11 @@ const SearchParams = Type.Object({
 
 type SearchParamsType = Static<typeof SearchParams>;
 
-// Check if API key has subscription access by calling quotas endpoint
-async function hasSubscriptionAccess(apiKey: string): Promise<boolean> {
+// Check if API key has subscription access by calling quotas endpoint.
+// Returns "ok" if the user has access, or an error message if not.
+async function checkSubscriptionAccess(
+  apiKey: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
   try {
     const response = await fetch("https://api.synthetic.new/v2/quotas", {
       method: "GET",
@@ -47,14 +50,25 @@ async function hasSubscriptionAccess(apiKey: string): Promise<boolean> {
     });
 
     if (!response.ok) {
-      return false;
+      return {
+        ok: false,
+        reason: `Quotas check failed (HTTP ${response.status})`,
+      };
     }
 
     const data = await response.json();
-    // Subscription keys return an object with subscription details
-    return data?.subscription?.limit > 0;
-  } catch {
-    return false;
+    if (data?.subscription?.limit > 0) {
+      return { ok: true };
+    }
+
+    return {
+      ok: false,
+      reason: "No active subscription (search requires a subscription plan)",
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    return { ok: false, reason: `Quotas check failed: ${message}` };
   }
 }
 
@@ -67,8 +81,16 @@ export async function registerSyntheticWebSearchTool(pi: ExtensionAPI) {
   }
 
   // Only register if user has subscription access (search is subscription-only)
-  const hasAccess = await hasSubscriptionAccess(apiKey);
-  if (!hasAccess) {
+  const access = await checkSubscriptionAccess(apiKey);
+  if (!access.ok) {
+    pi.on("session_start", async (_event, ctx) => {
+      if (ctx.hasUI) {
+        ctx.ui.notify(
+          `Synthetic web search disabled: ${access.reason}`,
+          "warning",
+        );
+      }
+    });
     return;
   }
 
