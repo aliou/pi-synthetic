@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.4.3
+
+### Patch Changes
+
+- 7dc1d80: Defer subscription check to session_start for non-blocking extension init.
+
 ## 0.4.2
 
 ### Patch Changes
