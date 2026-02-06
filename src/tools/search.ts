@@ -73,27 +73,30 @@ async function checkSubscriptionAccess(
 }
 
 // Tool Registration
-export async function registerSyntheticWebSearchTool(pi: ExtensionAPI) {
-  // Check for API key
+export function registerSyntheticWebSearchTool(pi: ExtensionAPI) {
   const apiKey = process.env.SYNTHETIC_API_KEY;
   if (!apiKey) {
     return;
   }
 
-  // Only register if user has subscription access (search is subscription-only)
-  const access = await checkSubscriptionAccess(apiKey);
-  if (!access.ok) {
-    pi.on("session_start", async (_event, ctx) => {
+  // Check subscription on session start, only register tool if access is granted
+  pi.on("session_start", async (_event, ctx) => {
+    const access = await checkSubscriptionAccess(apiKey);
+    if (!access.ok) {
       if (ctx.hasUI) {
         ctx.ui.notify(
           `Synthetic web search disabled: ${access.reason}`,
           "warning",
         );
       }
-    });
-    return;
-  }
+      return;
+    }
 
+    registerTool(pi, apiKey);
+  });
+}
+
+function registerTool(pi: ExtensionAPI, apiKey: string) {
   pi.registerTool<typeof SearchParams, WebSearchDetails>({
     name: "synthetic_web_search",
     label: "Synthetic: Web Search",
@@ -110,16 +113,6 @@ export async function registerSyntheticWebSearchTool(pi: ExtensionAPI) {
         | undefined,
       _ctx: ExtensionContext,
     ): Promise<AgentToolResult<WebSearchDetails>> {
-      // Check for API key
-      const apiKey = process.env.SYNTHETIC_API_KEY;
-      if (!apiKey) {
-        const error = "SYNTHETIC_API_KEY environment variable is required";
-        return {
-          content: [{ type: "text", text: `Error: ${error}` }],
-          details: { error, isError: true },
-        };
-      }
-
       // Send progress update
       onUpdate?.({
         content: [{ type: "text", text: "Searching..." }],

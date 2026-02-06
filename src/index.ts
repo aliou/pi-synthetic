@@ -9,6 +9,6 @@ export default async function (pi: ExtensionAPI) {
   // Only register quotas command and web search tool if API key is available
   if (process.env.SYNTHETIC_API_KEY) {
     registerQuotasCommand(pi);
-    await registerSyntheticWebSearchTool(pi);
+    registerSyntheticWebSearchTool(pi);
   }
 }
