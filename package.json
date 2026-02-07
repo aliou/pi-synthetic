@@ -16,7 +16,7 @@
     "video": "https://assets.aliou.me/pi-extensions/demos/pi-synthetic.mp4"
   },
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": ">=0.51.0"
+    "@mariozechner/pi-coding-agent": ">=0.52.7"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -30,8 +30,8 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.13",
     "@changesets/cli": "^2.27.11",
-    "@mariozechner/pi-coding-agent": "0.51.0",
-    "@mariozechner/pi-tui": "0.51.0",
+    "@mariozechner/pi-coding-agent": "0.52.7",
+    "@mariozechner/pi-tui": "0.52.7",
     "@sinclair/typebox": "^0.34.48",
     "@types/node": "^25.0.10",
     "husky": "^9.1.7",
