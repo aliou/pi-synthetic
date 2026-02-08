@@ -19,7 +19,7 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
         return;
       }
 
-      const result = await ctx.ui.custom<void>((tui, theme, _kb, done) => {
+      const result = await ctx.ui.custom<null>((tui, theme, _kb, done) => {
         let currentComponent: Component = new QuotasLoadingComponent(theme);
 
         fetchQuotas()
@@ -46,7 +46,7 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
           render: (width: number) => currentComponent.render(width),
           invalidate: () => currentComponent.invalidate(),
           handleInput: (_data: string) => {
-            done();
+            done(null);
           },
         };
       });
