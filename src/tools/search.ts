@@ -79,8 +79,15 @@ export function registerSyntheticWebSearchTool(pi: ExtensionAPI) {
     return;
   }
 
-  // Check subscription on session start, only register tool if access is granted
+  // Register tool immediately so it's available when tools are collected
+  registerTool(pi, apiKey);
+
+  // On session start, remove tool from active set, check subscription, re-add if valid
   pi.on("session_start", async (_event, ctx) => {
+    // Disable tool until subscription is verified
+    const activeTools = pi.getActiveTools();
+    pi.setActiveTools(activeTools.filter((t) => t !== "synthetic_web_search"));
+
     const access = await checkSubscriptionAccess(apiKey);
     if (!access.ok) {
       if (ctx.hasUI) {
@@ -92,7 +99,11 @@ export function registerSyntheticWebSearchTool(pi: ExtensionAPI) {
       return;
     }
 
-    registerTool(pi, apiKey);
+    // Add tool back to active tools
+    const current = pi.getActiveTools();
+    if (!current.includes("synthetic_web_search")) {
+      pi.setActiveTools([...current, "synthetic_web_search"]);
+    }
   });
 }
 
