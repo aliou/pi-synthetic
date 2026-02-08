@@ -1,5 +1,12 @@
 # @aliou/pi-synthetic
 
+## 0.4.4
+
+### Patch Changes
+
+- 86a3145: Fix quotas command showing duplicate notification in TUI mode
+- f94cc6b: fix: register search tool at init time so it's available when pi collects tools
+
 ## 0.4.3
 
 ### Patch Changes

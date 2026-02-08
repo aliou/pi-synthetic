@@ -1,6 +1,6 @@
 {
   "name": "@aliou/pi-synthetic",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "packageManager": "pnpm@10.26.1",
   "repository": {
     "type": "git",
