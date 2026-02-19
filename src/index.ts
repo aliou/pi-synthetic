@@ -1,14 +1,15 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { registerQuotasCommand } from "./commands/quotas";
+import { registerSyntheticWebSearchHooks } from "./hooks/search-tool-availability";
 import { registerSyntheticProvider } from "./providers/index";
 import { registerSyntheticWebSearchTool } from "./tools/search";
 
 export default async function (pi: ExtensionAPI) {
   registerSyntheticProvider(pi);
+  registerSyntheticWebSearchTool(pi);
+  registerSyntheticWebSearchHooks(pi);
 
-  // Only register quotas command and web search tool if API key is available
   if (process.env.SYNTHETIC_API_KEY) {
     registerQuotasCommand(pi);
-    registerSyntheticWebSearchTool(pi);
   }
 }

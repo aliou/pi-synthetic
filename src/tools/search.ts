@@ -8,7 +8,8 @@ import type {
 import { Text } from "@mariozechner/pi-tui";
 import { type Static, Type } from "@sinclair/typebox";
 
-// Types
+export const SYNTHETIC_WEB_SEARCH_TOOL = "synthetic_web_search" as const;
+
 interface SyntheticSearchResult {
   url: string;
   title: string;
@@ -27,7 +28,6 @@ interface WebSearchDetails {
   isError?: boolean;
 }
 
-// Schema
 const SearchParams = Type.Object({
   query: Type.String({
     description: "The search query. Be specific for best results.",
@@ -36,80 +36,9 @@ const SearchParams = Type.Object({
 
 type SearchParamsType = Static<typeof SearchParams>;
 
-// Check if API key has subscription access by calling quotas endpoint.
-// Returns "ok" if the user has access, or an error message if not.
-async function checkSubscriptionAccess(
-  apiKey: string,
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-  try {
-    const response = await fetch("https://api.synthetic.new/v2/quotas", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
-
-    if (!response.ok) {
-      return {
-        ok: false,
-        reason: `Quotas check failed (HTTP ${response.status})`,
-      };
-    }
-
-    const data = await response.json();
-    if (data?.subscription?.limit > 0) {
-      return { ok: true };
-    }
-
-    return {
-      ok: false,
-      reason: "No active subscription (search requires a subscription plan)",
-    };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown error occurred";
-    return { ok: false, reason: `Quotas check failed: ${message}` };
-  }
-}
-
-// Tool Registration
-export function registerSyntheticWebSearchTool(pi: ExtensionAPI) {
-  const apiKey = process.env.SYNTHETIC_API_KEY;
-  if (!apiKey) {
-    return;
-  }
-
-  // Register tool immediately so it's available when tools are collected
-  registerTool(pi, apiKey);
-
-  // On session start, remove tool from active set, check subscription, re-add if valid
-  pi.on("session_start", async (_event, ctx) => {
-    // Disable tool until subscription is verified
-    const activeTools = pi.getActiveTools();
-    pi.setActiveTools(activeTools.filter((t) => t !== "synthetic_web_search"));
-
-    const access = await checkSubscriptionAccess(apiKey);
-    if (!access.ok) {
-      if (ctx.hasUI) {
-        ctx.ui.notify(
-          `Synthetic web search disabled: ${access.reason}`,
-          "warning",
-        );
-      }
-      return;
-    }
-
-    // Add tool back to active tools
-    const current = pi.getActiveTools();
-    if (!current.includes("synthetic_web_search")) {
-      pi.setActiveTools([...current, "synthetic_web_search"]);
-    }
-  });
-}
-
-function registerTool(pi: ExtensionAPI, apiKey: string) {
+export function registerSyntheticWebSearchTool(pi: ExtensionAPI): void {
   pi.registerTool<typeof SearchParams, WebSearchDetails>({
-    name: "synthetic_web_search",
+    name: SYNTHETIC_WEB_SEARCH_TOOL,
     label: "Synthetic: Web Search",
     description:
       "Search the web using Synthetic's zero-data-retention API. Returns search results with titles, URLs, content snippets, and publication dates. Use for finding documentation, articles, recent information, or any web content. Results are fresh and not cached by Synthetic.",
@@ -124,14 +53,21 @@ function registerTool(pi: ExtensionAPI, apiKey: string) {
         | undefined,
       _ctx: ExtensionContext,
     ): Promise<AgentToolResult<WebSearchDetails>> {
-      // Send progress update
       onUpdate?.({
         content: [{ type: "text", text: "Searching..." }],
         details: { query: params.query },
       });
 
       try {
-        // Make API request
+        const apiKey = process.env.SYNTHETIC_API_KEY;
+        if (!apiKey) {
+          const error = "SYNTHETIC_API_KEY is not configured";
+          return {
+            content: [{ type: "text", text: `Error: ${error}` }],
+            details: { error, isError: true },
+          };
+        }
+
         const response = await fetch("https://api.synthetic.new/v2/search", {
           method: "POST",
           headers: {
@@ -151,7 +87,6 @@ function registerTool(pi: ExtensionAPI, apiKey: string) {
           };
         }
 
-        // Parse response
         let data: SyntheticSearchResponse;
         try {
           data = await response.json();
@@ -166,7 +101,6 @@ function registerTool(pi: ExtensionAPI, apiKey: string) {
           };
         }
 
-        // Format results for LLM
         let content = `Found ${data.results.length} result(s):\n\n`;
         for (const result of data.results) {
           content += `## ${result.title}\n`;
@@ -184,7 +118,6 @@ function registerTool(pi: ExtensionAPI, apiKey: string) {
           },
         };
       } catch (error) {
-        // Handle abort signal
         if (error instanceof Error && error.name === "AbortError") {
           return {
             content: [{ type: "text", text: "Search cancelled" }],
@@ -192,7 +125,6 @@ function registerTool(pi: ExtensionAPI, apiKey: string) {
           };
         }
 
-        // Handle other errors
         const message =
           error instanceof Error ? error.message : "Unknown error occurred";
         return {
@@ -215,7 +147,6 @@ function registerTool(pi: ExtensionAPI, apiKey: string) {
     ): Text {
       const { expanded, isPartial } = options;
 
-      // Handle partial/loading state
       if (isPartial) {
         const text =
           result.content?.[0]?.type === "text"
@@ -225,8 +156,6 @@ function registerTool(pi: ExtensionAPI, apiKey: string) {
       }
 
       const details = result.details;
-
-      // Handle error state
       if (details?.isError) {
         const errorMsg =
           result.content?.[0]?.type === "text"
@@ -235,21 +164,18 @@ function registerTool(pi: ExtensionAPI, apiKey: string) {
         return new Text(theme.fg("error", errorMsg), 0, 0);
       }
 
-      // Handle success state
       const results = details?.results || [];
       let text = theme.fg("success", `✓ Found ${results.length} result(s)`);
 
-      // Collapsed view
       if (!expanded && results.length > 0) {
         const first = results[0];
         text += `\n  ${theme.fg("dim", `${first.title}`)}`;
         if (results.length > 1) {
           text += theme.fg("dim", ` (${results.length - 1} more)`);
         }
-        text += theme.fg("muted", ` [Ctrl+O to expand]`);
+        text += theme.fg("muted", " [Ctrl+O to expand]");
       }
 
-      // Expanded view
       if (expanded) {
         for (const r of results) {
           text += `\n\n${theme.fg("accent", theme.bold(r.title))}`;
