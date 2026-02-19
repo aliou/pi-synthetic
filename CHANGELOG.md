@@ -1,5 +1,12 @@
 # @aliou/pi-synthetic
 
+## 0.4.6
+
+### Patch Changes
+
+- 6180572: mark pi SDK peer deps as optional to prevent koffi OOM in Gondolin VMs
+- fe8094f: register synthetic web search tool at init time and move availability checks to hooks
+
 ## 0.4.5
 
 ### Patch Changes
