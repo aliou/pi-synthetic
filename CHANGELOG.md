@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.4.5
+
+### Patch Changes
+
+- 7489bc0: update model list: add nvidia/Kimi-K2.5-NVFP4, remove 6 discontinued models
+
 ## 0.4.4
 
 ### Patch Changes
