@@ -9,16 +9,6 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
   pi.registerCommand("synthetic:quotas", {
     description: "Display Synthetic API usage quotas",
     handler: async (_args, ctx) => {
-      if (!ctx.hasUI) {
-        const quotas = await fetchQuotas();
-        if (!quotas) {
-          console.error("Failed to fetch quotas");
-          return;
-        }
-        console.log(formatQuotasPlain(quotas));
-        return;
-      }
-
       const result = await ctx.ui.custom<null>((tui, theme, _kb, done) => {
         let currentComponent: Component = new QuotasLoadingComponent(theme);
 
