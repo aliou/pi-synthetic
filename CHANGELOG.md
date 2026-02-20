@@ -1,5 +1,13 @@
 # @aliou/pi-synthetic
 
+## 0.4.7
+
+### Patch Changes
+
+- 98d1a0f: Move `@mariozechner/pi-tui` to peer dependencies to avoid bundling the SDK alongside the extension. Fix `prepare` script to only run husky from a git repository.
+- f1d24e8: Remove dead `!ctx.hasUI` branch from the `/synthetic:quotas` command handler. Commands are always invoked from the TUI.
+- 8c54ec4: Remove debug notifications emitted during `session_start` and `before_agent_start` in the web search availability hook.
+
 ## 0.4.6
 
 ### Patch Changes
