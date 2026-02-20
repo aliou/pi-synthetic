@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check",
     "format": "biome check --write",
-    "prepare": "husky",
+    "prepare": "[ -d .git ] && husky || true",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "pnpm changeset publish"
