@@ -1,20 +1,31 @@
 {
   "name": "@aliou/pi-synthetic",
   "version": "0.4.6",
-  "packageManager": "pnpm@10.26.1",
+  "license": "MIT",
+  "type": "module",
+  "private": false,
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/aliou/pi-synthetic"
   },
-  "keywords": [
-    "pi-package"
-  ],
   "pi": {
     "extensions": [
       "./src/index.ts"
     ],
     "video": "https://assets.aliou.me/pi-extensions/demos/pi-synthetic.mp4"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": ">=0.52.7",
     "@mariozechner/pi-tui": ">=0.51.0"
@@ -23,13 +34,15 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check",
     "format": "biome check --write",
+    "check:lockfile": "pnpm install --frozen-lockfile --ignore-scripts",
     "prepare": "[ -d .git ] && husky || true",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "pnpm changeset publish"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.3.13",
+    "@aliou/biome-plugins": "^0.3.2",
+    "@biomejs/biome": "^2.4.2",
     "@changesets/cli": "^2.27.11",
     "@mariozechner/pi-coding-agent": "0.52.7",
     "@sinclair/typebox": "^0.34.48",
@@ -50,5 +63,6 @@
     "@mariozechner/pi-tui": {
       "optional": true
     }
-  }
+  },
+  "packageManager": "pnpm@10.26.1"
 }
