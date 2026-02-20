@@ -1,12 +1,5 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { SYNTHETIC_WEB_SEARCH_TOOL } from "../tools/search";
-
-function notifyDebug(ctx: ExtensionContext, message: string): void {
-  ctx.ui.notify(`[pi-synthetic:web-search] ${message}`, "info");
-}
 
 async function checkSubscriptionAccess(
   apiKey: string,
@@ -51,48 +44,36 @@ export function registerSyntheticWebSearchHooks(pi: ExtensionAPI): void {
   let didNotifyDenied = false;
 
   // Keep tool inactive at session start. Availability is decided before each agent run.
-  pi.on("session_start", (_event, ctx) => {
-    notifyDebug(ctx, "session_start: preparing web search tool");
-
+  pi.on("session_start", () => {
     const current = pi.getActiveTools();
     if (current.includes(SYNTHETIC_WEB_SEARCH_TOOL)) {
       pi.setActiveTools(
         current.filter((toolName) => toolName !== SYNTHETIC_WEB_SEARCH_TOOL),
       );
-      notifyDebug(ctx, "session_start: tool disabled until subscription check");
     }
   });
 
   // Verify subscription only when user starts agent execution.
   pi.on("before_agent_start", async (_event, ctx) => {
-    notifyDebug(ctx, "before_agent_start: ensuring tool availability");
-
     const apiKey = process.env.SYNTHETIC_API_KEY;
     if (!apiKey) {
       hasAccess = false;
       deniedReason = "SYNTHETIC_API_KEY is not configured";
       accessCheckPromise = undefined;
-      notifyDebug(ctx, "before_agent_start: access denied (missing API key)");
     } else {
       if (deniedReason === "SYNTHETIC_API_KEY is not configured") {
         deniedReason = undefined;
       }
 
       if (!hasAccess && !deniedReason) {
-        notifyDebug(ctx, "before_agent_start: checking subscription access");
         accessCheckPromise ??= checkSubscriptionAccess(apiKey);
         const access = await accessCheckPromise;
 
         if (!access.ok) {
           deniedReason = access.reason;
-          notifyDebug(
-            ctx,
-            `before_agent_start: access denied (${access.reason})`,
-          );
         } else {
           hasAccess = true;
           didNotifyDenied = false;
-          notifyDebug(ctx, "before_agent_start: access granted");
         }
       }
     }
@@ -103,7 +84,6 @@ export function registerSyntheticWebSearchHooks(pi: ExtensionAPI): void {
         pi.setActiveTools(
           current.filter((toolName) => toolName !== SYNTHETIC_WEB_SEARCH_TOOL),
         );
-        notifyDebug(ctx, "before_agent_start: tool kept disabled");
       }
 
       if (ctx.hasUI && !didNotifyDenied) {
@@ -112,10 +92,6 @@ export function registerSyntheticWebSearchHooks(pi: ExtensionAPI): void {
           "warning",
         );
         didNotifyDenied = true;
-        notifyDebug(
-          ctx,
-          "before_agent_start: user notified about disabled tool",
-        );
       }
       return;
     }
@@ -123,7 +99,6 @@ export function registerSyntheticWebSearchHooks(pi: ExtensionAPI): void {
     const current = pi.getActiveTools();
     if (!current.includes(SYNTHETIC_WEB_SEARCH_TOOL)) {
       pi.setActiveTools([...current, SYNTHETIC_WEB_SEARCH_TOOL]);
-      notifyDebug(ctx, "before_agent_start: tool enabled");
     }
   });
 }
