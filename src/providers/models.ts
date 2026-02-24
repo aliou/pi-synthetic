@@ -235,12 +235,12 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     contextWindow: 262144,
     maxTokens: 32000,
   },
-  // API: hf:Qwen/Qwen3.5-397B-A17B → ctx=262144, out=32000
+  // API: hf:Qwen/Qwen3.5-397B-A17B → ctx=262144, out=65536
   {
     id: "hf:Qwen/Qwen3.5-397B-A17B",
     name: "Qwen/Qwen3.5-397B-A17B",
-    reasoning: false,
-    input: ["text"],
+    reasoning: true,
+    input: ["text", "image"],
     cost: {
       input: 0.6,
       output: 3,
@@ -248,6 +248,21 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 262144,
-    maxTokens: 32000,
+    maxTokens: 65536,
+  },
+  // API: hf:MiniMaxAI/MiniMax-M2.5 → ctx=191488, out=65536
+  {
+    id: "hf:MiniMaxAI/MiniMax-M2.5",
+    name: "MiniMaxAI/MiniMax-M2.5",
+    reasoning: true,
+    input: ["text", "image"],
+    cost: {
+      input: 0.6,
+      output: 3,
+      cacheRead: 0.6,
+      cacheWrite: 0,
+    },
+    contextWindow: 191488,
+    maxTokens: 65536,
   },
 ];
