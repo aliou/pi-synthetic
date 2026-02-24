@@ -1,5 +1,17 @@
 # @aliou/pi-synthetic
 
+## 0.5.0
+
+### Minor Changes
+
+- 9faaa42: Add pi-sub integration via sub-core events
+- eee2c68: Redesign quotas display with tabbed interface and pace tracking
+- 562cbf7: Add Qwen3.5-397B-A17B model to the available models list
+
+### Patch Changes
+
+- b29fe7c: Return JSON in RPC mode instead of plain text
+
 ## 0.4.7
 
 ### Patch Changes
