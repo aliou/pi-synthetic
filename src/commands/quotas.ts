@@ -3,7 +3,7 @@ import type { Component } from "@mariozechner/pi-tui";
 import { QuotasDisplayComponent } from "../components/quotas-display";
 import { QuotasErrorComponent } from "../components/quotas-error";
 import { QuotasLoadingComponent } from "../components/quotas-loading";
-import type { QuotasResponse } from "../types/quotas";
+import { fetchQuotas } from "../utils/quotas";
 
 export function registerQuotasCommand(pi: ExtensionAPI): void {
   pi.registerCommand("synthetic:quotas", {
@@ -65,27 +65,4 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
       }
     },
   });
-}
-
-async function fetchQuotas(): Promise<QuotasResponse | null> {
-  const apiKey = process.env.SYNTHETIC_API_KEY;
-  if (!apiKey) {
-    return null;
-  }
-
-  try {
-    const response = await fetch("https://api.synthetic.new/v2/quotas", {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as QuotasResponse;
-  } catch {
-    return null;
-  }
 }
