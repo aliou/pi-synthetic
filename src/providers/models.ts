@@ -235,4 +235,19 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     contextWindow: 262144,
     maxTokens: 32000,
   },
+  // API: hf:Qwen/Qwen3.5-397B-A17B → ctx=262144, out=32000
+  {
+    id: "hf:Qwen/Qwen3.5-397B-A17B",
+    name: "Qwen/Qwen3.5-397B-A17B",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0.6,
+      output: 3,
+      cacheRead: 0.6,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 32000,
+  },
 ];
