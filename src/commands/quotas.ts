@@ -51,14 +51,17 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
         };
       });
 
-      // RPC fallback: custom() returned undefined
+      // RPC fallback: return JSON
       if (result === undefined) {
         const quotas = await fetchQuotas();
         if (!quotas) {
-          ctx.ui.notify("Failed to fetch quotas", "error");
+          ctx.ui.notify(
+            JSON.stringify({ error: "Failed to fetch quotas" }),
+            "error",
+          );
           return;
         }
-        ctx.ui.notify(formatQuotasPlain(quotas), "info");
+        ctx.ui.notify(JSON.stringify(quotas, null, 2), "info");
       }
     },
   });
@@ -84,61 +87,5 @@ async function fetchQuotas(): Promise<QuotasResponse | null> {
     return (await response.json()) as QuotasResponse;
   } catch {
     return null;
-  }
-}
-
-function formatQuotasPlain(quotas: QuotasResponse): string {
-  const formatSection = (
-    name: string,
-    quota: { limit: number; requests: number; renewsAt: string },
-  ) => {
-    const remaining = quota.limit - quota.requests;
-    const percentUsed = Math.round((quota.requests / quota.limit) * 100);
-    return [
-      `${name}:`,
-      `Usage: ${percentUsed}%`,
-      `Limit: ${quota.limit.toLocaleString()} requests`,
-      `Used: ${quota.requests.toLocaleString()} requests`,
-      `Remaining: ${remaining.toLocaleString()} requests`,
-      `Renews: ${quota.renewsAt} (${formatRelativeTime(new Date(quota.renewsAt))})`,
-    ].join("\n");
-  };
-
-  return [
-    "Synthetic API Quotas",
-    "",
-    formatSection("Subscription", quotas.subscription),
-    "",
-    formatSection("Search Hourly", quotas.search.hourly),
-    "",
-    formatSection("Free Tool Calls", quotas.freeToolCalls),
-  ].join("\n");
-}
-
-function formatRelativeTime(date: Date): string {
-  const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-
-  if (diffMs <= 0) {
-    return "renews soon";
-  }
-
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-  const diffMinutes = Math.ceil(diffMs / (1000 * 60));
-  const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMinutes < 60) {
-    return rtf.format(diffMinutes, "minute");
-  } else if (diffHours < 24) {
-    return rtf.format(diffHours, "hour");
-  } else if (diffDays < 30) {
-    return rtf.format(diffDays, "day");
-  } else if (diffDays < 365) {
-    const months = Math.floor(diffDays / 30);
-    return rtf.format(months, "month");
-  } else {
-    const years = Math.floor(diffDays / 365);
-    return rtf.format(years, "year");
   }
 }
