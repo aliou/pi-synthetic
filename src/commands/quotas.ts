@@ -20,7 +20,13 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
                 "Failed to fetch quotas",
               );
             } else {
-              currentComponent = new QuotasDisplayComponent(theme, quotas);
+              currentComponent = new QuotasDisplayComponent(
+                theme,
+                quotas,
+                () => {
+                  done(null);
+                },
+              );
             }
             tui.requestRender();
           })
@@ -35,8 +41,12 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
         return {
           render: (width: number) => currentComponent.render(width),
           invalidate: () => currentComponent.invalidate(),
-          handleInput: (_data: string) => {
+          handleInput: (data: string) => {
+            if (currentComponent.handleInput) {
+              return currentComponent.handleInput(data);
+            }
             done(null);
+            return true;
           },
         };
       });
@@ -78,20 +88,30 @@ async function fetchQuotas(): Promise<QuotasResponse | null> {
 }
 
 function formatQuotasPlain(quotas: QuotasResponse): string {
-  const remaining = quotas.subscription.limit - quotas.subscription.requests;
-  const percentUsed = Math.round(
-    (quotas.subscription.requests / quotas.subscription.limit) * 100,
-  );
+  const formatSection = (
+    name: string,
+    quota: { limit: number; requests: number; renewsAt: string },
+  ) => {
+    const remaining = quota.limit - quota.requests;
+    const percentUsed = Math.round((quota.requests / quota.limit) * 100);
+    return [
+      `${name}:`,
+      `Usage: ${percentUsed}%`,
+      `Limit: ${quota.limit.toLocaleString()} requests`,
+      `Used: ${quota.requests.toLocaleString()} requests`,
+      `Remaining: ${remaining.toLocaleString()} requests`,
+      `Renews: ${quota.renewsAt} (${formatRelativeTime(new Date(quota.renewsAt))})`,
+    ].join("\n");
+  };
 
   return [
     "Synthetic API Quotas",
     "",
-    `Usage: ${percentUsed}%`,
-    `Limit: ${quotas.subscription.limit.toLocaleString()} requests`,
-    `Used: ${quotas.subscription.requests.toLocaleString()} requests`,
-    `Remaining: ${remaining.toLocaleString()} requests`,
+    formatSection("Subscription", quotas.subscription),
     "",
-    `Renews: ${quotas.subscription.renewsAt} (${formatRelativeTime(new Date(quotas.subscription.renewsAt))})`,
+    formatSection("Search Hourly", quotas.search.hourly),
+    "",
+    formatSection("Free Tool Calls", quotas.freeToolCalls),
   ].join("\n");
 }
 

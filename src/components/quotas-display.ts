@@ -1,139 +1,240 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
-import { DynamicBorder } from "@mariozechner/pi-coding-agent";
-import { type Component, Container, Text } from "@mariozechner/pi-tui";
+import type { Component, TUI } from "@mariozechner/pi-tui";
+import { matchesKey } from "@mariozechner/pi-tui";
 import type { QuotasResponse } from "../types/quotas";
+import { TabbedScrollablePanel } from "./tabbed-panel";
 
 export class QuotasDisplayComponent implements Component {
-  private container: Container;
+  private panel: TabbedScrollablePanel;
+  private onClose: () => void;
 
-  constructor(theme: Theme, quotas: QuotasResponse) {
-    this.container = new Container();
-    const border = new DynamicBorder((s: string) => theme.fg("accent", s));
+  constructor(theme: Theme, quotas: QuotasResponse, onClose: () => void) {
+    this.onClose = onClose;
 
-    this.container.addChild(border);
-    this.container.addChild(
-      new Text(theme.fg("accent", theme.bold(" Synthetic API Quotas ")), 1, 0),
+    this.panel = new TabbedScrollablePanel(
+      {
+        title: "Synthetic API Quotas",
+        tabs: [
+          {
+            label: "Completions",
+            buildContent: () =>
+              buildHybridLayout(theme, quotas.subscription, 5), // 5-hour window
+          },
+          {
+            label: "Search",
+            buildContent: () =>
+              buildHybridLayout(theme, quotas.search.hourly, 1), // 1 hour
+          },
+          {
+            label: "Free tool call",
+            buildContent: () =>
+              buildToolCallsLayout(theme, quotas.freeToolCalls, 24), // 24 hours (daily)
+          },
+        ],
+        onClose: onClose,
+      },
+      null as unknown as TUI,
+      theme,
     );
-    this.container.addChild(new Text("", 0, 0));
+  }
 
-    const remaining = quotas.subscription.limit - quotas.subscription.requests;
-    const percentUsed = Math.round(
-      (quotas.subscription.requests / quotas.subscription.limit) * 100,
-    );
-
-    // Usage bar: left side = used (colored by severity), right side = remaining (neutral)
-    const barWidth = 40;
-    const usedWidth = Math.round((percentUsed / 100) * barWidth);
-    const remainingWidth = barWidth - usedWidth;
-
-    let bar: string;
-    if (usedWidth >= barWidth) {
-      bar = theme.fg("error", "█".repeat(barWidth));
-    } else if (percentUsed > 75) {
-      // High usage: used is warning, remaining is dim
-      bar =
-        theme.fg("warning", "█".repeat(usedWidth)) +
-        theme.fg("dim", "█".repeat(remainingWidth));
-    } else {
-      // Normal usage: used is success, remaining is dim
-      bar =
-        theme.fg("success", "█".repeat(usedWidth)) +
-        theme.fg("dim", "█".repeat(remainingWidth));
+  handleInput(data: string): boolean {
+    if (matchesKey(data, "escape") || data === "q") {
+      this.onClose();
+      return true;
     }
-
-    this.container.addChild(new Text(`  ${theme.bold("Usage")}`, 1, 0));
-    this.container.addChild(new Text(`  ${bar} ${percentUsed}%`, 1, 0));
-    this.container.addChild(new Text("", 0, 0));
-
-    // Numbers - aligned columns
-    const limitStr = quotas.subscription.limit.toLocaleString();
-    const usedStr = quotas.subscription.requests.toLocaleString();
-    const remainingStr = remaining.toLocaleString();
-    const maxValueWidth = Math.max(
-      limitStr.length,
-      usedStr.length,
-      remainingStr.length,
-    );
-
-    this.container.addChild(
-      new Text(
-        `  ${theme.fg("muted", "Limit:")}     ${limitStr.padStart(maxValueWidth, " ")} requests`,
-        1,
-        0,
-      ),
-    );
-    this.container.addChild(
-      new Text(
-        `  ${theme.fg("muted", "Used:")}      ${usedStr.padStart(maxValueWidth, " ")} requests`,
-        1,
-        0,
-      ),
-    );
-    this.container.addChild(
-      new Text(
-        `  ${theme.fg("muted", "Remaining:")} ${theme.fg(
-          remaining > 0 ? "success" : "error",
-          remainingStr.padStart(maxValueWidth, " "),
-        )} requests`,
-        1,
-        0,
-      ),
-    );
-    this.container.addChild(new Text("", 0, 0));
-
-    // Renewal date - ISO8601 with relative time
-    const renewsAt = new Date(quotas.subscription.renewsAt);
-    const isoStr = quotas.subscription.renewsAt;
-    const relativeStr = formatRelativeTime(renewsAt);
-
-    this.container.addChild(
-      new Text(
-        `  ${theme.fg("muted", "Renews:")}    ${isoStr} (${relativeStr})`,
-        1,
-        0,
-      ),
-    );
-
-    this.container.addChild(new Text("", 0, 0));
-    this.container.addChild(
-      new Text(theme.fg("dim", "  Press any key to close"), 1, 0),
-    );
-    this.container.addChild(border);
+    return this.panel.handleInput(data);
   }
 
   render(width: number): string[] {
-    return this.container.render(width);
+    return this.panel.render(width);
   }
 
   invalidate(): void {
-    this.container.invalidate();
+    this.panel.invalidate();
   }
 }
 
-function formatRelativeTime(date: Date): string {
+// Layout: bar + pct/cur-total + pace/reset
+function buildHybridLayout(
+  theme: Theme,
+  quota: { limit: number; requests: number; renewsAt: string },
+  periodHours: number,
+): string[] {
+  const percentUsed = Math.round((quota.requests / quota.limit) * 100);
+  const renewsAt = new Date(quota.renewsAt);
+  const now = new Date();
+
+  const lines: string[] = [];
+  const barWidth = 50;
+
+  const usedStr = quota.requests.toLocaleString();
+  const limitStr = quota.limit.toLocaleString();
+
+  // Color based on usage
+  const usedColor =
+    percentUsed >= 100 ? "error" : percentUsed > 75 ? "warning" : "success";
+
+  // Calculate pace with known period
+  const totalPeriod = periodHours * 60 * 60 * 1000;
+  const timeUntilReset = Math.max(0, renewsAt.getTime() - now.getTime());
+  const timeElapsed = totalPeriod - timeUntilReset;
+  const percentTimeElapsed = (timeElapsed / totalPeriod) * 100;
+  const paceDiff = percentUsed - percentTimeElapsed;
+
+  let paceStr: string;
+  let paceColor: "success" | "dim" | "error";
+  if (paceDiff < -10) {
+    paceStr = `${Math.round(Math.abs(paceDiff))}% behind pace`;
+    paceColor = "success";
+  } else if (paceDiff > 10) {
+    paceStr = `${Math.round(paceDiff)}% ahead of pace`;
+    paceColor = "error";
+  } else {
+    paceStr = "within pace";
+    paceColor = "dim";
+  }
+
+  // Row above bar: pct left, cur/total right
+  const pctStr = `${percentUsed}% used`;
+  const totalDisplay = `${usedStr}/${limitStr}`;
+  const spacing = " ".repeat(
+    Math.max(1, barWidth - pctStr.length - totalDisplay.length),
+  );
+  lines.push(
+    `  ${theme.fg(usedColor, pctStr)}${spacing}${theme.fg("dim", totalDisplay)}`,
+  );
+
+  // Bar
+  const usedWidth = Math.round((percentUsed / 100) * barWidth);
+  let bar: string;
+  if (usedWidth >= barWidth) {
+    bar = theme.fg("error", "█".repeat(barWidth));
+  } else if (percentUsed > 75) {
+    bar =
+      theme.fg("warning", "█".repeat(usedWidth)) +
+      theme.fg("dim", "█".repeat(barWidth - usedWidth));
+  } else {
+    bar =
+      theme.fg("success", "█".repeat(usedWidth)) +
+      theme.fg("dim", "█".repeat(barWidth - usedWidth));
+  }
+  lines.push(`  ${bar}`);
+
+  // Row below bar: pace left, reset right
+  const resetStr = formatShortTime(renewsAt);
+  const paceSpacing = " ".repeat(
+    Math.max(1, barWidth - paceStr.length - resetStr.length),
+  );
+  lines.push(
+    `  ${theme.fg(paceColor, paceStr)}${paceSpacing}${theme.fg("dim", resetStr)}`,
+  );
+
+  return lines;
+}
+
+// Layout for free tool calls - shows remaining, not usage
+function buildToolCallsLayout(
+  theme: Theme,
+  quota: { limit: number; requests: number; renewsAt: string },
+  periodHours: number,
+): string[] {
+  const remaining = quota.limit - quota.requests;
+  const percentRemaining = Math.round((remaining / quota.limit) * 100);
+  const renewsAt = new Date(quota.renewsAt);
+  const now = new Date();
+
+  const lines: string[] = [];
+  const barWidth = 50;
+
+  const remainingStr = remaining.toLocaleString();
+
+  // Color based on remaining (inverse of usage)
+  const remainingColor =
+    remaining <= 0 ? "error" : percentRemaining < 25 ? "warning" : "success";
+
+  // Calculate pace (how fast you're consuming free calls)
+  const totalPeriod = periodHours * 60 * 60 * 1000;
+  const timeUntilReset = Math.max(0, renewsAt.getTime() - now.getTime());
+  const timeElapsed = totalPeriod - timeUntilReset;
+  const percentTimeElapsed = (timeElapsed / totalPeriod) * 100;
+  const expectedRemaining = Math.round(
+    quota.limit * (1 - percentTimeElapsed / 100),
+  );
+  const remainingDiff = remaining - expectedRemaining;
+
+  let paceStr: string;
+  let paceColor: "success" | "dim" | "error";
+  if (remainingDiff > quota.limit * 0.1) {
+    paceStr = `${remainingDiff.toLocaleString()} more than expected`;
+    paceColor = "success";
+  } else if (remainingDiff < -quota.limit * 0.1) {
+    paceStr = `${Math.abs(remainingDiff).toLocaleString()} fewer than expected`;
+    paceColor = "error";
+  } else {
+    paceStr = "on track";
+    paceColor = "dim";
+  }
+
+  // Row above bar: pct remaining left, ratio right (like other tabs)
+  const pctStr = `${percentRemaining}% remaining`;
+  const ratioStr = `${remainingStr}/${quota.limit.toLocaleString()}`;
+  const spacing = " ".repeat(
+    Math.max(1, barWidth - pctStr.length - ratioStr.length),
+  );
+  lines.push(
+    `  ${theme.fg(remainingColor, pctStr)}${spacing}${theme.fg("dim", ratioStr)}`,
+  );
+
+  // Bar (shows remaining, not used - so full bar = all remaining)
+  const remainingWidth = Math.round((percentRemaining / 100) * barWidth);
+  let bar: string;
+  if (remaining <= 0) {
+    bar = theme.fg("dim", "█".repeat(barWidth));
+  } else if (percentRemaining < 25) {
+    bar =
+      theme.fg("warning", "█".repeat(remainingWidth)) +
+      theme.fg("dim", "█".repeat(barWidth - remainingWidth));
+  } else {
+    bar =
+      theme.fg("success", "█".repeat(remainingWidth)) +
+      theme.fg("dim", "█".repeat(barWidth - remainingWidth));
+  }
+  lines.push(`  ${bar}`);
+
+  // Row below bar: pace left, reset right
+  const resetStr = formatShortTime(renewsAt);
+  const paceSpacing = " ".repeat(
+    Math.max(1, barWidth - paceStr.length - resetStr.length),
+  );
+  lines.push(
+    `  ${theme.fg(paceColor, paceStr)}${paceSpacing}${theme.fg("dim", resetStr)}`,
+  );
+
+  // If depleted, show note about paid calls
+  if (remaining <= 0) {
+    lines.push(`  ${theme.fg("dim", "Additional calls will be charged")}`);
+  }
+
+  return lines;
+}
+
+function formatShortTime(date: Date): string {
   const now = new Date();
   const diffMs = date.getTime() - now.getTime();
 
   if (diffMs <= 0) {
-    return "renews soon";
+    return "soon";
   }
 
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-  const diffMinutes = Math.ceil(diffMs / (1000 * 60));
   const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffMinutes < 60) {
-    return rtf.format(diffMinutes, "minute");
-  } else if (diffHours < 24) {
-    return rtf.format(diffHours, "hour");
-  } else if (diffDays < 30) {
-    return rtf.format(diffDays, "day");
-  } else if (diffDays < 365) {
-    const months = Math.floor(diffDays / 30);
-    return rtf.format(months, "month");
+  if (diffHours < 24) {
+    return `in ${diffHours}h`;
+  } else if (diffDays < 7) {
+    return `in ${diffDays}d`;
   } else {
-    const years = Math.floor(diffDays / 365);
-    return rtf.format(years, "year");
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
 }
