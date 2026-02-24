@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.5.1
+
+### Patch Changes
+
+- 48fde38: Add MiniMax-M2.5 model, fix Qwen3.5 input modalities and reasoning
+
 ## 0.5.0
 
 ### Minor Changes
