@@ -4,44 +4,19 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      skip-checks:
-        description: "Skip lint and typecheck"
-        type: boolean
-        default: false
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  check:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip-checks) }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm typecheck
-
   publish:
     name: Publish
-    needs: check
-    if: ${{ always() && (needs.check.result == 'success' || needs.check.result == 'skipped') }}
+    if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
