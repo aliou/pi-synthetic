@@ -25,7 +25,7 @@ export interface SyntheticModelConfig {
 }
 
 export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
-  // models.dev: synthetic/hf:zai-org/GLM-4.7 → ctx=200000, out=64000
+  // API: hf:zai-org/GLM-4.7 → ctx=202752, out=65536
   {
     id: "hf:zai-org/GLM-4.7",
     name: "zai-org/GLM-4.7",
@@ -38,22 +38,22 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       cacheWrite: 0,
     },
     contextWindow: 202752,
-    maxTokens: 64000,
+    maxTokens: 65536,
   },
-  // models.dev: synthetic/hf:MiniMaxAI/MiniMax-M2.1 → ctx=204800, out=131072
+  // API: hf:MiniMaxAI/MiniMax-M2.1 → ctx=196608, out=65536
   {
     id: "hf:MiniMaxAI/MiniMax-M2.1",
     name: "MiniMaxAI/MiniMax-M2.1",
     reasoning: true,
     input: ["text"],
     cost: {
-      input: 0.55,
-      output: 2.19,
-      cacheRead: 0.55,
+      input: 0.3,
+      output: 1.2,
+      cacheRead: 0.3,
       cacheWrite: 0,
     },
     contextWindow: 196608,
-    maxTokens: 131072,
+    maxTokens: 65536,
   },
   // models.dev: synthetic/hf:meta-llama/Llama-3.3-70B-Instruct → ctx=128000, out=32768
   {
@@ -160,31 +160,31 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     contextWindow: 131072,
     maxTokens: 32768,
   },
-  // models.dev: synthetic/hf:Qwen/Qwen3-Coder-480B-A35B-Instruct → ctx=256000, out=32000
+  // API: hf:Qwen/Qwen3-Coder-480B-A35B-Instruct → ctx=262144, out=65536
   {
     id: "hf:Qwen/Qwen3-Coder-480B-A35B-Instruct",
     name: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-    reasoning: false,
+    reasoning: true,
     input: ["text"],
     cost: {
-      input: 0.45,
-      output: 1.8,
-      cacheRead: 0.45,
+      input: 2,
+      output: 2,
+      cacheRead: 2,
       cacheWrite: 0,
     },
     contextWindow: 262144,
-    maxTokens: 32000,
+    maxTokens: 65536,
   },
-  // models.dev: synthetic/hf:moonshotai/Kimi-K2.5 → ctx=262144, out=65536
+  // API: hf:moonshotai/Kimi-K2.5 → ctx=262144, out=65536
   {
     id: "hf:moonshotai/Kimi-K2.5",
     name: "moonshotai/Kimi-K2.5",
     reasoning: true,
     input: ["text", "image"],
     cost: {
-      input: 1.2,
-      output: 1.2,
-      cacheRead: 1.2,
+      input: 0.6,
+      output: 3,
+      cacheRead: 0.6,
       cacheWrite: 0,
     },
     contextWindow: 262144,
@@ -255,7 +255,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:MiniMaxAI/MiniMax-M2.5",
     name: "MiniMaxAI/MiniMax-M2.5",
     reasoning: true,
-    input: ["text", "image"],
+    input: ["text"],
     cost: {
       input: 0.6,
       output: 3,
