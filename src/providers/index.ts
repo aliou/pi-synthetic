@@ -6,6 +6,10 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
     baseUrl: "https://api.synthetic.new/openai/v1",
     apiKey: "SYNTHETIC_API_KEY",
     api: "openai-completions",
+    headers: {
+      Referer: "https://pi.dev",
+      "X-Title": "npm:@aliou/pi-synthetic",
+    },
     models: SYNTHETIC_MODELS.map((model) => ({
       id: model.id,
       name: model.name,
