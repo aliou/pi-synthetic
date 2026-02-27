@@ -1,0 +1,24 @@
+name: Check Synthetic Models Daily
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # Runs daily at 7am UTC
+  workflow_dispatch: {}
+
+jobs:
+  check-models:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.26.1
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run model validation test
+        run: pnpm test
