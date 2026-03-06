@@ -40,6 +40,21 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     contextWindow: 202752,
     maxTokens: 65536,
   },
+  // API: hf:zai-org/GLM-4.7-Flash → ctx=196608
+  {
+    id: "hf:zai-org/GLM-4.7-Flash",
+    name: "zai-org/GLM-4.7-Flash",
+    reasoning: false,
+    input: ["text"],
+    cost: {
+      input: 0.06,
+      output: 0.4,
+      cacheRead: 0.06,
+      cacheWrite: 0,
+    },
+    contextWindow: 196608,
+    maxTokens: 65536,
+  },
   // API: hf:MiniMaxAI/MiniMax-M2.1 → ctx=196608, out=65536
   {
     id: "hf:MiniMaxAI/MiniMax-M2.1",
@@ -62,28 +77,13 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     reasoning: false,
     input: ["text"],
     cost: {
-      input: 0.9,
-      output: 0.9,
-      cacheRead: 0.9,
+      input: 0.88,
+      output: 0.88,
+      cacheRead: 0.88,
       cacheWrite: 0,
     },
     contextWindow: 131072,
     maxTokens: 32768,
-  },
-  // models.dev: synthetic/hf:deepseek-ai/DeepSeek-V3-0324 → ctx=128000, out=128000
-  {
-    id: "hf:deepseek-ai/DeepSeek-V3-0324",
-    name: "deepseek-ai/DeepSeek-V3-0324",
-    reasoning: false,
-    input: ["text"],
-    cost: {
-      input: 1.2,
-      output: 1.2,
-      cacheRead: 1.2,
-      cacheWrite: 0,
-    },
-    contextWindow: 131072,
-    maxTokens: 128000,
   },
   // models.dev: synthetic/hf:deepseek-ai/DeepSeek-R1-0528 → ctx=128000, out=128000
   {
