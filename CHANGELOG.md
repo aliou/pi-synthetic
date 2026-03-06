@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.6.2
+
+### Patch Changes
+
+- 3570b3c: Use per-model compat overrides for Synthetic models and switch MiniMax M2.5 to `max_completion_tokens` to avoid request-shaping issues with `max_tokens`.
+
 ## 0.6.1
 
 ### Patch Changes
