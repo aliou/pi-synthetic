@@ -44,7 +44,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:zai-org/GLM-4.7-Flash",
     name: "zai-org/GLM-4.7-Flash",
-    reasoning: false,
+    reasoning: true,
     input: ["text"],
     cost: {
       input: 0.06,
@@ -264,5 +264,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     },
     contextWindow: 191488,
     maxTokens: 65536,
+    compat: {
+      supportsReasoningEffort: true,
+      maxTokensField: "max_completion_tokens",
+    },
   },
 ];

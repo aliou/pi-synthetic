@@ -21,6 +21,7 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
       compat: {
         supportsDeveloperRole: false,
         maxTokensField: "max_tokens",
+        ...model.compat,
       },
     })),
   });
