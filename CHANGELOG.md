@@ -1,5 +1,15 @@
 # @aliou/pi-synthetic
 
+## 0.6.1
+
+### Patch Changes
+
+- 6c0148f: Sync hardcoded Synthetic model definitions with the live API.
+
+  - Update pricing for `hf:meta-llama/Llama-3.3-70B-Instruct`
+  - Remove `hf:deepseek-ai/DeepSeek-V3-0324` (no longer in API)
+  - Add `hf:zai-org/GLM-4.7-Flash`
+
 ## 0.6.0
 
 ### Minor Changes
