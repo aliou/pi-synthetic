@@ -1,8 +1,6 @@
 # pi-synthetic
 
-Public Pi extension providing open-source language models via Synthetic's API. People could be using this, so consider backwards compatibility when making changes.
-
-Pi is pre-1.0.0, so breaking changes can happen between Pi versions. This extension must stay up to date with Pi or things will break.
+Pi extension providing models available through the Synthetic provider.
 
 ## Stack
 
@@ -10,6 +8,7 @@ Pi is pre-1.0.0, so breaking changes can happen between Pi versions. This extens
 - pnpm 10.26.1
 - Biome for linting/formatting
 - Changesets for versioning
+- Vitest for testing
 
 ## Scripts
 
@@ -17,6 +16,7 @@ Pi is pre-1.0.0, so breaking changes can happen between Pi versions. This extens
 pnpm typecheck    # Type check
 pnpm lint         # Lint (runs on pre-commit)
 pnpm format       # Format
+pnpm test         # Run tests
 pnpm changeset    # Create changeset for versioning
 ```
 
@@ -24,22 +24,40 @@ pnpm changeset    # Create changeset for versioning
 
 ```
 src/
-  index.ts           # Extension entry, registers provider
+  index.ts                      # Extension entry, registers provider, tools, hooks, commands
   providers/
-    index.ts         # Provider registration
-    models.ts        # Hardcoded model definitions
+    index.ts                    # Provider registration (OpenAI-compatible API)
+    models.ts                   # Hardcoded model definitions
+    models.test.ts              # Model config tests
+  tools/
+    search.ts                   # Synthetic web search tool registration
+  hooks/
+    search-tool-availability.ts # Dynamic tool availability based on subscription
+    sub-integration.ts          # Integration with pi-sub-core for usage display
+  commands/
+    quotas.ts                   # `synthetic:quotas` command for usage display
+  components/
+    quotas-display.ts           # TUI component for quotas display
+    quotas-error.ts             # TUI component for quotas error state
+    quotas-loading.ts           # TUI component for quotas loading state
+    tabbed-panel.ts             # Reusable TUI tabbed panel component
+  types/
+    quotas.ts                   # Quotas API response types
+  utils/
+    quotas.ts                   # Quotas fetching and formatting utilities
 ```
 
 ## Conventions
 
 - API key comes from environment (`SYNTHETIC_API_KEY`)
-- Uses OpenAI-compatible API at `https://api.synthetic.new/openai/v1`
+- Provider uses OpenAI-compatible API at `https://api.synthetic.new/openai/v1`
 - Models are hardcoded in `src/providers/models.ts`
-- Update model list when Synthetic adds new models
+- Web search tool requires active subscription (checked at runtime)
+- Quotas command only registered when `SYNTHETIC_API_KEY` is present
 
-## Adding Models
+## Model Configuration
 
-Edit `src/providers/models.ts`:
+Models are defined in `src/providers/models.ts` with the following structure:
 
 ```typescript
 {
@@ -54,11 +72,23 @@ Edit `src/providers/models.ts`:
     cacheWrite: 0
   },
   contextWindow: 202752,
-  maxTokens: 65536
+  maxTokens: 65536,
+  compat?: {        // Optional provider-specific compatibility flags
+    supportsDeveloperRole?: boolean,
+    supportsReasoningEffort?: boolean,
+    maxTokensField?: "max_completion_tokens" | "max_tokens",
+    requiresToolResultName?: boolean,
+    requiresMistralToolIds?: boolean
+  }
 }
 ```
 
 Get pricing from `https://api.synthetic.new/openai/v1/models`.
+Get maxTokens from `https://models.dev/api.json` (synthetic provider).
+
+## Adding Models
+
+Edit `src/providers/models.ts` and append to `SYNTHETIC_MODELS` array.
 
 ## Versioning
 
@@ -67,3 +97,10 @@ Uses changesets. Run `pnpm changeset` before committing user-facing changes.
 - `patch`: bug fixes, model updates
 - `minor`: new models, features
 - `major`: breaking changes
+
+## Key Features
+
+1. **Provider**: OpenAI-compatible chat completions with 15+ open-source models
+2. **Web Search Tool**: Zero-data-retention web search via `synthetic_web_search`
+3. **Quotas Command**: Interactive TUI for viewing API usage limits
+4. **Sub Integration**: Real-time usage tracking when used with pi-sub-core

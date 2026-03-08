@@ -41,6 +41,18 @@ Once installed, select `synthetic` as your provider and choose from available mo
 /model synthetic hf:moonshotai/Kimi-K2.5
 ```
 
+### Web Search Tool
+
+The extension registers `synthetic_web_search` — a zero-data-retention web search tool. Available when you have an active Synthetic subscription.
+
+### Quotas Command
+
+Check your API usage:
+
+```
+/synthetic:quotas
+```
+
 ## Adding or Updating Models
 
 Models are hardcoded in `src/providers/models.ts`. To add or update models:
@@ -77,6 +89,9 @@ pnpm run lint
 
 # Format
 pnpm run format
+
+# Test
+pnpm run test
 ```
 
 ### Test Locally
