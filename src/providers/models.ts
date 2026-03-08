@@ -18,11 +18,22 @@ export interface SyntheticModelConfig {
   compat?: {
     supportsDeveloperRole?: boolean;
     supportsReasoningEffort?: boolean;
+    reasoningEffortMap?: Partial<
+      Record<"minimal" | "low" | "medium" | "high" | "xhigh", string>
+    >;
     maxTokensField?: "max_completion_tokens" | "max_tokens";
     requiresToolResultName?: boolean;
     requiresMistralToolIds?: boolean;
   };
 }
+
+const SYNTHETIC_REASONING_EFFORT_MAP = {
+  minimal: "low",
+  low: "low",
+  medium: "medium",
+  high: "high",
+  xhigh: "high",
+} as const;
 
 export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   // API: hf:zai-org/GLM-4.7 → ctx=202752, out=65536
@@ -30,6 +41,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:zai-org/GLM-4.7",
     name: "zai-org/GLM-4.7",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text"],
     cost: {
       input: 0.55,
@@ -45,6 +60,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:zai-org/GLM-4.7-Flash",
     name: "zai-org/GLM-4.7-Flash",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text"],
     cost: {
       input: 0.06,
@@ -60,6 +79,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:MiniMaxAI/MiniMax-M2.1",
     name: "MiniMaxAI/MiniMax-M2.1",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text"],
     cost: {
       input: 0.3,
@@ -90,6 +113,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:deepseek-ai/DeepSeek-R1-0528",
     name: "deepseek-ai/DeepSeek-R1-0528",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text"],
     cost: {
       input: 3,
@@ -135,6 +162,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:moonshotai/Kimi-K2-Thinking",
     name: "moonshotai/Kimi-K2-Thinking",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text"],
     cost: {
       input: 0.6,
@@ -165,6 +196,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:Qwen/Qwen3-Coder-480B-A35B-Instruct",
     name: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text"],
     cost: {
       input: 2,
@@ -180,6 +215,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:moonshotai/Kimi-K2.5",
     name: "moonshotai/Kimi-K2.5",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text", "image"],
     cost: {
       input: 0.6,
@@ -195,6 +234,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:nvidia/Kimi-K2.5-NVFP4",
     name: "nvidia/Kimi-K2.5-NVFP4",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text", "image"],
     cost: {
       input: 0.6,
@@ -225,6 +268,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:Qwen/Qwen3-235B-A22B-Thinking-2507",
     name: "Qwen/Qwen3-235B-A22B-Thinking-2507",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text"],
     cost: {
       input: 0.65,
@@ -240,6 +287,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:Qwen/Qwen3.5-397B-A17B",
     name: "Qwen/Qwen3.5-397B-A17B",
     reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
     input: ["text", "image"],
     cost: {
       input: 0.6,
@@ -266,6 +317,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     maxTokens: 65536,
     compat: {
       supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
       maxTokensField: "max_completion_tokens",
     },
   },

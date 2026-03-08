@@ -45,6 +45,17 @@ Once installed, select `synthetic` as your provider and choose from available mo
 
 The extension registers `synthetic_web_search` — a zero-data-retention web search tool. Available when you have an active Synthetic subscription.
 
+### Reasoning Levels
+
+For Synthetic models that support reasoning, Synthetic currently accepts only `low`, `medium`, and `high` reasoning effort values.
+
+This extension clamps Pi reasoning levels to Synthetic's supported set:
+- `minimal` -> `low`
+- `low` -> `low`
+- `medium` -> `medium`
+- `high` -> `high`
+- `xhigh` -> `high`
+
 ### Quotas Command
 
 Check your API usage:
