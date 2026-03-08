@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.6.3
+
+### Patch Changes
+
+- 7a02939: Clamp Pi reasoning levels for Synthetic reasoning-capable models so unsupported `minimal` maps to `low` and unsupported `xhigh` maps to `high`.
+
 ## 0.6.2
 
 ### Patch Changes
