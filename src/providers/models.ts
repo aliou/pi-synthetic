@@ -294,7 +294,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     input: ["text", "image"],
     cost: {
       input: 0.6,
-      output: 3,
+      output: 3.6,
       cacheRead: 0.6,
       cacheWrite: 0,
     },
