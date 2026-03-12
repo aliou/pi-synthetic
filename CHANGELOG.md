@@ -1,5 +1,15 @@
 # @aliou/pi-synthetic
 
+## 0.7.0
+
+### Minor Changes
+
+- 4547220: Add NVIDIA Nemotron-3-Super-120B-A12B-NVFP4 model
+
+### Patch Changes
+
+- 018f25d: Fix Qwen3.5-397B-A17B output pricing (3 -> 3.6 per million tokens)
+
 ## 0.6.3
 
 ### Patch Changes
