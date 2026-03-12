@@ -321,4 +321,23 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       maxTokensField: "max_completion_tokens",
     },
   },
+  // API: hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 → ctx=262144, out=65536
+  {
+    id: "hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    name: "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
+    input: ["text"],
+    cost: {
+      input: 0.6,
+      output: 3,
+      cacheRead: 0.6,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 65536,
+  },
 ];
