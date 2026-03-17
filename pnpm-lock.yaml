@@ -12,6 +12,9 @@ importers:
 
   .:
     dependencies:
+      '@aliou/pi-utils-ui':
+        specifier: ^0.1.2
+        version: 0.1.2(@mariozechner/pi-coding-agent@0.52.7(ws@8.19.0)(zod@3.25.76))(@mariozechner/pi-tui@0.52.7)
       '@mariozechner/pi-tui':
         specifier: 0.52.7
         version: 0.52.7
@@ -19,9 +22,6 @@ importers:
       '@aliou/biome-plugins':
         specifier: ^0.3.2
         version: 0.3.2(@biomejs/biome@2.4.3)
-      '@aliou/pi-utils-ui':
-        specifier: ^0.1.2
-        version: 0.1.2(@mariozechner/pi-coding-agent@0.52.7(ws@8.19.0)(zod@3.25.76))(@mariozechner/pi-tui@0.52.7)
       '@biomejs/biome':
         specifier: ^2.4.2
         version: 2.4.3
