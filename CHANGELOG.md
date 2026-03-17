@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.8.1
+
+### Patch Changes
+
+- e2ff8ec: Fix dependency group for utils-ui
+
 ## 0.8.0
 
 ### Minor Changes
