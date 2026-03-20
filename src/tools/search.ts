@@ -163,7 +163,10 @@ export function registerSyntheticWebSearchTool(pi: ExtensionAPI): void {
             text += theme.fg("dim", ` (+${results.length - 1} more)`);
           }
         }
-        text += theme.fg("muted", ` ${keyHint("expandTools", "to expand")}`);
+        text += theme.fg(
+          "muted",
+          ` ${keyHint("app.tools.expand", "to expand")}`,
+        );
         container.addChild(new Text(text, 0, 0));
       } else {
         // Expanded: show each result with title, URL, date, and snippet
