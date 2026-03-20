@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.8.2
+
+### Patch Changes
+
+- 0c5dbd2: update Pi deps to 0.61.0, migrate keybinding hints, and refresh model pricing
+
 ## 0.8.1
 
 ### Patch Changes
