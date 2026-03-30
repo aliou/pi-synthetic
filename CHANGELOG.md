@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.8.3
+
+### Patch Changes
+
+- 82b82a7: sync GLM-4.7 and Kimi-K2.5 pricing with live Synthetic API to fix model validation CI
+
 ## 0.8.2
 
 ### Patch Changes
