@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.8.4
+
+### Patch Changes
+
+- 6c5b9e4: add hf:zai-org/GLM-5 to synthetic model registry
+
 ## 0.8.3
 
 ### Patch Changes
