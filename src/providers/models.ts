@@ -55,6 +55,25 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     contextWindow: 202752,
     maxTokens: 65536,
   },
+  // API: hf:zai-org/GLM-5 → ctx=196608, out=65536
+  {
+    id: "hf:zai-org/GLM-5",
+    name: "zai-org/GLM-5",
+    reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
+    input: ["text"],
+    cost: {
+      input: 1,
+      output: 6,
+      cacheRead: 1,
+      cacheWrite: 0,
+    },
+    contextWindow: 196608,
+    maxTokens: 65536,
+  },
   // API: hf:zai-org/GLM-4.7-Flash → ctx=196608
   {
     id: "hf:zai-org/GLM-4.7-Flash",
