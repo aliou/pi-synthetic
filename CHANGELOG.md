@@ -1,5 +1,31 @@
 # @aliou/pi-synthetic
 
+## 0.8.5
+
+### Patch Changes
+
+- 64cf4ec: Redesign quotas command display to match pi-harness style
+
+  - Single unified view showing all quotas at once
+  - Progress bar with filled (█) and empty (░) characters
+  - Usage display format: `5/335 (2%)` showing actual used/limit and percentage
+  - Estimated usage percentage based on current pace (`est X%`)
+  - Pace indicator (ahead/behind)
+  - Actual datetime for reset time (e.g., "today 5:31 PM" or "Apr 3 12:32 PM")
+  - Responsive layout for narrower terminals
+
+- b1986fb: Enable per-feature extension toggling via pi config
+
+  Split the monolithic extension into three independent entry points:
+
+  - **Provider** - Synthetic model provider (always active when API key set)
+  - **Web Search** - Zero-data-retention web search tool
+  - **Quotas Command** - API usage quotas display command
+
+  Users can now enable/disable features individually via `pi config` instead of all-or-nothing.
+
+- a7aa27f: Change sub bar label from "Free" to "Tools" for free tool calls
+
 ## 0.8.4
 
 ### Patch Changes
