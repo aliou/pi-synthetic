@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import type { QuotasResponse } from "../types/quotas";
-import { fetchQuotas, formatResetTime } from "../utils/quotas";
+import type { QuotasResponse } from "../../types/quotas";
+import { fetchQuotas, formatResetTime } from "../../utils/quotas";
 
 interface RateWindow {
   label: string;

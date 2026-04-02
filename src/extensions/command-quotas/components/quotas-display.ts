@@ -1,7 +1,7 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import type { Component, TUI } from "@mariozechner/pi-tui";
 import { matchesKey } from "@mariozechner/pi-tui";
-import type { QuotasResponse } from "../types/quotas";
+import type { QuotasResponse } from "../../../types/quotas";
 import { TabbedScrollablePanel } from "./tabbed-panel";
 
 export class QuotasDisplayComponent implements Component {

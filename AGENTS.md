@@ -24,23 +24,27 @@ pnpm changeset    # Create changeset for versioning
 
 ```
 src/
-  index.ts                      # Extension entry, registers provider, tools, hooks, commands
-  providers/
-    index.ts                    # Provider registration (OpenAI-compatible API)
-    models.ts                   # Hardcoded model definitions
-    models.test.ts              # Model config tests
-  tools/
-    search.ts                   # Synthetic web search tool registration
-  hooks/
-    search-tool-availability.ts # Dynamic tool availability based on subscription
-    sub-integration.ts          # Integration with pi-sub-core for usage display
-  commands/
-    quotas.ts                   # `synthetic:quotas` command for usage display
-  components/
-    quotas-display.ts           # TUI component for quotas display
-    quotas-error.ts             # TUI component for quotas error state
-    quotas-loading.ts           # TUI component for quotas loading state
-    tabbed-panel.ts             # Reusable TUI tabbed panel component
+  extensions/
+    provider/
+      index.ts                  # Provider extension entry point
+      models.ts                 # Hardcoded model definitions
+      models.test.ts            # Model config tests
+    web-search/
+      index.ts                  # Web search extension entry point
+      tool.ts                   # Synthetic web search tool registration
+      hooks.ts                  # Dynamic tool availability based on subscription
+    command-quotas/
+      index.ts                  # Quotas command extension entry point
+      command.ts                # `synthetic:quotas` command for usage display
+      sub-integration.ts        # Integration with pi-sub-core for usage display
+      components/
+        quotas-display.ts       # TUI component for quotas display
+        quotas-error.ts         # TUI component for quotas error state
+        quotas-loading.ts       # TUI component for quotas loading state
+        tabbed-panel.ts         # Reusable TUI tabbed panel component
+  lib/
+    env.ts                      # API key helpers
+    init.ts                     # Readiness guard
   types/
     quotas.ts                   # Quotas API response types
   utils/
@@ -51,7 +55,7 @@ src/
 
 - API key comes from environment (`SYNTHETIC_API_KEY`)
 - Provider uses OpenAI-compatible API at `https://api.synthetic.new/openai/v1`
-- Models are hardcoded in `src/providers/models.ts`
+- Models are hardcoded in `src/extensions/provider/models.ts`
 - Web search tool requires active subscription (checked at runtime)
 - Quotas command only registered when `SYNTHETIC_API_KEY` is present
 
@@ -88,7 +92,7 @@ Get maxTokens from `https://models.dev/api.json` (synthetic provider).
 
 ## Adding Models
 
-Edit `src/providers/models.ts` and append to `SYNTHETIC_MODELS` array.
+Edit `src/extensions/provider/models.ts` and append to `SYNTHETIC_MODELS` array.
 
 ## Versioning
 

@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { SYNTHETIC_WEB_SEARCH_TOOL } from "../tools/search";
+import { SYNTHETIC_WEB_SEARCH_TOOL } from "./tool";
 
 async function checkSubscriptionAccess(
   apiKey: string,
