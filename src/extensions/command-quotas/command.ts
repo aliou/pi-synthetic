@@ -1,53 +1,38 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import type { Component } from "@mariozechner/pi-tui";
 import { fetchQuotas } from "../../utils/quotas";
-import { QuotasDisplayComponent } from "./components/quotas-display";
-import { QuotasErrorComponent } from "./components/quotas-error";
-import { QuotasLoadingComponent } from "./components/quotas-loading";
+import { QuotasComponent } from "./components/quotas-display";
 
 export function registerQuotasCommand(pi: ExtensionAPI): void {
   pi.registerCommand("synthetic:quotas", {
     description: "Display Synthetic API usage quotas",
     handler: async (_args, ctx) => {
       const result = await ctx.ui.custom<null>((tui, theme, _kb, done) => {
-        let currentComponent: Component = new QuotasLoadingComponent(theme);
+        const component = new QuotasComponent(theme, () => done(null));
 
         fetchQuotas()
           .then((quotas) => {
             if (!quotas) {
-              currentComponent = new QuotasErrorComponent(
-                theme,
-                "Failed to fetch quotas",
-              );
+              component.setState({
+                type: "error",
+                message: "Failed to fetch quotas",
+              });
             } else {
-              currentComponent = new QuotasDisplayComponent(
-                theme,
-                quotas,
-                () => {
-                  done(null);
-                },
-              );
+              component.setState({ type: "loaded", quotas });
             }
             tui.requestRender();
           })
           .catch(() => {
-            currentComponent = new QuotasErrorComponent(
-              theme,
-              "Failed to fetch quotas",
-            );
+            component.setState({
+              type: "error",
+              message: "Failed to fetch quotas",
+            });
             tui.requestRender();
           });
 
         return {
-          render: (width: number) => currentComponent.render(width),
-          invalidate: () => currentComponent.invalidate(),
-          handleInput: (data: string) => {
-            if (currentComponent.handleInput) {
-              return currentComponent.handleInput(data);
-            }
-            done(null);
-            return true;
-          },
+          render: (width: number) => component.render(width),
+          invalidate: () => component.invalidate(),
+          handleInput: (data: string) => component.handleInput(data),
         };
       });
 

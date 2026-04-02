@@ -1,41 +1,172 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
-import type { Component, TUI } from "@mariozechner/pi-tui";
-import { matchesKey } from "@mariozechner/pi-tui";
+import { DynamicBorder } from "@mariozechner/pi-coding-agent";
+import type { Component } from "@mariozechner/pi-tui";
+import {
+  matchesKey,
+  truncateToWidth,
+  visibleWidth,
+} from "@mariozechner/pi-tui";
 import type { QuotasResponse } from "../../../types/quotas";
-import { TabbedScrollablePanel } from "./tabbed-panel";
 
-export class QuotasDisplayComponent implements Component {
-  private panel: TabbedScrollablePanel;
+type QuotasState =
+  | { type: "loading" }
+  | { type: "error"; message: string }
+  | { type: "loaded"; quotas: QuotasResponse };
+
+interface QuotaWindow {
+  label: string;
+  usedPercent: number;
+  resetsAt: Date;
+  windowSeconds: number;
+  usedValue: number;
+  limitValue: number;
+}
+
+function toWindows(quotas: QuotasResponse): QuotaWindow[] {
+  const windows: QuotaWindow[] = [];
+
+  if (quotas.subscription.limit > 0) {
+    windows.push({
+      label: "Completions",
+      usedPercent:
+        (quotas.subscription.requests / quotas.subscription.limit) * 100,
+      resetsAt: new Date(quotas.subscription.renewsAt),
+      windowSeconds: 5 * 60 * 60,
+      usedValue: quotas.subscription.requests,
+      limitValue: quotas.subscription.limit,
+    });
+  }
+
+  if (quotas.search.hourly.limit > 0) {
+    windows.push({
+      label: "Search",
+      usedPercent:
+        (quotas.search.hourly.requests / quotas.search.hourly.limit) * 100,
+      resetsAt: new Date(quotas.search.hourly.renewsAt),
+      windowSeconds: 60 * 60,
+      usedValue: quotas.search.hourly.requests,
+      limitValue: quotas.search.hourly.limit,
+    });
+  }
+
+  if (quotas.freeToolCalls.limit > 0) {
+    windows.push({
+      label: "Free Tool Calls",
+      usedPercent:
+        (quotas.freeToolCalls.requests / quotas.freeToolCalls.limit) * 100,
+      resetsAt: new Date(quotas.freeToolCalls.renewsAt),
+      windowSeconds: 24 * 60 * 60,
+      usedValue: quotas.freeToolCalls.requests,
+      limitValue: quotas.freeToolCalls.limit,
+    });
+  }
+
+  return windows;
+}
+
+function getPacePercent(window: QuotaWindow): number | null {
+  const totalMs = window.windowSeconds * 1000;
+  if (totalMs <= 0) return null;
+  const remainingMs = window.resetsAt.getTime() - Date.now();
+  const elapsedMs = totalMs - remainingMs;
+  return Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
+}
+
+function getProjectedPercent(
+  usedPercent: number,
+  pacePercent: number | null,
+): number {
+  if (pacePercent === null) return usedPercent;
+  const effectivePace = Math.max(5, pacePercent);
+  return Math.max(0, (usedPercent / effectivePace) * 100);
+}
+
+function getSeverity(
+  projectedPercent: number,
+  pacePercent: number | null,
+): "success" | "warning" | "error" {
+  if (pacePercent === null) {
+    if (projectedPercent >= 100) return "error";
+    if (projectedPercent >= 90) return "warning";
+    return "success";
+  }
+  // Dynamic thresholds based on window progress
+  const progress = pacePercent / 100;
+  const warnThreshold = 260 - (260 - 120) * progress;
+  const highThreshold = 320 - (320 - 145) * progress;
+  const criticalThreshold = 400 - (400 - 170) * progress;
+
+  if (projectedPercent >= criticalThreshold) return "error";
+  if (projectedPercent >= highThreshold) return "error";
+  if (projectedPercent >= warnThreshold) return "warning";
+  return "success";
+}
+
+function formatResetDateTime(date: Date): string {
+  const now = new Date();
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  if (isToday) {
+    return `today ${timeStr}`;
+  }
+
+  const dateStr = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+
+  return `${dateStr} ${timeStr}`;
+}
+
+function renderProgressBar(
+  percent: number,
+  width: number,
+  theme: Theme,
+  fillColor: "success" | "warning" | "error",
+  pacePercent?: number | null,
+): string {
+  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
+  const filled = Math.round((clamped / 100) * width);
+  const paceIndex =
+    pacePercent === null || pacePercent === undefined || pacePercent <= percent
+      ? null
+      : Math.round((Math.max(0, Math.min(100, pacePercent)) / 100) * width);
+
+  const parts: string[] = [];
+  for (let idx = 0; idx < width; idx++) {
+    if (idx < filled) {
+      parts.push(theme.fg(fillColor, "█"));
+    } else if (paceIndex !== null && idx < paceIndex) {
+      parts.push(theme.fg(fillColor, "▓"));
+    } else {
+      parts.push(theme.fg("dim", "░"));
+    }
+  }
+
+  return parts.join("");
+}
+
+export class QuotasComponent implements Component {
+  private state: QuotasState = { type: "loading" };
+  private theme: Theme;
   private onClose: () => void;
 
-  constructor(theme: Theme, quotas: QuotasResponse, onClose: () => void) {
+  constructor(theme: Theme, onClose: () => void) {
+    this.theme = theme;
     this.onClose = onClose;
+  }
 
-    this.panel = new TabbedScrollablePanel(
-      {
-        title: "Synthetic API Quotas",
-        tabs: [
-          {
-            label: "Completions",
-            buildContent: () =>
-              buildHybridLayout(theme, quotas.subscription, 5), // 5-hour window
-          },
-          {
-            label: "Search",
-            buildContent: () =>
-              buildHybridLayout(theme, quotas.search.hourly, 1), // 1 hour
-          },
-          {
-            label: "Free tool call",
-            buildContent: () =>
-              buildToolCallsLayout(theme, quotas.freeToolCalls, 24), // 24 hours (daily)
-          },
-        ],
-        onClose: onClose,
-      },
-      null as unknown as TUI,
-      theme,
-    );
+  setState(state: QuotasState): void {
+    this.state = state;
   }
 
   handleInput(data: string): boolean {
@@ -43,198 +174,141 @@ export class QuotasDisplayComponent implements Component {
       this.onClose();
       return true;
     }
-    return this.panel.handleInput(data);
+    return false;
   }
 
   render(width: number): string[] {
-    return this.panel.render(width);
+    const lines: string[] = [];
+    const border = new DynamicBorder((s: string) => this.theme.fg("border", s));
+    const contentWidth = Math.max(1, width - 4);
+
+    lines.push(...border.render(width));
+    lines.push(
+      truncateToWidth(
+        ` ${this.theme.fg("accent", this.theme.bold("Synthetic API Quotas"))}`,
+        width,
+      ),
+    );
+    lines.push("");
+
+    switch (this.state.type) {
+      case "loading":
+        lines.push(this.theme.fg("muted", "  Loading..."));
+        break;
+      case "error":
+        lines.push(this.theme.fg("error", `  ${this.state.message}`));
+        break;
+      case "loaded":
+        lines.push(
+          ...this.renderLoaded(this.state.quotas, contentWidth, width),
+        );
+        break;
+    }
+
+    lines.push("");
+    lines.push(this.theme.fg("dim", "  q/Esc to close"));
+    lines.push(...border.render(width));
+
+    return lines;
+  }
+
+  private renderLoaded(
+    quotas: QuotasResponse,
+    contentWidth: number,
+    maxWidth: number,
+  ): string[] {
+    const lines: string[] = [];
+    const windows = toWindows(quotas);
+    const barWidth = Math.min(50, Math.max(20, contentWidth - 20));
+
+    for (const window of windows) {
+      lines.push(...this.renderWindow(window, barWidth, maxWidth));
+      lines.push("");
+    }
+
+    // Remove trailing empty line
+    if (lines.length > 0 && lines[lines.length - 1] === "") {
+      lines.pop();
+    }
+
+    return lines;
+  }
+
+  private renderWindow(
+    window: QuotaWindow,
+    barWidth: number,
+    maxWidth: number,
+  ): string[] {
+    const lines: string[] = [];
+    const theme = this.theme;
+
+    const pacePercent = getPacePercent(window);
+    const projectedPercent = getProjectedPercent(
+      window.usedPercent,
+      pacePercent,
+    );
+    const severity = getSeverity(projectedPercent, pacePercent);
+
+    // Label
+    lines.push(
+      truncateToWidth(`  ${theme.fg("accent", window.label)}`, maxWidth),
+    );
+
+    // Progress bar + usage
+    const bar = renderProgressBar(
+      window.usedPercent,
+      barWidth,
+      theme,
+      severity,
+      pacePercent,
+    );
+    const usedStr = `${window.usedValue.toLocaleString()}/${window.limitValue.toLocaleString()} (${Math.round(window.usedPercent)}%)`;
+    lines.push(
+      truncateToWidth(`  ${bar} ${theme.fg(severity, usedStr)}`, maxWidth),
+    );
+
+    // Metadata: estimated + pace left, reset time right
+    const leftParts: string[] = [];
+    if (projectedPercent > 0) {
+      const estStr = `est ${Math.round(projectedPercent)}%`;
+      leftParts.push(
+        severity !== "success"
+          ? theme.fg(severity, estStr)
+          : theme.fg("dim", estStr),
+      );
+    }
+
+    if (pacePercent !== null) {
+      const paceDiff = window.usedPercent - pacePercent;
+      if (Math.abs(paceDiff) > 5) {
+        if (paceDiff > 0) {
+          leftParts.push(
+            theme.fg("warning", `${Math.round(Math.abs(paceDiff))}% ahead`),
+          );
+        } else {
+          leftParts.push(
+            theme.fg("success", `${Math.round(Math.abs(paceDiff))}% behind`),
+          );
+        }
+      }
+    }
+
+    const leftStr = leftParts.join("  ");
+    const resetStr = formatResetDateTime(window.resetsAt);
+    const rightStr = theme.fg("dim", resetStr);
+
+    const leftW = visibleWidth(leftStr);
+    const rightW = visibleWidth(rightStr);
+    const gap = Math.max(2, barWidth - leftW - rightW);
+
+    lines.push(
+      truncateToWidth(`  ${leftStr}${" ".repeat(gap)}${rightStr}`, maxWidth),
+    );
+
+    return lines;
   }
 
   invalidate(): void {
-    this.panel.invalidate();
-  }
-}
-
-// Layout: bar + pct/cur-total + pace/reset
-function buildHybridLayout(
-  theme: Theme,
-  quota: { limit: number; requests: number; renewsAt: string },
-  periodHours: number,
-): string[] {
-  const percentUsed = Math.round((quota.requests / quota.limit) * 100);
-  const renewsAt = new Date(quota.renewsAt);
-  const now = new Date();
-
-  const lines: string[] = [];
-  const barWidth = 50;
-
-  const usedStr = quota.requests.toLocaleString();
-  const limitStr = quota.limit.toLocaleString();
-
-  // Color based on usage
-  const usedColor =
-    percentUsed >= 100 ? "error" : percentUsed > 75 ? "warning" : "success";
-
-  // Calculate pace with known period
-  const totalPeriod = periodHours * 60 * 60 * 1000;
-  const timeUntilReset = Math.max(0, renewsAt.getTime() - now.getTime());
-  const timeElapsed = totalPeriod - timeUntilReset;
-  const percentTimeElapsed = (timeElapsed / totalPeriod) * 100;
-  const paceDiff = percentUsed - percentTimeElapsed;
-
-  let paceStr: string;
-  let paceColor: "success" | "dim" | "error";
-  if (paceDiff < -10) {
-    paceStr = `${Math.round(Math.abs(paceDiff))}% behind pace`;
-    paceColor = "success";
-  } else if (paceDiff > 10) {
-    paceStr = `${Math.round(paceDiff)}% ahead of pace`;
-    paceColor = "error";
-  } else {
-    paceStr = "within pace";
-    paceColor = "dim";
-  }
-
-  // Row above bar: pct left, cur/total right
-  const pctStr = `${percentUsed}% used`;
-  const totalDisplay = `${usedStr}/${limitStr}`;
-  const spacing = " ".repeat(
-    Math.max(1, barWidth - pctStr.length - totalDisplay.length),
-  );
-  lines.push(
-    `  ${theme.fg(usedColor, pctStr)}${spacing}${theme.fg("dim", totalDisplay)}`,
-  );
-
-  // Bar
-  const usedWidth = Math.round((percentUsed / 100) * barWidth);
-  let bar: string;
-  if (usedWidth >= barWidth) {
-    bar = theme.fg("error", "█".repeat(barWidth));
-  } else if (percentUsed > 75) {
-    bar =
-      theme.fg("warning", "█".repeat(usedWidth)) +
-      theme.fg("dim", "█".repeat(barWidth - usedWidth));
-  } else {
-    bar =
-      theme.fg("success", "█".repeat(usedWidth)) +
-      theme.fg("dim", "█".repeat(barWidth - usedWidth));
-  }
-  lines.push(`  ${bar}`);
-
-  // Row below bar: pace left, reset right
-  const resetStr = formatShortTime(renewsAt);
-  const paceSpacing = " ".repeat(
-    Math.max(1, barWidth - paceStr.length - resetStr.length),
-  );
-  lines.push(
-    `  ${theme.fg(paceColor, paceStr)}${paceSpacing}${theme.fg("dim", resetStr)}`,
-  );
-
-  return lines;
-}
-
-// Layout for free tool calls - shows remaining, not usage
-function buildToolCallsLayout(
-  theme: Theme,
-  quota: { limit: number; requests: number; renewsAt: string },
-  periodHours: number,
-): string[] {
-  const remaining = quota.limit - quota.requests;
-  const percentRemaining = Math.round((remaining / quota.limit) * 100);
-  const renewsAt = new Date(quota.renewsAt);
-  const now = new Date();
-
-  const lines: string[] = [];
-  const barWidth = 50;
-
-  const remainingStr = remaining.toLocaleString();
-
-  // Color based on remaining (inverse of usage)
-  const remainingColor =
-    remaining <= 0 ? "error" : percentRemaining < 25 ? "warning" : "success";
-
-  // Calculate pace (how fast you're consuming free calls)
-  const totalPeriod = periodHours * 60 * 60 * 1000;
-  const timeUntilReset = Math.max(0, renewsAt.getTime() - now.getTime());
-  const timeElapsed = totalPeriod - timeUntilReset;
-  const percentTimeElapsed = (timeElapsed / totalPeriod) * 100;
-  const expectedRemaining = Math.round(
-    quota.limit * (1 - percentTimeElapsed / 100),
-  );
-  const remainingDiff = remaining - expectedRemaining;
-
-  let paceStr: string;
-  let paceColor: "success" | "dim" | "error";
-  if (remainingDiff > quota.limit * 0.1) {
-    paceStr = `${remainingDiff.toLocaleString()} more than expected`;
-    paceColor = "success";
-  } else if (remainingDiff < -quota.limit * 0.1) {
-    paceStr = `${Math.abs(remainingDiff).toLocaleString()} fewer than expected`;
-    paceColor = "error";
-  } else {
-    paceStr = "on track";
-    paceColor = "dim";
-  }
-
-  // Row above bar: pct remaining left, ratio right (like other tabs)
-  const pctStr = `${percentRemaining}% remaining`;
-  const ratioStr = `${remainingStr}/${quota.limit.toLocaleString()}`;
-  const spacing = " ".repeat(
-    Math.max(1, barWidth - pctStr.length - ratioStr.length),
-  );
-  lines.push(
-    `  ${theme.fg(remainingColor, pctStr)}${spacing}${theme.fg("dim", ratioStr)}`,
-  );
-
-  // Bar (shows remaining, not used - so full bar = all remaining)
-  const remainingWidth = Math.round((percentRemaining / 100) * barWidth);
-  let bar: string;
-  if (remaining <= 0) {
-    bar = theme.fg("dim", "█".repeat(barWidth));
-  } else if (percentRemaining < 25) {
-    bar =
-      theme.fg("warning", "█".repeat(remainingWidth)) +
-      theme.fg("dim", "█".repeat(barWidth - remainingWidth));
-  } else {
-    bar =
-      theme.fg("success", "█".repeat(remainingWidth)) +
-      theme.fg("dim", "█".repeat(barWidth - remainingWidth));
-  }
-  lines.push(`  ${bar}`);
-
-  // Row below bar: pace left, reset right
-  const resetStr = formatShortTime(renewsAt);
-  const paceSpacing = " ".repeat(
-    Math.max(1, barWidth - paceStr.length - resetStr.length),
-  );
-  lines.push(
-    `  ${theme.fg(paceColor, paceStr)}${paceSpacing}${theme.fg("dim", resetStr)}`,
-  );
-
-  // If depleted, show note about paid calls
-  if (remaining <= 0) {
-    lines.push(`  ${theme.fg("dim", "Additional calls will be charged")}`);
-  }
-
-  return lines;
-}
-
-function formatShortTime(date: Date): string {
-  const now = new Date();
-  const diffMs = date.getTime() - now.getTime();
-
-  if (diffMs <= 0) {
-    return "soon";
-  }
-
-  const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffHours < 24) {
-    return `in ${diffHours}h`;
-  } else if (diffDays < 7) {
-    return `in ${diffDays}d`;
-  } else {
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    // No internal cached state to invalidate
   }
 }
