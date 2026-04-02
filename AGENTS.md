@@ -38,10 +38,7 @@ src/
       command.ts                # `synthetic:quotas` command for usage display
       sub-integration.ts        # Integration with pi-sub-core for usage display
       components/
-        quotas-display.ts       # TUI component for quotas display
-        quotas-error.ts         # TUI component for quotas error state
-        quotas-loading.ts       # TUI component for quotas loading state
-        tabbed-panel.ts         # Reusable TUI tabbed panel component
+        quotas-display.ts       # TUI component for quotas display (all states)
   lib/
     env.ts                      # API key helpers
     init.ts                     # Readiness guard
