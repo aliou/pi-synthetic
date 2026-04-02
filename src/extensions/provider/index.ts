@@ -26,3 +26,7 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
     })),
   });
 }
+
+export default async function (pi: ExtensionAPI) {
+  registerSyntheticProvider(pi);
+}

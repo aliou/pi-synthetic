@@ -1,9 +1,9 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import type { Component } from "@mariozechner/pi-tui";
-import { QuotasDisplayComponent } from "../components/quotas-display";
-import { QuotasErrorComponent } from "../components/quotas-error";
-import { QuotasLoadingComponent } from "../components/quotas-loading";
-import { fetchQuotas } from "../utils/quotas";
+import { fetchQuotas } from "../../utils/quotas";
+import { QuotasDisplayComponent } from "./components/quotas-display";
+import { QuotasErrorComponent } from "./components/quotas-error";
+import { QuotasLoadingComponent } from "./components/quotas-loading";
 
 export function registerQuotasCommand(pi: ExtensionAPI): void {
   pi.registerCommand("synthetic:quotas", {
