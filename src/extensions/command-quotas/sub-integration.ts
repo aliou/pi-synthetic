@@ -53,7 +53,7 @@ function toUsageSnapshot(quotas: QuotasResponse): UsageSnapshot {
     const pct =
       (quotas.freeToolCalls.requests / quotas.freeToolCalls.limit) * 100;
     windows.push({
-      label: "Free",
+      label: "Tools",
       usedPercent: Math.round(pct),
       resetDescription: formatResetTime(quotas.freeToolCalls.renewsAt),
       resetAt: quotas.freeToolCalls.renewsAt,
