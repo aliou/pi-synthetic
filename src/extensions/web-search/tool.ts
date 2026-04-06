@@ -9,6 +9,7 @@ import type {
 import { getMarkdownTheme, keyHint } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Text } from "@mariozechner/pi-tui";
 import { type Static, Type } from "@sinclair/typebox";
+import { getSyntheticApiKey } from "../../lib/env";
 
 export const SYNTHETIC_WEB_SEARCH_TOOL = "synthetic_web_search" as const;
 
@@ -51,16 +52,18 @@ export function registerSyntheticWebSearchTool(pi: ExtensionAPI): void {
       onUpdate:
         | ((result: AgentToolResult<WebSearchDetails>) => void)
         | undefined,
-      _ctx: ExtensionContext,
+      ctx: ExtensionContext,
     ): Promise<AgentToolResult<WebSearchDetails>> {
       onUpdate?.({
         content: [{ type: "text", text: "Searching..." }],
         details: { query: params.query },
       });
 
-      const apiKey = process.env.SYNTHETIC_API_KEY;
+      const apiKey = await getSyntheticApiKey(ctx.modelRegistry.authStorage);
       if (!apiKey) {
-        throw new Error("SYNTHETIC_API_KEY is not configured");
+        throw new Error(
+          "Synthetic web search requires a Synthetic subscription. Add credentials to ~/.pi/agent/auth.json or set SYNTHETIC_API_KEY environment variable.",
+        );
       }
 
       const response = await fetch("https://api.synthetic.new/v2/search", {

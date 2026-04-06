@@ -42,7 +42,7 @@ async function fetchApiModels(): Promise<ApiModel[]> {
     );
   }
 
-  const data = (await response.json()) as ApiResponse;
+  const data: ApiResponse = await response.json();
   return data.data;
 }
 
