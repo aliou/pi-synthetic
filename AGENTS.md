@@ -32,7 +32,6 @@ src/
     web-search/
       index.ts                  # Web search extension entry point
       tool.ts                   # Synthetic web search tool registration
-      hooks.ts                  # Dynamic tool availability based on subscription
     command-quotas/
       index.ts                  # Quotas command extension entry point
       command.ts                # `synthetic:quotas` command for usage display
@@ -40,7 +39,7 @@ src/
       components/
         quotas-display.ts       # TUI component for quotas display (all states)
   lib/
-    env.ts                      # API key helpers
+    env.ts                      # Auth helpers wrapping Pi AuthStorage
     init.ts                     # Readiness guard
   types/
     quotas.ts                   # Quotas API response types
@@ -50,11 +49,11 @@ src/
 
 ## Conventions
 
-- API key comes from environment (`SYNTHETIC_API_KEY`)
+- Credentials come from Pi auth handling (`AuthStorage`): `~/.pi/agent/auth.json` (recommended) or `SYNTHETIC_API_KEY` environment variable
 - Provider uses OpenAI-compatible API at `https://api.synthetic.new/openai/v1`
 - Models are hardcoded in `src/extensions/provider/models.ts`
-- Web search tool requires active subscription (checked at runtime)
-- Quotas command only registered when `SYNTHETIC_API_KEY` is present
+- Web search tool and quotas command are always registered; they fail at call time if credentials/subscription are missing
+- Error messages guide users to add credentials to `~/.pi/agent/auth.json` or set `SYNTHETIC_API_KEY`
 
 ## Model Configuration
 

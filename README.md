@@ -8,17 +8,26 @@ A Pi extension that adds [Synthetic](https://synthetic.new) as a model provider,
 
 Sign up at [synthetic.new](https://synthetic.new/?referral=NDWw1u3UDWiFyDR) to get an API key (referral link).
 
-### Set Environment Variable
+### Configure Credentials
+
+The extension uses Pi's credential storage. Add your API key to `~/.pi/agent/auth.json` (recommended):
+
+```json
+{
+  "synthetic": { "type": "api_key", "key": "your-api-key-here" }
+}
+```
+
+Or set environment variable:
 
 ```bash
 export SYNTHETIC_API_KEY="your-api-key-here"
 ```
 
-Add to shell profile for persistence:
-
-```bash
-echo 'export SYNTHETIC_API_KEY="your-api-key-here"' >> ~/.zshrc
-```
+Credentials are resolved in this order:
+1. CLI `--api-key` flag
+2. `auth.json` entry for `synthetic`
+3. Environment variable `SYNTHETIC_API_KEY`
 
 ### Install Extension
 
@@ -43,7 +52,7 @@ Once installed, select `synthetic` as your provider and choose from available mo
 
 ### Web Search Tool
 
-The extension registers `synthetic_web_search` — a zero-data-retention web search tool. Available when you have an active Synthetic subscription.
+The extension registers `synthetic_web_search` — a zero-data-retention web search tool. The tool is always visible; it fails with a clear message if credentials are missing or the account lacks a subscription.
 
 ### Reasoning Levels
 
@@ -124,7 +133,7 @@ This repository uses [Changesets](https://github.com/changesets/changesets) for 
 ## Requirements
 
 - Pi coding agent v0.50.0+
-- SYNTHETIC_API_KEY environment variable
+- Synthetic API key (configured in `~/.pi/agent/auth.json` or via `SYNTHETIC_API_KEY`)
 
 ## Links
 

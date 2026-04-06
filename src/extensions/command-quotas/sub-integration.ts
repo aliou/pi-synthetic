@@ -1,4 +1,5 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { AuthStorage, ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { getSyntheticApiKey } from "../../lib/env";
 import type { QuotasResponse } from "../../types/quotas";
 import { fetchQuotas, formatResetTime } from "../../utils/quotas";
 
@@ -68,8 +69,13 @@ function toUsageSnapshot(quotas: QuotasResponse): UsageSnapshot {
   };
 }
 
-async function emitCurrentUsage(pi: ExtensionAPI): Promise<void> {
-  const quotas = await fetchQuotas();
+async function emitCurrentUsage(
+  pi: ExtensionAPI,
+  authStorage: AuthStorage,
+): Promise<void> {
+  const apiKey = await getSyntheticApiKey(authStorage);
+  if (!apiKey) return;
+  const quotas = await fetchQuotas(apiKey);
   if (!quotas) return;
   pi.events.emit("sub-core:update-current", {
     state: { provider: "synthetic", usage: toUsageSnapshot(quotas) },
@@ -77,12 +83,11 @@ async function emitCurrentUsage(pi: ExtensionAPI): Promise<void> {
 }
 
 export function registerSubIntegration(pi: ExtensionAPI): void {
-  if (!process.env.SYNTHETIC_API_KEY) return;
-
   let interval: NodeJS.Timeout | undefined;
   let refreshMs = 60000;
   let subCoreReady = false;
   let currentProvider: string | undefined;
+  let currentAuthStorage: AuthStorage | undefined;
 
   function isSynthetic(): boolean {
     return currentProvider === "synthetic";
@@ -95,15 +100,15 @@ export function registerSubIntegration(pi: ExtensionAPI): void {
     }
   }
 
-  function start(): void {
+  function startPolling(authStorage: AuthStorage): void {
     stop();
-    if (!subCoreReady || !isSynthetic()) {
-      return;
-    }
-    emitCurrentUsage(pi);
+    currentAuthStorage = authStorage;
+    void emitCurrentUsage(pi, authStorage);
     const ms = Math.max(10000, refreshMs);
     interval = setInterval(() => {
-      if (isSynthetic()) emitCurrentUsage(pi);
+      if (isSynthetic() && currentAuthStorage) {
+        void emitCurrentUsage(pi, currentAuthStorage);
+      }
     }, ms);
     interval.unref?.();
   }
@@ -111,28 +116,44 @@ export function registerSubIntegration(pi: ExtensionAPI): void {
   // Custom events (inter-extension bus)
   pi.events.on("sub-core:ready", () => {
     subCoreReady = true;
-    start();
+    // Polling starts in session_start/model_select when provider is synthetic
   });
 
   pi.events.on("sub-core:settings:updated", (data: unknown) => {
     const payload = data as SubCoreSettingsPayload;
     if (payload.settings?.behavior?.refreshInterval) {
       refreshMs = payload.settings.behavior.refreshInterval * 1000;
-      if (interval) start();
+      // Restart with new interval if currently running
+      if (interval && isSynthetic() && currentAuthStorage) {
+        startPolling(currentAuthStorage);
+      }
     }
   });
 
-  // Lifecycle events (pi.on, not pi.events.on)
-  pi.on("session_start", (_event, ctx) => {
+  // Lifecycle events
+  pi.on("session_start", async (_event, ctx) => {
     currentProvider = ctx.model?.provider;
-    start();
+    currentAuthStorage = ctx.modelRegistry.authStorage;
+
+    if (subCoreReady && isSynthetic()) {
+      const apiKey = await getSyntheticApiKey(currentAuthStorage);
+      if (apiKey) {
+        startPolling(currentAuthStorage);
+      }
+    }
   });
 
-  pi.on("model_select", (event, _ctx) => {
+  pi.on("model_select", async (event, ctx) => {
     currentProvider = event.model?.provider;
-    if (isSynthetic()) {
-      emitCurrentUsage(pi);
-      start();
+    currentAuthStorage = ctx.modelRegistry.authStorage;
+
+    if (subCoreReady && isSynthetic()) {
+      const apiKey = await getSyntheticApiKey(currentAuthStorage);
+      if (apiKey) {
+        startPolling(currentAuthStorage);
+      } else {
+        stop();
+      }
     } else {
       stop();
     }
@@ -140,6 +161,7 @@ export function registerSubIntegration(pi: ExtensionAPI): void {
 
   pi.on("session_shutdown", () => {
     currentProvider = undefined;
+    currentAuthStorage = undefined;
     stop();
   });
 }
