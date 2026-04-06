@@ -1,51 +1,71 @@
 ---
 name: update-synthetic-model
-description: Update model metadata for the pi-synthetic extension. Use when adding or refreshing entries in src/providers/models.ts, especially to verify pricing, context, max tokens, input modalities, and reasoning support from Synthetic, then compare against models.dev for the synthetic provider and, if absent there, compare against other providers for the same model.
+description: Update model metadata for the pi-synthetic extension. Use when adding or refreshing entries in src/extensions/provider/models.ts. Start by running the model tests, inspect current hardcoded definitions, fetch live data from Synthetic and models.dev, then update the file proactively without asking the user which model to change.
 ---
 
 # Update Synthetic model
 
-Update `src/providers/models.ts` from live data, not guesswork.
+Update `src/extensions/provider/models.ts` from live data, not guesswork.
+
+## Default behavior
+
+Take initiative.
+
+Do not start by asking which model to update. First detect drift, then update whatever needs updating:
+
+1. Run the model test to find mismatches and new models.
+2. Read the current hardcoded definitions in `src/extensions/provider/models.ts`.
+3. Fetch live model data from:
+   - `https://api.synthetic.new/openai/v1/models`
+   - `https://models.dev/api.json`
+4. Reconcile the differences.
+5. Edit `src/extensions/provider/models.ts`.
+6. Re-run the relevant tests.
+
+Only ask the user if there is a real blocker, such as missing credentials for runtime validation or conflicting evidence you cannot resolve.
 
 ## Sources of truth
 
 Use these in order:
 
 1. Synthetic models endpoint: `https://api.synthetic.new/openai/v1/models`
-2. Synthetic runtime behavior: direct `chat/completions` calls
+2. Existing test failures from `src/extensions/provider/models.test.ts`
 3. `https://models.dev/api.json` under `.synthetic.models`
-4. If a model is missing on models.dev for `synthetic`, inspect the same model under other providers on models.dev for likely `input` and `reasoning` defaults, then confirm with Synthetic runtime calls when possible.
+4. Synthetic runtime behavior via direct `chat/completions` calls when needed
+5. If a model is missing under Synthetic on models.dev, inspect the same model under other providers on models.dev only as supporting evidence
 
-## Update flow
+## Required workflow
 
-1. Read `src/providers/models.ts`.
-2. Query Synthetic models endpoint with `bash` + `jq`.
-3. Copy over fields Synthetic explicitly exposes:
-   - `id`
-   - `name`
-   - `context_length` -> `contextWindow`
-   - `pricing.prompt` -> `cost.input` per 1M
-   - `pricing.completion` -> `cost.output` per 1M
-   - `pricing.input_cache_reads` -> `cost.cacheRead` per 1M
-   - `pricing.input_cache_writes` -> `cost.cacheWrite` per 1M
-   - `input_modalities` -> `input`
-4. Compare the same model against `models.dev` synthetic entry.
-5. If `models.dev` has a Synthetic entry, use it to cross-check:
-   - `reasoning`
-   - `modalities.input`
-   - output limit / max tokens
-6. If `models.dev` does not yet list that model for Synthetic:
-   - inspect the same model on other providers in `models.dev`
-   - use that only as supporting evidence for `input` / `reasoning`
-   - then manually test Synthetic runtime behavior before changing `reasoning` or multimodal input
-7. If Synthetic metadata and runtime disagree, prefer confirmed runtime behavior, but note the discrepancy in a comment or commit message.
-8. Review whether the model needs a `compat` override. Do not add compat fields by default. Add them only when a live request or provider docs show a request-shaping quirk.
+### 1) Start with tests
 
-## Required commands
+Run the targeted model test first so you know what changed:
 
-### 1) Synthetic models endpoint
+```bash
+pnpm test -- src/extensions/provider/models.test.ts
+```
 
-Use `bash` + `jq`, example:
+Use the failures to identify:
+
+- stale fields on existing models
+- models that exist in code but no longer exist upstream
+- new Synthetic models missing from `SYNTHETIC_MODELS`
+
+If the test passes, still check for drift manually by reading the current file and comparing with fresh endpoint data. Do not assume no work is needed just because tests pass.
+
+### 2) Inspect current definitions
+
+Read:
+
+- `src/extensions/provider/models.ts`
+- `src/extensions/provider/models.test.ts`
+
+Use the current file shape and comments as the formatting baseline.
+
+### 3) Fetch Synthetic endpoint data
+
+Query the full model list, then inspect affected models.
+
+Example:
 
 ```bash
 curl -s https://api.synthetic.new/openai/v1/models \
@@ -62,14 +82,15 @@ curl -s https://api.synthetic.new/openai/v1/models \
       input_modalities,
       output_modalities,
       context_length,
+      max_output_length,
       pricing,
       supported_features
     }' --arg id 'hf:zai-org/GLM-4.7-Flash'
 ```
 
-### 2) models.dev synthetic comparison
+### 4) Fetch models.dev data
 
-Check Synthetic provider entry:
+Check the Synthetic provider entry first:
 
 ```bash
 curl -sL -A 'Mozilla/5.0' https://models.dev/api.json \
@@ -83,18 +104,53 @@ curl -sL -A 'Mozilla/5.0' https://models.dev/api.json \
   | jq 'to_entries
     | map({provider: .key, model: .value.models["hf:zai-org/GLM-4.7-Flash"]})
     | map(select(.model != null))
-    | map({provider, reasoning: .model.reasoning, input: .model.modalities.input})'
+    | map({provider, reasoning: .model.reasoning, input: .model.modalities.input, maxTokens: .model.max_output_tokens})'
 ```
 
-## Required manual runtime checks
+## Field mapping
 
-Do not rely only on metadata for `reasoning` or multimodal support.
+Copy these directly from the Synthetic endpoint when available:
+
+- `id`
+- `name`
+- `context_length` -> `contextWindow`
+- `max_output_length` -> `maxTokens` when present and trustworthy
+- `pricing.prompt` -> `cost.input` per 1M
+- `pricing.completion` -> `cost.output` per 1M
+- `pricing.input_cache_reads` -> `cost.cacheRead` per 1M
+- `pricing.input_cache_writes` -> `cost.cacheWrite` per 1M
+- `input_modalities` -> `input`
+
+Cross-check these from models.dev:
+
+- `reasoning`
+- `modalities.input`
+- `max_output_tokens` / output token limit when Synthetic metadata is absent or suspicious
+
+## Decision rules
+
+- Start from test failures, but update all clearly stale entries you find in the same pass.
+- Add new models when the Synthetic endpoint exposes them and they fit the existing provider scope.
+- Remove models only when they are truly gone from Synthetic, not because of a temporary fetch issue.
+- Set `input` from the Synthetic endpoint first.
+- Set pricing from the Synthetic endpoint.
+- Set `contextWindow` from the Synthetic endpoint.
+- Set `maxTokens` from Synthetic when exposed; otherwise use models.dev Synthetic data.
+- Set `reasoning` from:
+  1. confirmed Synthetic runtime behavior
+  2. else Synthetic endpoint `supported_features`
+  3. else models.dev Synthetic entry
+  4. else other providers on models.dev as weak evidence only
+- Keep existing `compat` unless live behavior or current repo conventions show it should change.
+- Do not ask the user which models to update unless there is a true ambiguity you cannot resolve.
+
+## Required runtime checks
+
+Do not rely only on metadata for `reasoning` or multimodal support when the evidence is mixed or when you are adding a new model with unclear behavior.
 
 Use the environment variable `SYNTHETIC_API_KEY`. Never print it.
 
 ### Reasoning check
-
-Send a minimal request with `reasoning_effort`:
 
 ```bash
 curl -sS https://api.synthetic.new/openai/v1/chat/completions \
@@ -110,11 +166,9 @@ curl -sS https://api.synthetic.new/openai/v1/chat/completions \
 JSON
 ```
 
-Treat `reasoning` as supported if the request succeeds and the response includes reasoning output such as `reasoning_content`, or otherwise clearly accepts reasoning mode.
+Treat `reasoning` as supported if the request succeeds and clearly accepts reasoning mode.
 
 ### Image input check
-
-Test image input directly with a tiny inline data URL:
 
 ```bash
 curl -sS https://api.synthetic.new/openai/v1/chat/completions \
@@ -137,55 +191,37 @@ curl -sS https://api.synthetic.new/openai/v1/chat/completions \
 JSON
 ```
 
-If Synthetic returns an error like `does not appear to support image inputs`, keep `input: ["text"]`.
+If Synthetic rejects image input, keep `input: ["text"]`.
 
-## Compat object
+## Compat rules
 
-`src/providers/models.ts` supports an optional `compat` object per model. Pi consumes this to shape requests for OpenAI-compatible providers.
+`src/extensions/provider/models.ts` supports an optional `compat` object per model.
 
-Only add `compat` when needed. Current useful fields in this repo:
+Only add or change `compat` when live behavior, provider quirks, or current repo conventions require it.
 
-- `supportsDeveloperRole`: set `false` when the provider expects `system` instead of `developer`
-- `supportsReasoningEffort`: set `true` when live Synthetic requests confirm `reasoning_effort` works
-- `maxTokensField`: set to:
-  - `"max_completion_tokens"` when a model behaves correctly with that field and fails or misbehaves with `max_tokens`
-  - `"max_tokens"` otherwise
-- `requiresToolResultName`: only if tool-result requests fail without a `name`
-- `requiresMistralToolIds`: only for Mistral-specific tool id quirks
+Useful fields in this repo:
 
-Default Synthetic provider behavior is set in `src/providers/index.ts`. Per-model `compat` overrides are merged on top of that default.
+- `supportsDeveloperRole`
+- `supportsReasoningEffort`
+- `reasoningEffortMap`
+- `maxTokensField`
+- `requiresToolResultName`
+- `requiresMistralToolIds`
 
-Add `compat` for a model when at least one of these is true:
+Do not add `compat` by default.
 
-1. Synthetic docs require a non-default request field
-2. A direct Synthetic API call succeeds only with a different field layout
-3. Pi/proxy capture shows the generated request shape is causing errors
+## Output expectations
 
-Example:
+When done:
 
-```ts
-compat: {
-  supportsReasoningEffort: true,
-  maxTokensField: "max_completion_tokens",
-}
-```
+1. Ensure `src/extensions/provider/models.ts` is updated.
+2. Re-run `pnpm test -- src/extensions/provider/models.test.ts`.
+3. If the change is user-facing, prepare a changeset per repo conventions.
+4. Summarize what changed, including newly added, removed, or materially corrected models.
 
-## Decision rules
+## Known repo paths
 
-- Set `input` from Synthetic endpoint first.
-- Set `reasoning` from:
-  1. Synthetic runtime check
-  2. else models.dev synthetic
-  3. else other providers on models.dev as weak evidence only
-- Set pricing from Synthetic endpoint.
-- Set `maxTokens` from models.dev when Synthetic does not expose it clearly.
-- Keep compat defaults unless live behavior shows a model-specific quirk.
-- If evidence is mixed, prefer confirmed Synthetic runtime behavior.
+Use these exact paths in this repo:
 
-## Current known example
-
-For `hf:zai-org/GLM-4.7-Flash`:
-- Synthetic endpoint reports `input_modalities: ["text"]`
-- Synthetic runtime rejects image input
-- Synthetic runtime accepts `reasoning_effort` and returns reasoning output
-- Result: `input: ["text"]`, `reasoning: true`
+- `src/extensions/provider/models.ts`
+- `src/extensions/provider/models.test.ts`
