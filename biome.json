@@ -3,6 +3,7 @@
   "plugins": [
     "./node_modules/@aliou/biome-plugins/plugins/no-inline-imports.grit",
     "./node_modules/@aliou/biome-plugins/plugins/no-js-import-extension.grit",
+    "./node_modules/@aliou/biome-plugins/plugins/no-buried-await.grit",
     "./node_modules/@aliou/biome-plugins/plugins/no-emojis.grit"
   ],
   "vcs": {
