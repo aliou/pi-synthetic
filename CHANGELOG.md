@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.8.6
+
+### Patch Changes
+
+- a60d071: Update Synthetic model metadata for GLM-5 pricing.
+
 ## 0.8.5
 
 ### Patch Changes
