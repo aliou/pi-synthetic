@@ -67,7 +67,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     input: ["text"],
     cost: {
       input: 1,
-      output: 6,
+      output: 3,
       cacheRead: 1,
       cacheWrite: 0,
     },
