@@ -20,16 +20,77 @@ interface QuotaWindow {
   windowSeconds: number;
   usedValue: number;
   limitValue: number;
+  isCredits?: boolean;
+  isLimited?: boolean;
+  tickPercent?: number;
+  nextRegenCredits?: string;
+}
+
+/** Safely compute percentage, guarding against division by zero */
+function safePercent(used: number, limit: number): number {
+  if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return 0;
+  return Math.max(0, Math.min(100, (used / limit) * 100));
+}
+
+/** Parse currency string like "$1,234.56" to number */
+function parseCurrency(value: string): number {
+  const n = Number(value.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
 }
 
 function toWindows(quotas: QuotasResponse): QuotaWindow[] {
   const windows: QuotaWindow[] = [];
 
-  if (quotas.subscription.limit > 0) {
+  // Weekly token limit (credits-based)
+  if (quotas.weeklyTokenLimit) {
+    const { weeklyTokenLimit } = quotas;
+    const limitValue = parseCurrency(weeklyTokenLimit.maxCredits);
+    const remainingValue = parseCurrency(weeklyTokenLimit.remainingCredits);
+    windows.push({
+      label: "Credits",
+      usedPercent: Math.max(
+        0,
+        Math.min(100, 100 - weeklyTokenLimit.percentRemaining),
+      ),
+      resetsAt: new Date(weeklyTokenLimit.nextRegenAt),
+      windowSeconds: 7 * 24 * 60 * 60,
+      usedValue: limitValue - remainingValue,
+      limitValue,
+      isCredits: true,
+      nextRegenCredits: weeklyTokenLimit.nextRegenCredits,
+    });
+  }
+
+  // Rolling 5-hour limit (request-based)
+  if (quotas.rollingFiveHourLimit && quotas.rollingFiveHourLimit.max > 0) {
+    const { rollingFiveHourLimit } = quotas;
+    windows.push({
+      label: "5h",
+      usedPercent: safePercent(
+        rollingFiveHourLimit.max - rollingFiveHourLimit.remaining,
+        rollingFiveHourLimit.max,
+      ),
+      resetsAt: new Date(rollingFiveHourLimit.nextTickAt),
+      windowSeconds: 5 * 60 * 60,
+      usedValue: rollingFiveHourLimit.max - rollingFiveHourLimit.remaining,
+      limitValue: rollingFiveHourLimit.max,
+      isLimited: rollingFiveHourLimit.limited,
+      tickPercent: rollingFiveHourLimit.tickPercent,
+    });
+  }
+
+  // Legacy subscription (fallback if rollingFiveHourLimit not available)
+  if (
+    !quotas.rollingFiveHourLimit &&
+    quotas.subscription?.limit &&
+    quotas.subscription.limit > 0
+  ) {
     windows.push({
       label: "Completions",
-      usedPercent:
-        (quotas.subscription.requests / quotas.subscription.limit) * 100,
+      usedPercent: safePercent(
+        quotas.subscription.requests,
+        quotas.subscription.limit,
+      ),
       resetsAt: new Date(quotas.subscription.renewsAt),
       windowSeconds: 5 * 60 * 60,
       usedValue: quotas.subscription.requests,
@@ -37,11 +98,13 @@ function toWindows(quotas: QuotasResponse): QuotaWindow[] {
     });
   }
 
-  if (quotas.search.hourly.limit > 0) {
+  if (quotas.search?.hourly?.limit && quotas.search.hourly.limit > 0) {
     windows.push({
       label: "Search",
-      usedPercent:
-        (quotas.search.hourly.requests / quotas.search.hourly.limit) * 100,
+      usedPercent: safePercent(
+        quotas.search.hourly.requests,
+        quotas.search.hourly.limit,
+      ),
       resetsAt: new Date(quotas.search.hourly.renewsAt),
       windowSeconds: 60 * 60,
       usedValue: quotas.search.hourly.requests,
@@ -49,11 +112,13 @@ function toWindows(quotas: QuotasResponse): QuotaWindow[] {
     });
   }
 
-  if (quotas.freeToolCalls.limit > 0) {
+  if (quotas.freeToolCalls?.limit && quotas.freeToolCalls.limit > 0) {
     windows.push({
       label: "Free Tool Calls",
-      usedPercent:
-        (quotas.freeToolCalls.requests / quotas.freeToolCalls.limit) * 100,
+      usedPercent: safePercent(
+        quotas.freeToolCalls.requests,
+        quotas.freeToolCalls.limit,
+      ),
       resetsAt: new Date(quotas.freeToolCalls.renewsAt),
       windowSeconds: 24 * 60 * 60,
       usedValue: quotas.freeToolCalls.requests,
@@ -147,6 +212,34 @@ function renderProgressBar(
       parts.push(theme.fg(fillColor, "█"));
     } else if (paceIndex !== null && idx < paceIndex) {
       parts.push(theme.fg(fillColor, "▓"));
+    } else {
+      parts.push(theme.fg("dim", "░"));
+    }
+  }
+
+  return parts.join("");
+}
+
+function renderSimpleIndicatorBar(
+  usedPercent: number,
+  width: number,
+  theme: Theme,
+  severity: "success" | "warning" | "error",
+): string {
+  const clampedPercent = Math.max(0, Math.min(100, usedPercent));
+  // Clamp to width - 1 to avoid off-by-one when usedPercent === 100
+  const usedIndex = Math.min(
+    Math.round((clampedPercent / 100) * width),
+    width - 1,
+  );
+  const parts: string[] = [];
+
+  // Hide marker when within 5% of edges
+  const showMarker = clampedPercent >= 5 && clampedPercent <= 95;
+
+  for (let idx = 0; idx < width; idx++) {
+    if (showMarker && idx === usedIndex) {
+      parts.push(theme.fg(severity, "|"));
     } else {
       parts.push(theme.fg("dim", "░"));
     }
@@ -254,22 +347,83 @@ export class QuotasComponent implements Component {
       truncateToWidth(`  ${theme.fg("accent", window.label)}`, maxWidth),
     );
 
-    // Progress bar + usage
-    const bar = renderProgressBar(
-      window.usedPercent,
-      barWidth,
-      theme,
-      severity,
-      pacePercent,
-    );
-    const usedStr = `${window.usedValue.toLocaleString()}/${window.limitValue.toLocaleString()} (${Math.round(window.usedPercent)}%)`;
-    lines.push(
-      truncateToWidth(`  ${bar} ${theme.fg(severity, usedStr)}`, maxWidth),
-    );
+    // Progress bar + usage (or indicator for new quota types)
+    if (window.isCredits || window.tickPercent !== undefined) {
+      // Show simple indicator bar for new quota types
+      const bar = renderSimpleIndicatorBar(
+        window.usedPercent,
+        barWidth,
+        theme,
+        severity,
+      );
+      const usedStr = window.isCredits
+        ? `$${window.usedValue.toFixed(2)}/$${window.limitValue.toFixed(2)} (${Math.round(window.usedPercent)}%)`
+        : `${window.usedValue.toFixed(0)}/${window.limitValue.toFixed(0)} (${Math.round(window.usedPercent)}%)`;
+      const limitedBadge = window.isLimited
+        ? theme.fg("error", " LIMITED")
+        : "";
+      lines.push(
+        truncateToWidth(
+          `  ${bar} ${theme.fg(severity, usedStr)}${limitedBadge}`,
+          maxWidth,
+        ),
+      );
+    } else {
+      // Traditional progress bar for legacy quota types
+      const bar = renderProgressBar(
+        window.usedPercent,
+        barWidth,
+        theme,
+        severity,
+        pacePercent,
+      );
+      const usedStr = `${window.usedValue.toLocaleString()}/${window.limitValue.toLocaleString()} (${Math.round(window.usedPercent)}%)`;
+      lines.push(
+        truncateToWidth(`  ${bar} ${theme.fg(severity, usedStr)}`, maxWidth),
+      );
+    }
 
     // Metadata: estimated + pace left, reset time right
     const leftParts: string[] = [];
-    if (projectedPercent > 0) {
+
+    // Show tick info for rolling window
+    if (window.tickPercent !== undefined) {
+      const now = Date.now();
+      const remainingMs = window.resetsAt.getTime() - now;
+      const remainingMins = Math.ceil(remainingMs / (1000 * 60));
+      const remainingSecs = Math.ceil(remainingMs / 1000);
+      const timeStr =
+        remainingMs <= 0
+          ? "now"
+          : remainingMins >= 1
+            ? `${remainingMins}m`
+            : `${remainingSecs}s`;
+      const tickValue = (window.tickPercent / 100) * window.limitValue;
+      const tickStr = `+${tickValue.toFixed(1)} in ${timeStr}`;
+      leftParts.push(theme.fg("dim", tickStr));
+    }
+
+    // Show next regen credits for weekly token limit
+    if (window.nextRegenCredits !== undefined) {
+      const now = Date.now();
+      const remainingMs = window.resetsAt.getTime() - now;
+      const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
+      const remainingMins = Math.ceil(remainingMs / (1000 * 60));
+      const timeStr =
+        remainingMs <= 0
+          ? "now"
+          : remainingHours >= 1
+            ? `${remainingHours}h`
+            : `${remainingMins}m`;
+      const regenStr = `+${window.nextRegenCredits} in ${timeStr}`;
+      leftParts.push(theme.fg("dim", regenStr));
+    }
+
+    if (
+      projectedPercent > 0 &&
+      window.tickPercent === undefined &&
+      window.nextRegenCredits === undefined
+    ) {
       const estStr = `est ${Math.round(projectedPercent)}%`;
       leftParts.push(
         severity !== "success"
@@ -278,7 +432,11 @@ export class QuotasComponent implements Component {
       );
     }
 
-    if (pacePercent !== null) {
+    if (
+      pacePercent !== null &&
+      window.tickPercent === undefined &&
+      window.nextRegenCredits === undefined
+    ) {
       const paceDiff = window.usedPercent - pacePercent;
       if (Math.abs(paceDiff) > 5) {
         if (paceDiff > 0) {

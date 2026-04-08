@@ -28,34 +28,66 @@ interface SubCoreSettingsPayload {
 function toUsageSnapshot(quotas: QuotasResponse): UsageSnapshot {
   const windows: RateWindow[] = [];
 
-  if (quotas.subscription) {
+  // Weekly token limit (credits-based)
+  if (quotas.weeklyTokenLimit) {
+    const { weeklyTokenLimit } = quotas;
+    windows.push({
+      label: "Credits",
+      usedPercent: Math.round(
+        Math.max(0, Math.min(100, 100 - weeklyTokenLimit.percentRemaining)),
+      ),
+      resetDescription: formatResetTime(weeklyTokenLimit.nextRegenAt),
+      resetAt: weeklyTokenLimit.nextRegenAt,
+    });
+  }
+
+  // Rolling 5-hour limit (request-based)
+  if (quotas.rollingFiveHourLimit && quotas.rollingFiveHourLimit.max > 0) {
+    const { rollingFiveHourLimit } = quotas;
+    const used = rollingFiveHourLimit.max - rollingFiveHourLimit.remaining;
+    windows.push({
+      label: "5h",
+      usedPercent: Math.round(
+        Math.max(0, Math.min(100, (used / rollingFiveHourLimit.max) * 100)),
+      ),
+      resetDescription: formatResetTime(rollingFiveHourLimit.nextTickAt),
+      resetAt: rollingFiveHourLimit.nextTickAt,
+    });
+  }
+
+  // Legacy subscription (fallback if rollingFiveHourLimit not available)
+  if (
+    !quotas.rollingFiveHourLimit &&
+    quotas.subscription?.limit &&
+    quotas.subscription.limit > 0
+  ) {
     const pct =
       (quotas.subscription.requests / quotas.subscription.limit) * 100;
     windows.push({
       label: "5h",
-      usedPercent: Math.round(pct),
+      usedPercent: Math.round(Math.max(0, Math.min(100, pct))),
       resetDescription: formatResetTime(quotas.subscription.renewsAt),
       resetAt: quotas.subscription.renewsAt,
     });
   }
 
-  if (quotas.search?.hourly) {
+  if (quotas.search?.hourly?.limit && quotas.search.hourly.limit > 0) {
     const pct =
       (quotas.search.hourly.requests / quotas.search.hourly.limit) * 100;
     windows.push({
       label: "Search",
-      usedPercent: Math.round(pct),
+      usedPercent: Math.round(Math.max(0, Math.min(100, pct))),
       resetDescription: formatResetTime(quotas.search.hourly.renewsAt),
       resetAt: quotas.search.hourly.renewsAt,
     });
   }
 
-  if (quotas.freeToolCalls) {
+  if (quotas.freeToolCalls?.limit && quotas.freeToolCalls.limit > 0) {
     const pct =
       (quotas.freeToolCalls.requests / quotas.freeToolCalls.limit) * 100;
     windows.push({
       label: "Tools",
-      usedPercent: Math.round(pct),
+      usedPercent: Math.round(Math.max(0, Math.min(100, pct))),
       resetDescription: formatResetTime(quotas.freeToolCalls.renewsAt),
       resetAt: quotas.freeToolCalls.renewsAt,
     });
