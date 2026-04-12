@@ -36,7 +36,7 @@ const SYNTHETIC_REASONING_EFFORT_MAP = {
 } as const;
 
 export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
-  // API: hf:zai-org/GLM-4.7 → ctx=202752, out=65536
+  // API: hf:zai-org/GLM-4.7 → ctx=202752, multimodal
   {
     id: "hf:zai-org/GLM-4.7",
     name: "zai-org/GLM-4.7",
@@ -45,11 +45,11 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       supportsReasoningEffort: true,
       reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
     },
-    input: ["text"],
+    input: ["text", "image"],
     cost: {
-      input: 0.45,
+      input: 2.19,
       output: 2.19,
-      cacheRead: 0.45,
+      cacheRead: 2.19,
       cacheWrite: 0,
     },
     contextWindow: 202752,
@@ -63,6 +63,26 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     compat: {
       supportsReasoningEffort: true,
       reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+    },
+    input: ["text"],
+    cost: {
+      input: 1,
+      output: 3,
+      cacheRead: 1,
+      cacheWrite: 0,
+    },
+    contextWindow: 196608,
+    maxTokens: 65536,
+  },
+  // API: hf:zai-org/GLM-5.1 → ctx=196608, out=65536
+  {
+    id: "hf:zai-org/GLM-5.1",
+    name: "zai-org/GLM-5.1",
+    reasoning: true,
+    compat: {
+      supportsReasoningEffort: true,
+      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
+      supportsDeveloperRole: false,
     },
     input: ["text"],
     cost: {
