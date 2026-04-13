@@ -233,12 +233,19 @@ export class QuotasComponent implements Component {
   private theme: Theme;
   private tui: TUI;
   private onClose: () => void;
+  private onRefetch: () => void;
   private loader: Loader | null = null;
 
-  constructor(theme: Theme, tui: TUI, onClose: () => void) {
+  constructor(
+    theme: Theme,
+    tui: TUI,
+    onClose: () => void,
+    onRefetch: () => void,
+  ) {
     this.theme = theme;
     this.tui = tui;
     this.onClose = onClose;
+    this.onRefetch = onRefetch;
     this.startLoader();
   }
 
@@ -257,7 +264,10 @@ export class QuotasComponent implements Component {
   }
 
   setState(state: QuotasState): void {
-    if (this.state.type === "loading" && state.type !== "loading") {
+    if (state.type === "loading") {
+      this.loader?.stop();
+      this.startLoader();
+    } else if (this.state.type === "loading") {
       this.loader?.stop();
       this.loader = null;
     }
@@ -267,6 +277,10 @@ export class QuotasComponent implements Component {
   handleInput(data: string): boolean {
     if (matchesKey(data, "escape") || data === "q") {
       this.onClose();
+      return true;
+    }
+    if (data === "r") {
+      this.onRefetch();
       return true;
     }
     return false;
@@ -305,7 +319,7 @@ export class QuotasComponent implements Component {
     }
 
     lines.push("");
-    lines.push(this.theme.fg("dim", "  q/Esc to close"));
+    lines.push(this.theme.fg("dim", "  r to refresh  q/Esc to close"));
     lines.push(...border.render(width));
 
     return lines;

@@ -19,10 +19,19 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
 
       const result = await ctx.ui.custom<null>((tui, theme, _kb, done) => {
         const controller = new AbortController();
-        const component = new QuotasComponent(theme, tui, () => {
-          controller.abort();
-          done(null);
-        });
+        const component = new QuotasComponent(
+          theme,
+          tui,
+          () => {
+            controller.abort();
+            done(null);
+          },
+          () => {
+            component.setState({ type: "loading" });
+            tui.requestRender();
+            void loadQuotas();
+          },
+        );
 
         async function loadQuotas(): Promise<void> {
           const fetchResult = await fetchQuotas(key, controller.signal);
