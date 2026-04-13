@@ -1,5 +1,15 @@
 # @aliou/pi-synthetic
 
+## 0.11.0
+
+### Minor Changes
+
+- abe28bd: Add `r` key binding to the quotas command to refetch and refresh quota data without closing the panel.
+
+### Patch Changes
+
+- 52ee513: Rework quotas command display: unified progress bar with single-char pace marker, updated labels (Credits / week, Requests / 5h, Search / hour), percent%/total stat format, and +amount in time subtitles. Drops legacy subscription fallback.
+
 ## 0.10.2
 
 ### Patch Changes
