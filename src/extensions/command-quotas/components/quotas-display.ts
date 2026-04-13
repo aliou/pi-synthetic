@@ -1,7 +1,8 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
-import type { Component } from "@mariozechner/pi-tui";
+import type { Component, TUI } from "@mariozechner/pi-tui";
 import {
+  Loader,
   matchesKey,
   truncateToWidth,
   visibleWidth,
@@ -251,14 +252,36 @@ function renderSimpleIndicatorBar(
 export class QuotasComponent implements Component {
   private state: QuotasState = { type: "loading" };
   private theme: Theme;
+  private tui: TUI;
   private onClose: () => void;
+  private loader: Loader | null = null;
 
-  constructor(theme: Theme, onClose: () => void) {
+  constructor(theme: Theme, tui: TUI, onClose: () => void) {
     this.theme = theme;
+    this.tui = tui;
     this.onClose = onClose;
+    this.startLoader();
+  }
+
+  private startLoader(): void {
+    this.loader = new Loader(
+      this.tui,
+      (s: string) => this.theme.fg("accent", s),
+      (s: string) => this.theme.fg("muted", s),
+      "Fetching quotas...",
+    );
+  }
+
+  destroy(): void {
+    this.loader?.stop();
+    this.loader = null;
   }
 
   setState(state: QuotasState): void {
+    if (this.state.type === "loading" && state.type !== "loading") {
+      this.loader?.stop();
+      this.loader = null;
+    }
     this.state = state;
   }
 
@@ -286,7 +309,11 @@ export class QuotasComponent implements Component {
 
     switch (this.state.type) {
       case "loading":
-        lines.push(this.theme.fg("muted", "  Loading..."));
+        if (this.loader) {
+          lines.push(...this.loader.render(width));
+        } else {
+          lines.push(this.theme.fg("muted", "  Fetching quotas..."));
+        }
         break;
       case "error":
         lines.push(this.theme.fg("error", `  ${this.state.message}`));

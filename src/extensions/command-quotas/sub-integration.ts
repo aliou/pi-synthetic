@@ -107,10 +107,13 @@ async function emitCurrentUsage(
 ): Promise<void> {
   const apiKey = await getSyntheticApiKey(authStorage);
   if (!apiKey) return;
-  const quotas = await fetchQuotas(apiKey);
-  if (!quotas) return;
+  const result = await fetchQuotas(apiKey);
+  if (!result.success) return;
   pi.events.emit("sub-core:update-current", {
-    state: { provider: "synthetic", usage: toUsageSnapshot(quotas) },
+    state: {
+      provider: "synthetic",
+      usage: toUsageSnapshot(result.data.quotas),
+    },
   });
 }
 

@@ -15,50 +15,56 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
         ctx.ui.notify(MISSING_AUTH_MESSAGE, "warning");
         return;
       }
+      const key: string = apiKey;
 
       const result = await ctx.ui.custom<null>((tui, theme, _kb, done) => {
-        const component = new QuotasComponent(theme, () => done(null));
+        const controller = new AbortController();
+        const component = new QuotasComponent(theme, tui, () => {
+          controller.abort();
+          done(null);
+        });
 
-        fetchQuotas(apiKey)
-          .then((quotas) => {
-            if (!quotas) {
-              component.setState({
-                type: "error",
-                message:
-                  "Failed to fetch quotas. Check your Synthetic subscription status.",
-              });
-            } else {
-              component.setState({ type: "loaded", quotas });
-            }
-            tui.requestRender();
-          })
-          .catch(() => {
+        async function loadQuotas(): Promise<void> {
+          const fetchResult = await fetchQuotas(key, controller.signal);
+          if (controller.signal.aborted) return;
+          if (fetchResult.success) {
+            component.setState({
+              type: "loaded",
+              quotas: fetchResult.data.quotas,
+            });
+          } else {
             component.setState({
               type: "error",
-              message:
-                "Failed to fetch quotas. Check your Synthetic subscription status.",
+              message: fetchResult.error.message,
             });
-            tui.requestRender();
-          });
+          }
+          tui.requestRender();
+        }
+
+        void loadQuotas();
 
         return {
           render: (width: number) => component.render(width),
           invalidate: () => component.invalidate(),
           handleInput: (data: string) => component.handleInput(data),
+          dispose: () => {
+            controller.abort();
+            component.destroy();
+          },
         };
       });
 
-      // RPC fallback: return JSON
+      // Non-interactive fallback (RPC, print, JSON modes)
       if (result === undefined) {
-        const quotas = await fetchQuotas(apiKey);
-        if (!quotas) {
+        const fetchResult = await fetchQuotas(key);
+        if (!fetchResult.success) {
           ctx.ui.notify(
-            JSON.stringify({ error: "Failed to fetch quotas" }),
+            JSON.stringify({ error: fetchResult.error.message }),
             "error",
           );
           return;
         }
-        ctx.ui.notify(JSON.stringify(quotas, null, 2), "info");
+        ctx.ui.notify(JSON.stringify(fetchResult.data.quotas), "info");
       }
     },
   });
