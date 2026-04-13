@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.10.2
+
+### Patch Changes
+
+- 51b0373: Refactor `fetchQuotas` to return structured `QuotasResult` with `QuotasErrorKind`, add `AbortSignal` support with 15s timeout, and add animated loading spinner to the quotas TUI command.
+
 ## 0.10.1
 
 ### Patch Changes
