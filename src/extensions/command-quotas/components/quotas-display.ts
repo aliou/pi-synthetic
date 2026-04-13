@@ -1,12 +1,7 @@
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { Component, TUI } from "@mariozechner/pi-tui";
-import {
-  Loader,
-  matchesKey,
-  truncateToWidth,
-  visibleWidth,
-} from "@mariozechner/pi-tui";
+import { Loader, matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
 import type { QuotasResponse } from "../../../types/quotas";
 
 type QuotasState =
@@ -21,10 +16,12 @@ interface QuotaWindow {
   windowSeconds: number;
   usedValue: number;
   limitValue: number;
-  isCredits?: boolean;
-  isLimited?: boolean;
-  tickPercent?: number;
-  nextRegenCredits?: string;
+  isCurrency?: boolean;
+  showPace?: boolean;
+  paceScale?: number;
+  limited?: boolean;
+  nextAmount?: string;
+  nextLabel?: string;
 }
 
 /** Safely compute percentage, guarding against division by zero */
@@ -42,80 +39,65 @@ function parseCurrency(value: string): number {
 function toWindows(quotas: QuotasResponse): QuotaWindow[] {
   const windows: QuotaWindow[] = [];
 
-  // Weekly token limit (credits-based)
   if (quotas.weeklyTokenLimit) {
     const { weeklyTokenLimit } = quotas;
     const limitValue = parseCurrency(weeklyTokenLimit.maxCredits);
     const remainingValue = parseCurrency(weeklyTokenLimit.remainingCredits);
     windows.push({
-      label: "Credits",
+      label: "Credits / week",
       usedPercent: Math.max(
         0,
         Math.min(100, 100 - weeklyTokenLimit.percentRemaining),
       ),
       resetsAt: new Date(weeklyTokenLimit.nextRegenAt),
-      windowSeconds: 7 * 24 * 60 * 60,
+      windowSeconds: 24 * 60 * 60,
       usedValue: limitValue - remainingValue,
       limitValue,
-      isCredits: true,
-      nextRegenCredits: weeklyTokenLimit.nextRegenCredits,
+      isCurrency: true,
+      showPace: true,
+      paceScale: 1 / 7,
+      nextAmount: `+${weeklyTokenLimit.nextRegenCredits}`,
+      nextLabel: "Next regen",
     });
   }
 
-  // Rolling 5-hour limit (request-based)
   if (quotas.rollingFiveHourLimit && quotas.rollingFiveHourLimit.max > 0) {
     const { rollingFiveHourLimit } = quotas;
+    const used = rollingFiveHourLimit.max - rollingFiveHourLimit.remaining;
+    const tickAmount =
+      rollingFiveHourLimit.tickPercent * rollingFiveHourLimit.max;
     windows.push({
-      label: "5h",
-      usedPercent: safePercent(
-        rollingFiveHourLimit.max - rollingFiveHourLimit.remaining,
-        rollingFiveHourLimit.max,
-      ),
+      label: "Requests / 5h",
+      usedPercent: safePercent(used, rollingFiveHourLimit.max),
       resetsAt: new Date(rollingFiveHourLimit.nextTickAt),
       windowSeconds: 5 * 60 * 60,
-      usedValue: rollingFiveHourLimit.max - rollingFiveHourLimit.remaining,
+      usedValue: Math.round(used),
       limitValue: rollingFiveHourLimit.max,
-      isLimited: rollingFiveHourLimit.limited,
-      tickPercent: rollingFiveHourLimit.tickPercent,
-    });
-  }
-
-  // Legacy subscription (fallback if rollingFiveHourLimit not available)
-  if (
-    !quotas.rollingFiveHourLimit &&
-    quotas.subscription?.limit &&
-    quotas.subscription.limit > 0
-  ) {
-    windows.push({
-      label: "Completions",
-      usedPercent: safePercent(
-        quotas.subscription.requests,
-        quotas.subscription.limit,
-      ),
-      resetsAt: new Date(quotas.subscription.renewsAt),
-      windowSeconds: 5 * 60 * 60,
-      usedValue: quotas.subscription.requests,
-      limitValue: quotas.subscription.limit,
+      showPace: false,
+      limited: rollingFiveHourLimit.limited,
+      nextAmount: `+${tickAmount.toFixed(1)}`,
+      nextLabel: "Next tick",
     });
   }
 
   if (quotas.search?.hourly?.limit && quotas.search.hourly.limit > 0) {
+    const { hourly } = quotas.search;
     windows.push({
-      label: "Search",
-      usedPercent: safePercent(
-        quotas.search.hourly.requests,
-        quotas.search.hourly.limit,
-      ),
-      resetsAt: new Date(quotas.search.hourly.renewsAt),
+      label: "Search / hour",
+      usedPercent: safePercent(hourly.requests, hourly.limit),
+      resetsAt: new Date(hourly.renewsAt),
       windowSeconds: 60 * 60,
-      usedValue: quotas.search.hourly.requests,
-      limitValue: quotas.search.hourly.limit,
+      usedValue: hourly.requests,
+      limitValue: hourly.limit,
+      showPace: true,
+      paceScale: 1,
+      nextLabel: "Resets",
     });
   }
 
   if (quotas.freeToolCalls?.limit && quotas.freeToolCalls.limit > 0) {
     windows.push({
-      label: "Free Tool Calls",
+      label: "Free Tool Calls / day",
       usedPercent: safePercent(
         quotas.freeToolCalls.requests,
         quotas.freeToolCalls.limit,
@@ -124,6 +106,9 @@ function toWindows(quotas: QuotasResponse): QuotaWindow[] {
       windowSeconds: 24 * 60 * 60,
       usedValue: quotas.freeToolCalls.requests,
       limitValue: quotas.freeToolCalls.limit,
+      showPace: true,
+      paceScale: 1,
+      nextLabel: "Resets",
     });
   }
 
@@ -168,29 +153,28 @@ function getSeverity(
   return "success";
 }
 
-function formatResetDateTime(date: Date): string {
-  const now = new Date();
-  const isToday =
-    date.getDate() === now.getDate() &&
-    date.getMonth() === now.getMonth() &&
-    date.getFullYear() === now.getFullYear();
+function formatTimeRemaining(date: Date): string {
+  const ms = date.getTime() - Date.now();
+  if (ms <= 0) return "now";
+  const totalMins = Math.ceil(ms / (1000 * 60));
+  const hours = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  if (hours >= 1) return mins > 0 ? `${hours}h${mins}m` : `${hours}h`;
+  const totalSecs = Math.ceil(ms / 1000);
+  return totalMins >= 1 ? `${totalMins}m` : `${totalSecs}s`;
+}
 
-  const timeStr = date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-
-  if (isToday) {
-    return `today ${timeStr}`;
-  }
-
-  const dateStr = date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-
-  return `${dateStr} ${timeStr}`;
+/**
+ * Convert a foreground ANSI escape to its background equivalent.
+ * Handles truecolor (38;2), 256-color (38;5), and basic (3X) escapes.
+ */
+function fgAnsiToBg(fgAnsi: string): string {
+  // Convert fg escape sequences to bg equivalents by replacing the
+  // discriminating digit: 38 (truecolor/256) → 48, 3X (basic) → 4X.
+  return fgAnsi
+    .split("[38;")
+    .join("[48;")
+    .replace(/\[3([0-9])m/g, "[4$1m");
 }
 
 function renderProgressBar(
@@ -202,45 +186,40 @@ function renderProgressBar(
 ): string {
   const clamped = Math.max(0, Math.min(100, Math.round(percent)));
   const filled = Math.round((clamped / 100) * width);
-  const paceIndex =
-    pacePercent === null || pacePercent === undefined || pacePercent <= percent
-      ? null
-      : Math.round((Math.max(0, Math.min(100, pacePercent)) / 100) * width);
+
+  const showPace =
+    pacePercent !== null &&
+    pacePercent !== undefined &&
+    pacePercent >= 5 &&
+    Math.abs(pacePercent - percent) >= 5;
+  const paceIndex = showPace
+    ? Math.min(
+        width - 1,
+        Math.round(
+          (Math.max(0, Math.min(100, pacePercent ?? 0)) / 100) * width,
+        ),
+      )
+    : null;
+
+  const reset = "\x1b[0m";
 
   const parts: string[] = [];
   for (let idx = 0; idx < width; idx++) {
-    if (idx < filled) {
+    if (paceIndex !== null && idx === paceIndex) {
+      // Inside fill = ahead of pace: accent. Outside = behind pace: severity.
+      const markerColor = idx < filled ? "accent" : fillColor;
+      // Inside fill: set bg to fill color so `|` doesn't expose the panel bg
+      // through the thin character. Outside fill: ░ uses terminal bg naturally,
+      // so leave bg unset to match.
+      if (idx < filled) {
+        const bgAnsi = fgAnsiToBg(theme.getFgAnsi(fillColor));
+        const fgAnsi = theme.getFgAnsi(markerColor);
+        parts.push(`${bgAnsi}${fgAnsi}|${reset}`);
+      } else {
+        parts.push(theme.fg(markerColor, "|"));
+      }
+    } else if (idx < filled) {
       parts.push(theme.fg(fillColor, "█"));
-    } else if (paceIndex !== null && idx < paceIndex) {
-      parts.push(theme.fg(fillColor, "▓"));
-    } else {
-      parts.push(theme.fg("dim", "░"));
-    }
-  }
-
-  return parts.join("");
-}
-
-function renderSimpleIndicatorBar(
-  usedPercent: number,
-  width: number,
-  theme: Theme,
-  severity: "success" | "warning" | "error",
-): string {
-  const clampedPercent = Math.max(0, Math.min(100, usedPercent));
-  // Clamp to width - 1 to avoid off-by-one when usedPercent === 100
-  const usedIndex = Math.min(
-    Math.round((clampedPercent / 100) * width),
-    width - 1,
-  );
-  const parts: string[] = [];
-
-  // Hide marker when within 5% of edges
-  const showMarker = clampedPercent >= 5 && clampedPercent <= 95;
-
-  for (let idx = 0; idx < width; idx++) {
-    if (showMarker && idx === usedIndex) {
-      parts.push(theme.fg(severity, "|"));
     } else {
       parts.push(theme.fg("dim", "░"));
     }
@@ -362,133 +341,50 @@ export class QuotasComponent implements Component {
     const lines: string[] = [];
     const theme = this.theme;
 
-    const pacePercent = getPacePercent(window);
+    const rawPace = window.showPace ? getPacePercent(window) : null;
+    const pacePercent =
+      rawPace !== null ? rawPace * (window.paceScale ?? 1) : null;
     const projectedPercent = getProjectedPercent(
       window.usedPercent,
       pacePercent,
     );
-    const severity = getSeverity(projectedPercent, pacePercent);
+    let severity = getSeverity(projectedPercent, pacePercent);
+    if (window.limited) severity = "error";
 
     // Label
     lines.push(
       truncateToWidth(`  ${theme.fg("accent", window.label)}`, maxWidth),
     );
 
-    // Progress bar + usage (or indicator for new quota types)
-    if (window.isCredits || window.tickPercent !== undefined) {
-      // Show simple indicator bar for new quota types
-      const bar = renderSimpleIndicatorBar(
-        window.usedPercent,
-        barWidth,
-        theme,
-        severity,
-      );
-      const usedStr = window.isCredits
-        ? `$${window.usedValue.toFixed(2)}/$${window.limitValue.toFixed(2)} (${Math.round(window.usedPercent)}%)`
-        : `${window.usedValue.toFixed(0)}/${window.limitValue.toFixed(0)} (${Math.round(window.usedPercent)}%)`;
-      const limitedBadge = window.isLimited
-        ? theme.fg("error", " LIMITED")
-        : "";
-      lines.push(
-        truncateToWidth(
-          `  ${bar} ${theme.fg(severity, usedStr)}${limitedBadge}`,
-          maxWidth,
-        ),
-      );
-    } else {
-      // Traditional progress bar for legacy quota types
-      const bar = renderProgressBar(
-        window.usedPercent,
-        barWidth,
-        theme,
-        severity,
-        pacePercent,
-      );
-      const usedStr = `${window.usedValue.toLocaleString()}/${window.limitValue.toLocaleString()} (${Math.round(window.usedPercent)}%)`;
-      lines.push(
-        truncateToWidth(`  ${bar} ${theme.fg(severity, usedStr)}`, maxWidth),
-      );
-    }
-
-    // Metadata: estimated + pace left, reset time right
-    const leftParts: string[] = [];
-
-    // Show tick info for rolling window
-    if (window.tickPercent !== undefined) {
-      const now = Date.now();
-      const remainingMs = window.resetsAt.getTime() - now;
-      const remainingMins = Math.ceil(remainingMs / (1000 * 60));
-      const remainingSecs = Math.ceil(remainingMs / 1000);
-      const timeStr =
-        remainingMs <= 0
-          ? "now"
-          : remainingMins >= 1
-            ? `${remainingMins}m`
-            : `${remainingSecs}s`;
-      const tickValue = (window.tickPercent / 100) * window.limitValue;
-      const tickStr = `+${tickValue.toFixed(1)} in ${timeStr}`;
-      leftParts.push(theme.fg("dim", tickStr));
-    }
-
-    // Show next regen credits for weekly token limit
-    if (window.nextRegenCredits !== undefined) {
-      const now = Date.now();
-      const remainingMs = window.resetsAt.getTime() - now;
-      const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
-      const remainingMins = Math.ceil(remainingMs / (1000 * 60));
-      const timeStr =
-        remainingMs <= 0
-          ? "now"
-          : remainingHours >= 1
-            ? `${remainingHours}h`
-            : `${remainingMins}m`;
-      const regenStr = `+${window.nextRegenCredits} in ${timeStr}`;
-      leftParts.push(theme.fg("dim", regenStr));
-    }
-
-    if (
-      projectedPercent > 0 &&
-      window.tickPercent === undefined &&
-      window.nextRegenCredits === undefined
-    ) {
-      const estStr = `est ${Math.round(projectedPercent)}%`;
-      leftParts.push(
-        severity !== "success"
-          ? theme.fg(severity, estStr)
-          : theme.fg("dim", estStr),
-      );
-    }
-
-    if (
-      pacePercent !== null &&
-      window.tickPercent === undefined &&
-      window.nextRegenCredits === undefined
-    ) {
-      const paceDiff = window.usedPercent - pacePercent;
-      if (Math.abs(paceDiff) > 5) {
-        if (paceDiff > 0) {
-          leftParts.push(
-            theme.fg("warning", `${Math.round(Math.abs(paceDiff))}% ahead`),
-          );
-        } else {
-          leftParts.push(
-            theme.fg("success", `${Math.round(Math.abs(paceDiff))}% behind`),
-          );
-        }
-      }
-    }
-
-    const leftStr = leftParts.join("  ");
-    const resetStr = formatResetDateTime(window.resetsAt);
-    const rightStr = theme.fg("dim", resetStr);
-
-    const leftW = visibleWidth(leftStr);
-    const rightW = visibleWidth(rightStr);
-    const gap = Math.max(2, barWidth - leftW - rightW);
-
-    lines.push(
-      truncateToWidth(`  ${leftStr}${" ".repeat(gap)}${rightStr}`, maxWidth),
+    // Bar + usage
+    const bar = renderProgressBar(
+      window.usedPercent,
+      barWidth,
+      theme,
+      severity,
+      pacePercent,
     );
+    const usedStr = window.isCurrency
+      ? `${Math.round(window.usedPercent)}%/$${window.limitValue.toFixed(2)}`
+      : `${Math.round(window.usedPercent)}%/${window.limitValue}`;
+    const limitedBadge = window.limited ? theme.fg("error", " LIMITED") : "";
+    lines.push(
+      truncateToWidth(
+        `  ${bar} ${theme.fg(severity, usedStr)}${limitedBadge}`,
+        maxWidth,
+      ),
+    );
+
+    // Subtitle: next event info
+    if (window.nextLabel) {
+      const timeStr = formatTimeRemaining(window.resetsAt);
+      const subtitleStr = window.nextAmount
+        ? `${window.nextAmount} in ${timeStr}`
+        : `${window.nextLabel} in ${timeStr}`;
+      lines.push(
+        truncateToWidth(`  ${theme.fg("dim", subtitleStr)}`, maxWidth),
+      );
+    }
 
     return lines;
   }
