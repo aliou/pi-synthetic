@@ -17,7 +17,8 @@
     "extensions": [
       "./src/extensions/provider/index.ts",
       "./src/extensions/web-search/index.ts",
-      "./src/extensions/command-quotas/index.ts"
+      "./src/extensions/command-quotas/index.ts",
+      "./src/extensions/quota-warnings/index.ts"
     ],
     "video": "https://assets.aliou.me/pi-extensions/demos/pi-synthetic.mp4"
   },
