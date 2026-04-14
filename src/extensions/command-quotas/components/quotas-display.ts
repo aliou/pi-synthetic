@@ -3,166 +3,18 @@ import { DynamicBorder } from "@mariozechner/pi-coding-agent";
 import type { Component, TUI } from "@mariozechner/pi-tui";
 import { Loader, matchesKey, truncateToWidth } from "@mariozechner/pi-tui";
 import type { QuotasResponse } from "../../../types/quotas";
+import {
+  assessWindow,
+  formatTimeRemaining,
+  getSeverityColor,
+  type QuotaWindow,
+  toWindows,
+} from "../../../utils/quotas-severity";
 
 type QuotasState =
   | { type: "loading" }
   | { type: "error"; message: string }
   | { type: "loaded"; quotas: QuotasResponse };
-
-interface QuotaWindow {
-  label: string;
-  usedPercent: number;
-  resetsAt: Date;
-  windowSeconds: number;
-  usedValue: number;
-  limitValue: number;
-  isCurrency?: boolean;
-  showPace?: boolean;
-  paceScale?: number;
-  limited?: boolean;
-  nextAmount?: string;
-  nextLabel?: string;
-}
-
-/** Safely compute percentage, guarding against division by zero */
-function safePercent(used: number, limit: number): number {
-  if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return 0;
-  return Math.max(0, Math.min(100, (used / limit) * 100));
-}
-
-/** Parse currency string like "$1,234.56" to number */
-function parseCurrency(value: string): number {
-  const n = Number(value.replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-}
-
-function toWindows(quotas: QuotasResponse): QuotaWindow[] {
-  const windows: QuotaWindow[] = [];
-
-  if (quotas.weeklyTokenLimit) {
-    const { weeklyTokenLimit } = quotas;
-    const limitValue = parseCurrency(weeklyTokenLimit.maxCredits);
-    const remainingValue = parseCurrency(weeklyTokenLimit.remainingCredits);
-    windows.push({
-      label: "Credits / week",
-      usedPercent: Math.max(
-        0,
-        Math.min(100, 100 - weeklyTokenLimit.percentRemaining),
-      ),
-      resetsAt: new Date(weeklyTokenLimit.nextRegenAt),
-      windowSeconds: 24 * 60 * 60,
-      usedValue: limitValue - remainingValue,
-      limitValue,
-      isCurrency: true,
-      showPace: true,
-      paceScale: 1 / 7,
-      nextAmount: `+${weeklyTokenLimit.nextRegenCredits}`,
-      nextLabel: "Next regen",
-    });
-  }
-
-  if (quotas.rollingFiveHourLimit && quotas.rollingFiveHourLimit.max > 0) {
-    const { rollingFiveHourLimit } = quotas;
-    const used = rollingFiveHourLimit.max - rollingFiveHourLimit.remaining;
-    const tickAmount =
-      rollingFiveHourLimit.tickPercent * rollingFiveHourLimit.max;
-    windows.push({
-      label: "Requests / 5h",
-      usedPercent: safePercent(used, rollingFiveHourLimit.max),
-      resetsAt: new Date(rollingFiveHourLimit.nextTickAt),
-      windowSeconds: 5 * 60 * 60,
-      usedValue: Math.round(used),
-      limitValue: rollingFiveHourLimit.max,
-      showPace: false,
-      limited: rollingFiveHourLimit.limited,
-      nextAmount: `+${tickAmount.toFixed(1)}`,
-      nextLabel: "Next tick",
-    });
-  }
-
-  if (quotas.search?.hourly?.limit && quotas.search.hourly.limit > 0) {
-    const { hourly } = quotas.search;
-    windows.push({
-      label: "Search / hour",
-      usedPercent: safePercent(hourly.requests, hourly.limit),
-      resetsAt: new Date(hourly.renewsAt),
-      windowSeconds: 60 * 60,
-      usedValue: hourly.requests,
-      limitValue: hourly.limit,
-      showPace: true,
-      paceScale: 1,
-      nextLabel: "Resets",
-    });
-  }
-
-  if (quotas.freeToolCalls?.limit && quotas.freeToolCalls.limit > 0) {
-    windows.push({
-      label: "Free Tool Calls / day",
-      usedPercent: safePercent(
-        quotas.freeToolCalls.requests,
-        quotas.freeToolCalls.limit,
-      ),
-      resetsAt: new Date(quotas.freeToolCalls.renewsAt),
-      windowSeconds: 24 * 60 * 60,
-      usedValue: quotas.freeToolCalls.requests,
-      limitValue: quotas.freeToolCalls.limit,
-      showPace: true,
-      paceScale: 1,
-      nextLabel: "Resets",
-    });
-  }
-
-  return windows;
-}
-
-function getPacePercent(window: QuotaWindow): number | null {
-  const totalMs = window.windowSeconds * 1000;
-  if (totalMs <= 0) return null;
-  const remainingMs = window.resetsAt.getTime() - Date.now();
-  const elapsedMs = totalMs - remainingMs;
-  return Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
-}
-
-function getProjectedPercent(
-  usedPercent: number,
-  pacePercent: number | null,
-): number {
-  if (pacePercent === null) return usedPercent;
-  const effectivePace = Math.max(5, pacePercent);
-  return Math.max(0, (usedPercent / effectivePace) * 100);
-}
-
-function getSeverity(
-  projectedPercent: number,
-  pacePercent: number | null,
-): "success" | "warning" | "error" {
-  if (pacePercent === null) {
-    if (projectedPercent >= 100) return "error";
-    if (projectedPercent >= 90) return "warning";
-    return "success";
-  }
-  // Dynamic thresholds based on window progress
-  const progress = pacePercent / 100;
-  const warnThreshold = 260 - (260 - 120) * progress;
-  const highThreshold = 320 - (320 - 145) * progress;
-  const criticalThreshold = 400 - (400 - 170) * progress;
-
-  if (projectedPercent >= criticalThreshold) return "error";
-  if (projectedPercent >= highThreshold) return "error";
-  if (projectedPercent >= warnThreshold) return "warning";
-  return "success";
-}
-
-function formatTimeRemaining(date: Date): string {
-  const ms = date.getTime() - Date.now();
-  if (ms <= 0) return "now";
-  const totalMins = Math.ceil(ms / (1000 * 60));
-  const hours = Math.floor(totalMins / 60);
-  const mins = totalMins % 60;
-  if (hours >= 1) return mins > 0 ? `${hours}h${mins}m` : `${hours}h`;
-  const totalSecs = Math.ceil(ms / 1000);
-  return totalMins >= 1 ? `${totalMins}m` : `${totalSecs}s`;
-}
 
 /**
  * Convert a foreground ANSI escape to its background equivalent.
@@ -355,15 +207,8 @@ export class QuotasComponent implements Component {
     const lines: string[] = [];
     const theme = this.theme;
 
-    const rawPace = window.showPace ? getPacePercent(window) : null;
-    const pacePercent =
-      rawPace !== null ? rawPace * (window.paceScale ?? 1) : null;
-    const projectedPercent = getProjectedPercent(
-      window.usedPercent,
-      pacePercent,
-    );
-    let severity = getSeverity(projectedPercent, pacePercent);
-    if (window.limited) severity = "error";
+    const assessment = assessWindow(window);
+    const color = getSeverityColor(assessment.severity);
 
     // Label
     lines.push(
@@ -375,8 +220,8 @@ export class QuotasComponent implements Component {
       window.usedPercent,
       barWidth,
       theme,
-      severity,
-      pacePercent,
+      color,
+      assessment.pacePercent,
     );
     const usedStr = window.isCurrency
       ? `${Math.round(window.usedPercent)}%/$${window.limitValue.toFixed(2)}`
@@ -384,7 +229,7 @@ export class QuotasComponent implements Component {
     const limitedBadge = window.limited ? theme.fg("error", " LIMITED") : "";
     lines.push(
       truncateToWidth(
-        `  ${bar} ${theme.fg(severity, usedStr)}${limitedBadge}`,
+        `  ${bar} ${theme.fg(color, usedStr)}${limitedBadge}`,
         maxWidth,
       ),
     );
