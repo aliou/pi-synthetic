@@ -36,7 +36,7 @@ const SYNTHETIC_REASONING_EFFORT_MAP = {
 } as const;
 
 export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
-  // API: hf:zai-org/GLM-4.7 → ctx=202752
+  // API: hf:zai-org/GLM-4.7 → ctx=202752 (provider: fireworks)
   {
     id: "hf:zai-org/GLM-4.7",
     name: "zai-org/GLM-4.7",
@@ -45,11 +45,11 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
       supportsReasoningEffort: true,
       reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
     },
-    input: ["text"],
+    input: ["text", "image"],
     cost: {
-      input: 0.45,
+      input: 2.19,
       output: 2.19,
-      cacheRead: 0.45,
+      cacheRead: 2.19,
       cacheWrite: 0,
     },
     contextWindow: 202752,
