@@ -1,5 +1,32 @@
 # @aliou/pi-synthetic
 
+## 0.13.0
+
+### Minor Changes
+
+- 7e83e5f: feat(settings): make synthetic features configurable
+
+  Add shared Synthetic feature settings with a `synthetic:settings`
+  command and `pi config` support. Web search, usage status, quota
+  warnings, quotas command, and subBar integration can now be enabled
+  or disabled individually. Web search, usage status, quota warnings,
+  and subBar polling react to settings changes live. The quotas command
+  still requires restart to fully unload.
+
+  Add an initial `v1-seed-defaults` migration that writes the current
+  defaults to disk and bumps `configVersion` to 1. On first load, fresh
+  installs seed the global config automatically. A one-time notice is
+  shown on session start pointing users to `pi config` and the
+  `/synthetic:settings` command.
+
+- ed77440: feat(usage-status): footer status bar showing live quota usage
+
+  Add usage-status extension that displays live quota percentages
+  (weekly credits, rolling 5h, etc.) in the footer status bar when a
+  Synthetic model is active. Colors follow the same severity
+  assessment as quota-warnings for consistency. Auto-refreshes every
+  60s and after each turn. Hides for non-Synthetic models.
+
 ## 0.12.0
 
 ### Minor Changes
