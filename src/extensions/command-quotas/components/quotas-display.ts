@@ -150,7 +150,6 @@ export class QuotasComponent implements Component {
         width,
       ),
     );
-    lines.push("");
 
     switch (this.state.type) {
       case "loading":
@@ -185,6 +184,8 @@ export class QuotasComponent implements Component {
     const lines: string[] = [];
     const windows = toWindows(quotas);
     const barWidth = Math.min(50, Math.max(20, contentWidth - 20));
+
+    lines.push("");
 
     for (const window of windows) {
       lines.push(...this.renderWindow(window, barWidth, maxWidth));
