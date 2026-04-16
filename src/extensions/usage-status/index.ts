@@ -5,6 +5,8 @@ import type {
 import {
   configLoader,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
+  SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
+  SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
 } from "../../config";
 import { getSyntheticApiKey } from "../../lib/env";
@@ -233,5 +235,11 @@ export default async function (pi: ExtensionAPI) {
     currentContext = undefined;
     currentProvider = undefined;
     refresher.stopAutoRefresh(ctx);
+  });
+
+  pi.events.on(SYNTHETIC_EXTENSIONS_REQUEST_EVENT, () => {
+    pi.events.emit(SYNTHETIC_EXTENSIONS_REGISTER_EVENT, {
+      feature: "usageStatus",
+    });
   });
 }

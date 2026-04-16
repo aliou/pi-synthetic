@@ -2,6 +2,8 @@ import type { AuthStorage, ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
   configLoader,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
+  SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
+  SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
 } from "../../config";
 import { getSyntheticApiKey } from "../../lib/env";
@@ -216,4 +218,10 @@ export function registerSubBarIntegration(pi: ExtensionAPI): void {
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
   registerSubBarIntegration(pi);
+
+  pi.events.on(SYNTHETIC_EXTENSIONS_REQUEST_EVENT, () => {
+    pi.events.emit(SYNTHETIC_EXTENSIONS_REGISTER_EVENT, {
+      feature: "subBarIntegration",
+    });
+  });
 }

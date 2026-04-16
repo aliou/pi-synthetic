@@ -2,6 +2,8 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
   configLoader,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
+  SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
+  SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
 } from "../../config";
 import {
@@ -38,5 +40,11 @@ export default async function (pi: ExtensionAPI) {
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
     webSearchEnabled = (data as SyntheticConfigUpdatedPayload).config.webSearch;
     syncToolActivation(pi, webSearchEnabled);
+  });
+
+  pi.events.on(SYNTHETIC_EXTENSIONS_REQUEST_EVENT, () => {
+    pi.events.emit(SYNTHETIC_EXTENSIONS_REGISTER_EVENT, {
+      feature: "webSearch",
+    });
   });
 }
