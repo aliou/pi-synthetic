@@ -18,6 +18,7 @@
       "./src/extensions/provider/index.ts",
       "./src/extensions/web-search/index.ts",
       "./src/extensions/command-quotas/index.ts",
+      "./src/extensions/sub-bar-integration/index.ts",
       "./src/extensions/quota-warnings/index.ts",
       "./src/extensions/usage-status/index.ts"
     ],
@@ -47,6 +48,7 @@
     "release": "pnpm changeset publish"
   },
   "dependencies": {
+    "@aliou/pi-utils-settings": "^0.13.0",
     "@aliou/pi-utils-ui": "^0.1.2"
   },
   "devDependencies": {

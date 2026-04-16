@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { configLoader } from "../../config";
 import { getSyntheticApiKey } from "../../lib/env";
 import { fetchQuotas } from "../../utils/quotas";
 import { QuotasComponent } from "./components/quotas-display";
@@ -10,6 +11,14 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
   pi.registerCommand("synthetic:quotas", {
     description: "Display Synthetic API usage quotas",
     handler: async (_args, ctx) => {
+      if (!configLoader.getConfig().quotasCommand) {
+        ctx.ui.notify(
+          "Synthetic quotas command is disabled. Restart Pi to unload the command after re-enabling or disabling it.",
+          "warning",
+        );
+        return;
+      }
+
       const apiKey = await getSyntheticApiKey(ctx.modelRegistry.authStorage);
       if (!apiKey) {
         ctx.ui.notify(MISSING_AUTH_MESSAGE, "warning");

@@ -2,6 +2,11 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@mariozechner/pi-coding-agent";
+import {
+  configLoader,
+  SYNTHETIC_CONFIG_UPDATED_EVENT,
+  type SyntheticConfigUpdatedPayload,
+} from "../../config";
 import { getSyntheticApiKey } from "../../lib/env";
 import type { QuotasResponse } from "../../types/quotas";
 import { fetchQuotas, formatResetTime } from "../../utils/quotas";
@@ -166,24 +171,47 @@ function createStatusRefresher() {
 }
 
 export default async function (pi: ExtensionAPI) {
-  const refresher = createStatusRefresher();
+  await configLoader.load();
 
-  pi.on("session_start", (_event, ctx) => {
-    if (ctx.model?.provider !== "synthetic") return;
+  const refresher = createStatusRefresher();
+  let enabled = configLoader.getConfig().usageStatus;
+  let currentContext: ExtensionContext | undefined;
+  let currentProvider: string | undefined;
+
+  pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
+    enabled = (data as SyntheticConfigUpdatedPayload).config.usageStatus;
+
+    if (!enabled) {
+      refresher.stopAutoRefresh(currentContext);
+      return;
+    }
+
+    if (currentContext && currentProvider === "synthetic") {
+      refresher.startAutoRefresh();
+      void refresher.refreshFor(currentContext);
+    }
+  });
+
+  pi.on("session_start", async (_event, ctx) => {
+    currentContext = ctx;
+    currentProvider = ctx.model?.provider;
+    if (!enabled || ctx.model?.provider !== "synthetic") return;
     refresher.startAutoRefresh();
-    void (async () => {
-      await refresher.setLoadingStatus(ctx);
-      await refresher.refreshFor(ctx);
-    })();
+    await refresher.setLoadingStatus(ctx);
+    await refresher.refreshFor(ctx);
   });
 
   pi.on("turn_end", (_event, ctx) => {
-    if (ctx.model?.provider !== "synthetic") return;
+    currentContext = ctx;
+    currentProvider = ctx.model?.provider;
+    if (!enabled || ctx.model?.provider !== "synthetic") return;
     void refresher.refreshFor(ctx);
   });
 
   pi.on("session_switch", (_event, ctx) => {
-    if (ctx.model?.provider === "synthetic") {
+    currentContext = ctx;
+    currentProvider = ctx.model?.provider;
+    if (enabled && ctx.model?.provider === "synthetic") {
       void refresher.refreshFor(ctx);
     } else {
       refresher.stopAutoRefresh(ctx);
@@ -191,7 +219,9 @@ export default async function (pi: ExtensionAPI) {
   });
 
   pi.on("model_select", (_event, ctx) => {
-    if (ctx.model?.provider === "synthetic") {
+    currentContext = ctx;
+    currentProvider = ctx.model?.provider;
+    if (enabled && ctx.model?.provider === "synthetic") {
       refresher.startAutoRefresh();
       void refresher.refreshFor(ctx);
     } else {
@@ -200,6 +230,8 @@ export default async function (pi: ExtensionAPI) {
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
+    currentContext = undefined;
+    currentProvider = undefined;
     refresher.stopAutoRefresh(ctx);
   });
 }

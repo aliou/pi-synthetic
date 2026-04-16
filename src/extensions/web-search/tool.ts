@@ -9,6 +9,7 @@ import type {
 import { getMarkdownTheme, keyHint } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Text } from "@mariozechner/pi-tui";
 import { type Static, Type } from "@sinclair/typebox";
+import { configLoader } from "../../config";
 import { getSyntheticApiKey } from "../../lib/env";
 
 export const SYNTHETIC_WEB_SEARCH_TOOL = "synthetic_web_search" as const;
@@ -58,6 +59,12 @@ export function registerSyntheticWebSearchTool(pi: ExtensionAPI): void {
         content: [{ type: "text", text: "Searching..." }],
         details: { query: params.query },
       });
+
+      if (!configLoader.getConfig().webSearch) {
+        throw new Error(
+          "Synthetic web search is disabled. Re-enable it with synthetic:settings or pi config.",
+        );
+      }
 
       const apiKey = await getSyntheticApiKey(ctx.modelRegistry.authStorage);
       if (!apiKey) {

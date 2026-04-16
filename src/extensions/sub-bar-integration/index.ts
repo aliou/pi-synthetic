@@ -1,4 +1,9 @@
 import type { AuthStorage, ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import {
+  configLoader,
+  SYNTHETIC_CONFIG_UPDATED_EVENT,
+  type SyntheticConfigUpdatedPayload,
+} from "../../config";
 import { getSyntheticApiKey } from "../../lib/env";
 import type { QuotasResponse } from "../../types/quotas";
 import { fetchQuotas, formatResetTime } from "../../utils/quotas";
@@ -28,7 +33,6 @@ interface SubCoreSettingsPayload {
 function toUsageSnapshot(quotas: QuotasResponse): UsageSnapshot {
   const windows: RateWindow[] = [];
 
-  // Weekly token limit (credits-based)
   if (quotas.weeklyTokenLimit) {
     const { weeklyTokenLimit } = quotas;
     windows.push({
@@ -41,7 +45,6 @@ function toUsageSnapshot(quotas: QuotasResponse): UsageSnapshot {
     });
   }
 
-  // Rolling 5-hour limit (request-based)
   if (quotas.rollingFiveHourLimit && quotas.rollingFiveHourLimit.max > 0) {
     const { rollingFiveHourLimit } = quotas;
     const used = rollingFiveHourLimit.max - rollingFiveHourLimit.remaining;
@@ -55,7 +58,6 @@ function toUsageSnapshot(quotas: QuotasResponse): UsageSnapshot {
     });
   }
 
-  // Legacy subscription (fallback if rollingFiveHourLimit not available)
   if (
     !quotas.rollingFiveHourLimit &&
     quotas.subscription?.limit &&
@@ -117,15 +119,16 @@ async function emitCurrentUsage(
   });
 }
 
-export function registerSubIntegration(pi: ExtensionAPI): void {
+export function registerSubBarIntegration(pi: ExtensionAPI): void {
   let interval: NodeJS.Timeout | undefined;
   let refreshMs = 60000;
   let subCoreReady = false;
   let currentProvider: string | undefined;
   let currentAuthStorage: AuthStorage | undefined;
+  let enabled = configLoader.getConfig().subBarIntegration;
 
   function isSynthetic(): boolean {
-    return currentProvider === "synthetic";
+    return enabled && currentProvider === "synthetic";
   }
 
   function stop(): void {
@@ -148,24 +151,33 @@ export function registerSubIntegration(pi: ExtensionAPI): void {
     interval.unref?.();
   }
 
-  // Custom events (inter-extension bus)
+  pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
+    enabled = (data as SyntheticConfigUpdatedPayload).config.subBarIntegration;
+
+    if (!enabled) {
+      stop();
+      return;
+    }
+
+    if (subCoreReady && currentAuthStorage && currentProvider === "synthetic") {
+      startPolling(currentAuthStorage);
+    }
+  });
+
   pi.events.on("sub-core:ready", () => {
     subCoreReady = true;
-    // Polling starts in session_start/model_select when provider is synthetic
   });
 
   pi.events.on("sub-core:settings:updated", (data: unknown) => {
     const payload = data as SubCoreSettingsPayload;
     if (payload.settings?.behavior?.refreshInterval) {
       refreshMs = payload.settings.behavior.refreshInterval * 1000;
-      // Restart with new interval if currently running
       if (interval && isSynthetic() && currentAuthStorage) {
         startPolling(currentAuthStorage);
       }
     }
   });
 
-  // Lifecycle events
   pi.on("session_start", async (_event, ctx) => {
     currentProvider = ctx.model?.provider;
     currentAuthStorage = ctx.modelRegistry.authStorage;
@@ -199,4 +211,9 @@ export function registerSubIntegration(pi: ExtensionAPI): void {
     currentAuthStorage = undefined;
     stop();
   });
+}
+
+export default async function (pi: ExtensionAPI) {
+  await configLoader.load();
+  registerSubBarIntegration(pi);
 }

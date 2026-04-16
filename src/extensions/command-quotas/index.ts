@@ -1,8 +1,13 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { configLoader } from "../../config";
 import { registerQuotasCommand } from "./command";
-import { registerSubIntegration } from "./sub-integration";
 
 export default async function (pi: ExtensionAPI) {
-  registerQuotasCommand(pi);
-  registerSubIntegration(pi);
+  await configLoader.load();
+
+  const config = configLoader.getConfig();
+
+  if (config.quotasCommand) {
+    registerQuotasCommand(pi);
+  }
 }

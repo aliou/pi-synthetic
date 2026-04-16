@@ -1,4 +1,9 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import {
+  configLoader,
+  emitSyntheticConfigUpdated,
+  registerSyntheticSettings,
+} from "../../config";
 import { SYNTHETIC_MODELS } from "./models";
 
 export function registerSyntheticProvider(pi: ExtensionAPI): void {
@@ -28,5 +33,11 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
 }
 
 export default async function (pi: ExtensionAPI) {
+  await configLoader.load();
   registerSyntheticProvider(pi);
+  registerSyntheticSettings(pi);
+
+  pi.on("session_start", async () => {
+    emitSyntheticConfigUpdated(pi);
+  });
 }
