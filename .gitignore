@@ -39,3 +39,4 @@ result-*
 # Pi
 .pi/git
 .pi/npm
+.pi/hf-sessions

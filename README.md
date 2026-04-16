@@ -73,6 +73,28 @@ Check your API usage:
 /synthetic:quotas
 ```
 
+### Usage Status
+
+When a Synthetic model is active, the footer status bar shows live quota usage (e.g. `week:82% (↺in 3d) 5h:95%`). Colors follow the same severity assessment as quota warnings: green by default, yellow/red only when projected usage is at risk. The status auto-refreshes every 60 seconds and after each turn.
+
+### Quota Warnings
+
+The extension automatically notifies you when you approach or exceed your Synthetic API quotas. Notifications fire on severity transitions only (no repeated alerts for the same level) and use correct terminology (regen/tick/resets) with precise time formatting.
+
+- Escalation always notifies
+- `high` and `critical` levels have no cooldown
+- `warning` level has a 60-minute cooldown
+
+## Disabling Features
+
+Each feature (provider, web search, quotas command, usage status, quota warnings) is a separate Pi extension. You can disable individual features using `pi config`:
+
+```
+pi config extensions.disabled add @aliou/pi-synthetic/quota-warnings
+```
+
+This prevents the quota-warnings extension from loading while keeping the rest of pi-synthetic active. Replace `quota-warnings` with `web-search`, `command-quotas`, or `provider` to disable other features.
+
 ## Adding or Updating Models
 
 Models are hardcoded in `src/providers/models.ts`. To add or update models:

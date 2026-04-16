@@ -38,6 +38,8 @@ src/
       sub-integration.ts        # Integration with pi-sub-core for usage display
       components/
         quotas-display.ts       # TUI component for quotas display (all states)
+    usage-status/
+      index.ts                  # Footer status bar showing live quota usage
   lib/
     env.ts                      # Auth helpers wrapping Pi AuthStorage
     init.ts                     # Readiness guard
@@ -103,4 +105,5 @@ Uses changesets. Run `pnpm changeset` before committing user-facing changes.
 1. **Provider**: OpenAI-compatible chat completions with 15+ open-source models
 2. **Web Search Tool**: Zero-data-retention web search via `synthetic_web_search`
 3. **Quotas Command**: Interactive TUI for viewing API usage limits
-4. **Sub Integration**: Real-time usage tracking when used with pi-sub-core
+4. **Usage Status**: Footer status bar showing live quota percentages, colored by severity
+5. **Sub Integration**: Real-time usage tracking when used with pi-sub-core
