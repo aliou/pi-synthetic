@@ -63,14 +63,8 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
       Referer: "https://pi.dev",
       "X-Title": "npm:@aliou/pi-synthetic",
     },
-    models: SYNTHETIC_MODELS.map((model) => ({
-      id: model.id,
-      name: model.name,
-      reasoning: model.reasoning,
-      input: model.input,
-      cost: model.cost,
-      contextWindow: model.contextWindow,
-      maxTokens: model.maxTokens,
+    models: SYNTHETIC_MODELS.map(({ provider: _provider, ...model }) => ({
+      ...model,
       compat: {
         supportsDeveloperRole: false,
         maxTokensField: "max_tokens",
