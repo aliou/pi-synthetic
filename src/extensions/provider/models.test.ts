@@ -4,6 +4,7 @@ import { SYNTHETIC_MODELS } from "./models";
 interface ApiModel {
   id: string;
   name: string;
+  provider: string | null;
   input_modalities: string[];
   output_modalities: string[];
   context_length: number;
@@ -155,6 +156,19 @@ function compareModels(
           api: apiSupportsReasoning,
         });
       }
+    }
+
+    // Check provider
+    if (
+      apiModel.provider !== null &&
+      apiModel.provider !== hardcoded.provider
+    ) {
+      discrepancies.push({
+        model: hardcoded.id,
+        field: "provider",
+        hardcoded: hardcoded.provider,
+        api: apiModel.provider,
+      });
     }
   }
 

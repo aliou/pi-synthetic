@@ -2,29 +2,11 @@
 // Source: https://api.synthetic.new/openai/v1/models
 // maxTokens sourced from https://models.dev/api.json (synthetic provider)
 
-export interface SyntheticModelConfig {
-  id: string;
-  name: string;
-  reasoning: boolean;
-  input: ("text" | "image")[];
-  cost: {
-    input: number;
-    output: number;
-    cacheRead: number;
-    cacheWrite: number;
-  };
-  contextWindow: number;
-  maxTokens: number;
-  compat?: {
-    supportsDeveloperRole?: boolean;
-    supportsReasoningEffort?: boolean;
-    reasoningEffortMap?: Partial<
-      Record<"minimal" | "low" | "medium" | "high" | "xhigh", string>
-    >;
-    maxTokensField?: "max_completion_tokens" | "max_tokens";
-    requiresToolResultName?: boolean;
-    requiresMistralToolIds?: boolean;
-  };
+import type { ProviderModelConfig } from "@mariozechner/pi-coding-agent";
+
+export interface SyntheticModelConfig extends ProviderModelConfig {
+  /** Upstream backend Synthetic proxies this model through (e.g. "fireworks", "together", "synthetic"). */
+  provider: string;
 }
 
 const SYNTHETIC_REASONING_EFFORT_MAP = {
@@ -36,20 +18,21 @@ const SYNTHETIC_REASONING_EFFORT_MAP = {
 } as const;
 
 export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
-  // API: hf:zai-org/GLM-4.7 → ctx=202752 (provider: fireworks)
+  // API: hf:zai-org/GLM-4.7 → ctx=202752
   {
     id: "hf:zai-org/GLM-4.7",
     name: "zai-org/GLM-4.7",
+    provider: "synthetic",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
       reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
     },
-    input: ["text", "image"],
+    input: ["text"],
     cost: {
-      input: 2.19,
+      input: 0.45,
       output: 2.19,
-      cacheRead: 2.19,
+      cacheRead: 0.45,
       cacheWrite: 0,
     },
     contextWindow: 202752,
@@ -59,6 +42,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:zai-org/GLM-5",
     name: "zai-org/GLM-5",
+    provider: "synthetic",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -78,6 +62,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:zai-org/GLM-5.1",
     name: "zai-org/GLM-5.1",
+    provider: "synthetic",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -98,6 +83,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:zai-org/GLM-4.7-Flash",
     name: "zai-org/GLM-4.7-Flash",
+    provider: "synthetic",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -117,6 +103,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:MiniMaxAI/MiniMax-M2.1",
     name: "MiniMaxAI/MiniMax-M2.1",
+    provider: "fireworks",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -136,6 +123,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:meta-llama/Llama-3.3-70B-Instruct",
     name: "meta-llama/Llama-3.3-70B-Instruct",
+    provider: "together",
     reasoning: false,
     input: ["text"],
     cost: {
@@ -151,6 +139,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:deepseek-ai/DeepSeek-R1-0528",
     name: "deepseek-ai/DeepSeek-R1-0528",
+    provider: "together",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -170,6 +159,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:deepseek-ai/DeepSeek-V3.2",
     name: "deepseek-ai/DeepSeek-V3.2",
+    provider: "fireworks",
     reasoning: false,
     input: ["text"],
     cost: {
@@ -185,6 +175,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:moonshotai/Kimi-K2-Instruct-0905",
     name: "moonshotai/Kimi-K2-Instruct-0905",
+    provider: "fireworks",
     reasoning: false,
     input: ["text"],
     cost: {
@@ -200,6 +191,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:moonshotai/Kimi-K2-Thinking",
     name: "moonshotai/Kimi-K2-Thinking",
+    provider: "fireworks",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -219,6 +211,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:openai/gpt-oss-120b",
     name: "openai/gpt-oss-120b",
+    provider: "fireworks",
     reasoning: false,
     input: ["text"],
     cost: {
@@ -234,6 +227,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:Qwen/Qwen3-Coder-480B-A35B-Instruct",
     name: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
+    provider: "together",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -253,6 +247,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:moonshotai/Kimi-K2.5",
     name: "moonshotai/Kimi-K2.5",
+    provider: "synthetic",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -272,6 +267,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:nvidia/Kimi-K2.5-NVFP4",
     name: "nvidia/Kimi-K2.5-NVFP4",
+    provider: "synthetic",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -291,6 +287,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:deepseek-ai/DeepSeek-V3",
     name: "deepseek-ai/DeepSeek-V3",
+    provider: "together",
     reasoning: false,
     input: ["text"],
     cost: {
@@ -306,6 +303,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:Qwen/Qwen3-235B-A22B-Thinking-2507",
     name: "Qwen/Qwen3-235B-A22B-Thinking-2507",
+    provider: "together",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -325,6 +323,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:Qwen/Qwen3.5-397B-A17B",
     name: "Qwen/Qwen3.5-397B-A17B",
+    provider: "together",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -344,6 +343,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:MiniMaxAI/MiniMax-M2.5",
     name: "MiniMaxAI/MiniMax-M2.5",
+    provider: "synthetic",
     reasoning: true,
     input: ["text"],
     cost: {
@@ -364,6 +364,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
   {
     id: "hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
     name: "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    provider: "synthetic",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
