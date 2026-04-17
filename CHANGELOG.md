@@ -1,5 +1,12 @@
 # @aliou/pi-synthetic
 
+## 0.13.1
+
+### Patch Changes
+
+- 9253b2d: Fix GLM-4.7 metadata: correct input modalities (text-only), input and cache-read costs (0.45 $/M), and upstream provider (synthetic). Add provider field to all models. Add provider check to model tests.
+- 556357c: Refactor `SyntheticModelConfig` to extend `ProviderModelConfig` from pi-coding-agent, removing duplicate field declarations.
+
 ## 0.13.0
 
 ### Minor Changes
