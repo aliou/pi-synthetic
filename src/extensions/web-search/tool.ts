@@ -44,6 +44,12 @@ export function registerSyntheticWebSearchTool(pi: ExtensionAPI): void {
     label: "Synthetic: Web Search",
     description:
       "Search the web using Synthetic's zero-data-retention API. Returns search results with titles, URLs, content snippets, and publication dates. Use for finding documentation, articles, recent information, or any web content. Results are fresh and not cached by Synthetic.",
+    promptSnippet: "Search the web using Synthetic's zero-data-retention API",
+    promptGuidelines: [
+      "Use synthetic_web_search for finding documentation, articles, recent information, or any web content.",
+      "Write specific queries with names, dates, versions, or locations for synthetic_web_search.",
+      "synthetic_web_search results are fresh and not cached by Synthetic.",
+    ],
     parameters: SearchParams,
 
     async execute(
