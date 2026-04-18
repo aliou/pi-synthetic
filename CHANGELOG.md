@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.13.2
+
+### Patch Changes
+
+- b640931: Add missing promptSnippet and promptGuidelines to synthetic_web_search tool
+
 ## 0.13.1
 
 ### Patch Changes
