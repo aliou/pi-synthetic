@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { AuthStorage, ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { visibleWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import {
   clearPendingMigrationNotice,
@@ -12,6 +12,15 @@ import {
   type SyntheticFeatureId,
   seedSyntheticConfigIfMissing,
 } from "../../config";
+import { getSyntheticApiKey } from "../../lib/env";
+import { QuotaStore } from "../../services/quota-store";
+import {
+  parseQuotaHeader,
+  type QuotasResponse,
+  SYNTHETIC_QUOTAS_REQUEST_EVENT,
+  SYNTHETIC_QUOTAS_UPDATED_EVENT,
+} from "../../types/quotas";
+import { fetchQuotas } from "../../utils/quotas";
 import { SYNTHETIC_MODELS } from "./models";
 
 const MIGRATION_NOTICE_MESSAGE_TYPE = "synthetic:migration-notice";
@@ -119,10 +128,50 @@ export default async function (pi: ExtensionAPI) {
     getLoadedFeatures: () => loadedFeatures,
   });
 
-  pi.on("session_start", async () => {
+  // --- Quota store ---
+  const quotaStore = new QuotaStore();
+  let currentAuthStorage: AuthStorage | undefined;
+
+  async function fetchQuotasFromAuth(): Promise<QuotasResponse | undefined> {
+    if (!currentAuthStorage) return undefined;
+    const apiKey = await getSyntheticApiKey(currentAuthStorage);
+    if (!apiKey) return undefined;
+    const result = await fetchQuotas(apiKey);
+    return result.success ? result.data.quotas : undefined;
+  }
+
+  // Bridge: when the store emits a snapshot, broadcast via pi.events
+  quotaStore.subscribe((snapshot) => {
+    pi.events.emit(SYNTHETIC_QUOTAS_UPDATED_EVENT, {
+      quotas: snapshot.quotas,
+      source: snapshot.source,
+    });
+  });
+
+  // Ingest quotas from the x-synthetic-quotas response header
+  pi.on("after_provider_response", (event, ctx) => {
+    if (ctx.model?.provider !== "synthetic") return;
+    const quotas = parseQuotaHeader(event.headers);
+    if (quotas) quotaStore.ingest(quotas, "header");
+  });
+
+  // Respond to quota requests from other extensions (e.g. on model_select)
+  pi.events.on(SYNTHETIC_QUOTAS_REQUEST_EVENT, async () => {
+    await quotaStore.refreshFromApi(fetchQuotasFromAuth);
+  });
+
+  pi.on("session_start", async (_event, ctx) => {
     loadedFeatures.clear();
+    quotaStore.clear();
+    currentAuthStorage = ctx.modelRegistry.authStorage;
     pi.events.emit(SYNTHETIC_EXTENSIONS_REQUEST_EVENT, undefined);
     emitSyntheticConfigUpdated(pi);
+
+    // Initial quota fetch for the session so consumers have data before
+    // any provider response fires.
+    if (ctx.model?.provider === "synthetic") {
+      await quotaStore.refreshFromApi(fetchQuotasFromAuth);
+    }
 
     if (hasPendingMigrationNotice()) {
       clearPendingMigrationNotice();
