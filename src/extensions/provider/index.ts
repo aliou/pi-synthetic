@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { AuthStorage, ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
   configLoader,
   emitSyntheticConfigUpdated,
@@ -12,6 +12,15 @@ import {
   type SyntheticFeatureId,
   seedSyntheticConfigIfMissing,
 } from "../../config";
+import { getSyntheticApiKey } from "../../lib/env";
+import { QuotaStore } from "../../services/quota-store";
+import {
+  parseQuotaHeader,
+  type QuotasResponse,
+  SYNTHETIC_QUOTAS_REQUEST_EVENT,
+  SYNTHETIC_QUOTAS_UPDATED_EVENT,
+} from "../../types/quotas";
+import { fetchQuotas } from "../../utils/quotas";
 import { SYNTHETIC_MODELS } from "./models";
 
 export function buildSyntheticProviderModels(includeProxiedModels: boolean) {
@@ -71,6 +80,34 @@ export default async function (pi: ExtensionAPI) {
     getLoadedFeatures: () => loadedFeatures,
   });
 
+  const quotaStore = new QuotaStore();
+  let currentAuthStorage: AuthStorage | undefined;
+
+  async function fetchQuotasFromAuth(): Promise<QuotasResponse | undefined> {
+    if (!currentAuthStorage) return undefined;
+    const apiKey = await getSyntheticApiKey(currentAuthStorage);
+    if (!apiKey) return undefined;
+    const result = await fetchQuotas(apiKey);
+    return result.success ? result.data.quotas : undefined;
+  }
+
+  quotaStore.subscribe((snapshot) => {
+    pi.events.emit(SYNTHETIC_QUOTAS_UPDATED_EVENT, {
+      quotas: snapshot.quotas,
+      source: snapshot.source,
+    });
+  });
+
+  pi.on("after_provider_response", (event, ctx) => {
+    if (ctx.model?.provider !== "synthetic") return;
+    const quotas = parseQuotaHeader(event.headers);
+    if (quotas) quotaStore.ingest(quotas, "header");
+  });
+
+  pi.events.on(SYNTHETIC_QUOTAS_REQUEST_EVENT, async () => {
+    await quotaStore.refreshFromApi(fetchQuotasFromAuth);
+  });
+
   pi.on("session_start", async (_event, ctx) => {
     const messages = pendingMessages.splice(0).map((m) => `- ${m}`);
     if (messages.length > 0) {
@@ -81,7 +118,13 @@ export default async function (pi: ExtensionAPI) {
     }
 
     loadedFeatures.clear();
+    quotaStore.clear();
+    currentAuthStorage = ctx.modelRegistry.authStorage;
     pi.events.emit(SYNTHETIC_EXTENSIONS_REQUEST_EVENT, undefined);
     emitSyntheticConfigUpdated(pi);
+
+    if (ctx.model?.provider === "synthetic") {
+      await quotaStore.refreshFromApi(fetchQuotasFromAuth);
+    }
   });
 }
