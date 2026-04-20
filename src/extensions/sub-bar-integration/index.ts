@@ -1,4 +1,4 @@
-import type { AuthStorage, ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import {
   configLoader,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
@@ -6,9 +6,13 @@ import {
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
 } from "../../config";
-import { getSyntheticApiKey } from "../../lib/env";
-import type { QuotasResponse } from "../../types/quotas";
-import { fetchQuotas, formatResetTime } from "../../utils/quotas";
+import {
+  type QuotasResponse,
+  SYNTHETIC_QUOTAS_REQUEST_EVENT,
+  SYNTHETIC_QUOTAS_UPDATED_EVENT,
+  type SyntheticQuotasUpdatedPayload,
+} from "../../types/quotas";
+import { formatResetTime } from "../../utils/quotas";
 
 interface RateWindow {
   label: string;
@@ -22,14 +26,6 @@ interface UsageSnapshot {
   displayName: string;
   windows: RateWindow[];
   lastSuccessAt?: number;
-}
-
-interface SubCoreSettingsPayload {
-  settings?: {
-    behavior?: {
-      refreshInterval: number;
-    };
-  };
 }
 
 function toUsageSnapshot(quotas: QuotasResponse): UsageSnapshot {
@@ -105,64 +101,42 @@ function toUsageSnapshot(quotas: QuotasResponse): UsageSnapshot {
   };
 }
 
-async function emitCurrentUsage(
-  pi: ExtensionAPI,
-  authStorage: AuthStorage,
-): Promise<void> {
-  const apiKey = await getSyntheticApiKey(authStorage);
-  if (!apiKey) return;
-  const result = await fetchQuotas(apiKey);
-  if (!result.success) return;
-  pi.events.emit("sub-core:update-current", {
-    state: {
-      provider: "synthetic",
-      usage: toUsageSnapshot(result.data.quotas),
-    },
-  });
-}
-
 export function registerSubBarIntegration(pi: ExtensionAPI): void {
-  let interval: NodeJS.Timeout | undefined;
-  let refreshMs = 60000;
   let subCoreReady = false;
   let currentProvider: string | undefined;
-  let currentAuthStorage: AuthStorage | undefined;
   let enabled = configLoader.getConfig().subBarIntegration;
 
   function isSynthetic(): boolean {
     return enabled && currentProvider === "synthetic";
   }
 
-  function stop(): void {
-    if (interval) {
-      clearInterval(interval);
-      interval = undefined;
-    }
+  function emitUsage(quotas: QuotasResponse): void {
+    pi.events.emit("sub-core:update-current", {
+      state: {
+        provider: "synthetic",
+        usage: toUsageSnapshot(quotas),
+      },
+    });
   }
 
-  function startPolling(authStorage: AuthStorage): void {
-    stop();
-    currentAuthStorage = authStorage;
-    void emitCurrentUsage(pi, authStorage);
-    const ms = Math.max(10000, refreshMs);
-    interval = setInterval(() => {
-      if (isSynthetic() && currentAuthStorage) {
-        void emitCurrentUsage(pi, currentAuthStorage);
-      }
-    }, ms);
-    interval.unref?.();
+  function requestQuotas(): void {
+    pi.events.emit(SYNTHETIC_QUOTAS_REQUEST_EVENT, undefined);
   }
+
+  // Receive quota updates from the provider extension
+  pi.events.on(SYNTHETIC_QUOTAS_UPDATED_EVENT, (data: unknown) => {
+    if (!isSynthetic() || !subCoreReady) return;
+    const { quotas } = data as SyntheticQuotasUpdatedPayload;
+    emitUsage(quotas);
+  });
 
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
     enabled = (data as SyntheticConfigUpdatedPayload).config.subBarIntegration;
 
-    if (!enabled) {
-      stop();
-      return;
-    }
+    if (!enabled) return;
 
-    if (subCoreReady && currentAuthStorage && currentProvider === "synthetic") {
-      startPolling(currentAuthStorage);
+    if (subCoreReady && currentProvider === "synthetic") {
+      requestQuotas();
     }
   });
 
@@ -170,48 +144,24 @@ export function registerSubBarIntegration(pi: ExtensionAPI): void {
     subCoreReady = true;
   });
 
-  pi.events.on("sub-core:settings:updated", (data: unknown) => {
-    const payload = data as SubCoreSettingsPayload;
-    if (payload.settings?.behavior?.refreshInterval) {
-      refreshMs = payload.settings.behavior.refreshInterval * 1000;
-      if (interval && isSynthetic() && currentAuthStorage) {
-        startPolling(currentAuthStorage);
-      }
-    }
-  });
-
   pi.on("session_start", async (_event, ctx) => {
     currentProvider = ctx.model?.provider;
-    currentAuthStorage = ctx.modelRegistry.authStorage;
+  });
+
+  pi.on("model_select", async (_event, ctx) => {
+    currentProvider = ctx.model?.provider;
 
     if (subCoreReady && isSynthetic()) {
-      const apiKey = await getSyntheticApiKey(currentAuthStorage);
-      if (apiKey) {
-        startPolling(currentAuthStorage);
-      }
+      requestQuotas();
     }
   });
 
-  pi.on("model_select", async (event, ctx) => {
-    currentProvider = event.model?.provider;
-    currentAuthStorage = ctx.modelRegistry.authStorage;
-
-    if (subCoreReady && isSynthetic()) {
-      const apiKey = await getSyntheticApiKey(currentAuthStorage);
-      if (apiKey) {
-        startPolling(currentAuthStorage);
-      } else {
-        stop();
-      }
-    } else {
-      stop();
-    }
+  pi.on("session_before_switch", (_event, ctx) => {
+    currentProvider = ctx.model?.provider;
   });
 
   pi.on("session_shutdown", () => {
     currentProvider = undefined;
-    currentAuthStorage = undefined;
-    stop();
   });
 }
 
