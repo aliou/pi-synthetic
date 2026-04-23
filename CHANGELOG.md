@@ -1,5 +1,15 @@
 # @aliou/pi-synthetic
 
+## 0.13.3
+
+### Patch Changes
+
+- 4b7e962: Remove 3 models no longer available via Synthetic API
+
+  - hf:MiniMaxAI/MiniMax-M2.1
+  - hf:moonshotai/Kimi-K2-Instruct-0905
+  - hf:moonshotai/Kimi-K2-Thinking
+
 ## 0.13.2
 
 ### Patch Changes
