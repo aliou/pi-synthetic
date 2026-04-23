@@ -99,26 +99,6 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     contextWindow: 196608,
     maxTokens: 65536,
   },
-  // API: hf:MiniMaxAI/MiniMax-M2.1 → ctx=196608, out=65536
-  {
-    id: "hf:MiniMaxAI/MiniMax-M2.1",
-    name: "MiniMaxAI/MiniMax-M2.1",
-    provider: "fireworks",
-    reasoning: true,
-    compat: {
-      supportsReasoningEffort: true,
-      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
-    },
-    input: ["text"],
-    cost: {
-      input: 0.3,
-      output: 1.2,
-      cacheRead: 0.3,
-      cacheWrite: 0,
-    },
-    contextWindow: 196608,
-    maxTokens: 65536,
-  },
   // models.dev: synthetic/hf:meta-llama/Llama-3.3-70B-Instruct → ctx=128000, out=32768
   {
     id: "hf:meta-llama/Llama-3.3-70B-Instruct",
@@ -170,42 +150,6 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     },
     contextWindow: 162816,
     maxTokens: 8000,
-  },
-  // models.dev: synthetic/hf:moonshotai/Kimi-K2-Instruct-0905 → ctx=262144, out=32768
-  {
-    id: "hf:moonshotai/Kimi-K2-Instruct-0905",
-    name: "moonshotai/Kimi-K2-Instruct-0905",
-    provider: "fireworks",
-    reasoning: false,
-    input: ["text"],
-    cost: {
-      input: 1.2,
-      output: 1.2,
-      cacheRead: 1.2,
-      cacheWrite: 0,
-    },
-    contextWindow: 262144,
-    maxTokens: 32768,
-  },
-  // models.dev: synthetic/hf:moonshotai/Kimi-K2-Thinking → ctx=262144, out=262144
-  {
-    id: "hf:moonshotai/Kimi-K2-Thinking",
-    name: "moonshotai/Kimi-K2-Thinking",
-    provider: "fireworks",
-    reasoning: true,
-    compat: {
-      supportsReasoningEffort: true,
-      reasoningEffortMap: SYNTHETIC_REASONING_EFFORT_MAP,
-    },
-    input: ["text"],
-    cost: {
-      input: 0.6,
-      output: 2.5,
-      cacheRead: 0.6,
-      cacheWrite: 0,
-    },
-    contextWindow: 262144,
-    maxTokens: 262144,
   },
   // models.dev: synthetic/hf:openai/gpt-oss-120b → ctx=128000, out=32768
   {
