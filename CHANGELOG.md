@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.13.4
+
+### Patch Changes
+
+- f303e49: Update Synthetic model reasoning metadata from live models.dev data.
+
 ## 0.13.3
 
 ### Patch Changes
