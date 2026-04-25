@@ -104,7 +104,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:meta-llama/Llama-3.3-70B-Instruct",
     name: "meta-llama/Llama-3.3-70B-Instruct",
     provider: "together",
-    reasoning: false,
+    reasoning: true,
     input: ["text"],
     cost: {
       input: 0.88,
@@ -140,7 +140,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:deepseek-ai/DeepSeek-V3.2",
     name: "deepseek-ai/DeepSeek-V3.2",
     provider: "fireworks",
-    reasoning: false,
+    reasoning: true,
     input: ["text"],
     cost: {
       input: 0.56,
@@ -156,7 +156,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:openai/gpt-oss-120b",
     name: "openai/gpt-oss-120b",
     provider: "fireworks",
-    reasoning: false,
+    reasoning: true,
     input: ["text"],
     cost: {
       input: 0.1,
@@ -232,7 +232,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:deepseek-ai/DeepSeek-V3",
     name: "deepseek-ai/DeepSeek-V3",
     provider: "together",
-    reasoning: false,
+    reasoning: true,
     input: ["text"],
     cost: {
       input: 1.25,
