@@ -26,7 +26,7 @@ pnpm changeset    # Create changeset for versioning
 src/
   extensions/
     provider/
-      index.ts                  # Provider extension entry point
+      index.ts                  # Provider extension entry point; ingests quota headers
       models.ts                 # Hardcoded model definitions
       models.test.ts            # Model config tests
     web-search/
@@ -38,13 +38,22 @@ src/
       sub-integration.ts        # Integration with pi-sub-core for usage display
       components/
         quotas-display.ts       # TUI component for quotas display (all states)
+    quota-warnings/
+      index.ts                  # Quota warning notifications (event-driven)
+    sub-bar-integration/
+      index.ts                  # pi-sub-core usage bar (event-driven)
     usage-status/
       index.ts                  # Footer status bar showing live quota usage
+  services/
+    quota-store.ts              # In-memory quota store (header throttling, deduped refresh)
+    quota-store.test.ts         # Tests
+    quota-warnings.ts           # Pi-agnostic warning evaluator (severity, cooldown)
+    quota-warnings.test.ts      # Tests
   lib/
     env.ts                      # Auth helpers wrapping Pi AuthStorage
     init.ts                     # Readiness guard
   types/
-    quotas.ts                   # Quotas API response types
+    quotas.ts                   # Quotas API types, event constants, parseQuotaHeader
   utils/
     quotas.ts                   # Quotas fetching and formatting utilities
 ```
@@ -56,6 +65,7 @@ src/
 - Models are hardcoded in `src/extensions/provider/models.ts`
 - Web search tool and quotas command are always registered; they fail at call time if credentials/subscription are missing
 - Error messages guide users to add credentials to `~/.pi/agent/auth.json` or set `SYNTHETIC_API_KEY`
+- Quota data flows event-driven: provider ingests `x-synthetic-quotas` header from `after_provider_response` into `QuotaStore`, which broadcasts via `synthetic:quotas:updated`; consumers (usage-status, quota-warnings, sub-bar-integration) listen and request refreshes via `synthetic:quotas:request` — no polling
 
 ## Model Configuration
 
@@ -105,5 +115,6 @@ Uses changesets. Run `pnpm changeset` before committing user-facing changes.
 1. **Provider**: OpenAI-compatible chat completions with 15+ open-source models
 2. **Web Search Tool**: Zero-data-retention web search via `synthetic_web_search`
 3. **Quotas Command**: Interactive TUI for viewing API usage limits
-4. **Usage Status**: Footer status bar showing live quota percentages, colored by severity
-5. **Sub Integration**: Real-time usage tracking when used with pi-sub-core
+4. **Usage Status**: Footer status bar showing live quota percentages, colored by severity (event-driven)
+5. **Sub Integration**: Real-time usage tracking when used with pi-sub-core (event-driven)
+6. **Quota Warnings**: Notifications when quota usage approaches or exceeds thresholds

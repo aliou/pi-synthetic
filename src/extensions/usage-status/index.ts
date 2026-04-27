@@ -9,9 +9,13 @@ import {
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
 } from "../../config";
-import { getSyntheticApiKey } from "../../lib/env";
-import type { QuotasResponse } from "../../types/quotas";
-import { fetchQuotas, formatResetTime } from "../../utils/quotas";
+import {
+  type QuotasResponse,
+  SYNTHETIC_QUOTAS_REQUEST_EVENT,
+  SYNTHETIC_QUOTAS_UPDATED_EVENT,
+  type SyntheticQuotasUpdatedPayload,
+} from "../../types/quotas";
+import { formatResetTime } from "../../utils/quotas";
 import {
   assessWindow,
   getSeverityColor,
@@ -20,7 +24,6 @@ import {
 } from "../../utils/quotas-severity";
 
 const EXTENSION_ID = "synthetic-usage";
-const REFRESH_INTERVAL_MS = 60_000;
 
 type WindowStatus = {
   label: string;
@@ -73,124 +76,56 @@ function formatStatus(ctx: ExtensionContext, windows: WindowStatus[]): string {
   return parts.join(" ");
 }
 
-function createStatusRefresher() {
-  let refreshTimer: ReturnType<typeof setInterval> | undefined;
-  let activeContext: ExtensionContext | undefined;
-  let isRefreshInFlight = false;
-  let queuedRefresh = false;
-  let lastSnapshot: WindowStatus[] | undefined;
-
-  async function updateFooterStatus(ctx: ExtensionContext): Promise<void> {
-    if (!ctx.hasUI) return;
-    if (isRefreshInFlight) {
-      queuedRefresh = true;
-      return;
-    }
-    isRefreshInFlight = true;
-    try {
-      const apiKey = await getSyntheticApiKey(ctx.modelRegistry.authStorage);
-      if (!apiKey) {
-        lastSnapshot = undefined;
-        ctx.ui.setStatus(EXTENSION_ID, undefined);
-        return;
-      }
-      const result = await fetchQuotas(apiKey);
-      if (!result.success) {
-        ctx.ui.setStatus(
-          EXTENSION_ID,
-          ctx.ui.theme.fg("warning", "usage unavailable"),
-        );
-        return;
-      }
-      const windows = parseSnapshot(result.data.quotas);
-      lastSnapshot = windows;
-      if (windows.length === 0) {
-        ctx.ui.setStatus(EXTENSION_ID, undefined);
-        return;
-      }
-      ctx.ui.setStatus(EXTENSION_ID, formatStatus(ctx, windows));
-    } catch {
-      ctx.ui.setStatus(
-        EXTENSION_ID,
-        ctx.ui.theme.fg("warning", "usage unavailable"),
-      );
-    } finally {
-      isRefreshInFlight = false;
-      if (queuedRefresh) {
-        queuedRefresh = false;
-        void updateFooterStatus(ctx);
-      }
-    }
-  }
-
-  function refreshFor(ctx: ExtensionContext): Promise<void> {
-    activeContext = ctx;
-    return updateFooterStatus(ctx);
-  }
-
-  function startAutoRefresh(): void {
-    if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(() => {
-      if (!activeContext) return;
-      void updateFooterStatus(activeContext);
-    }, REFRESH_INTERVAL_MS);
-    refreshTimer.unref?.();
-  }
-
-  function stopAutoRefresh(ctx?: ExtensionContext): void {
-    if (refreshTimer) {
-      clearInterval(refreshTimer);
-      refreshTimer = undefined;
-    }
-    ctx?.ui.setStatus(EXTENSION_ID, undefined);
-  }
-
-  async function setLoadingStatus(ctx: ExtensionContext): Promise<void> {
-    if (!ctx.hasUI) return;
-    const apiKey = await getSyntheticApiKey(
-      ctx.modelRegistry.authStorage,
-    ).catch(() => undefined);
-    if (!apiKey) {
-      ctx.ui.setStatus(EXTENSION_ID, undefined);
-      return;
-    }
-    ctx.ui.setStatus(EXTENSION_ID, ctx.ui.theme.fg("dim", "loading usage..."));
-  }
-
-  function renderFromLastSnapshot(ctx: ExtensionContext): boolean {
-    if (!ctx.hasUI || !lastSnapshot) return false;
-    ctx.ui.setStatus(EXTENSION_ID, formatStatus(ctx, lastSnapshot));
-    return true;
-  }
-
-  return {
-    refreshFor,
-    startAutoRefresh,
-    stopAutoRefresh,
-    setLoadingStatus,
-    renderFromLastSnapshot,
-  };
-}
-
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
 
-  const refresher = createStatusRefresher();
   let enabled = configLoader.getConfig().usageStatus;
   let currentContext: ExtensionContext | undefined;
   let currentProvider: string | undefined;
+  let lastSnapshot: WindowStatus[] | undefined;
+
+  function renderFromSnapshot(ctx: ExtensionContext): void {
+    if (!ctx.hasUI) return;
+    if (!lastSnapshot || lastSnapshot.length === 0) {
+      ctx.ui.setStatus(EXTENSION_ID, undefined);
+      return;
+    }
+    ctx.ui.setStatus(EXTENSION_ID, formatStatus(ctx, lastSnapshot));
+  }
+
+  function requestQuotas(): void {
+    pi.events.emit(SYNTHETIC_QUOTAS_REQUEST_EVENT, undefined);
+  }
+
+  function setLoadingStatus(ctx: ExtensionContext): void {
+    if (!ctx.hasUI) return;
+    ctx.ui.setStatus(EXTENSION_ID, ctx.ui.theme.fg("dim", "loading usage..."));
+  }
+
+  function clearStatus(ctx?: ExtensionContext): void {
+    lastSnapshot = undefined;
+    ctx?.ui.setStatus(EXTENSION_ID, undefined);
+  }
+
+  // Receive quota updates from the provider extension
+  pi.events.on(SYNTHETIC_QUOTAS_UPDATED_EVENT, (data: unknown) => {
+    if (!enabled || currentProvider !== "synthetic") return;
+    const { quotas } = data as SyntheticQuotasUpdatedPayload;
+    lastSnapshot = parseSnapshot(quotas);
+    if (currentContext) renderFromSnapshot(currentContext);
+  });
 
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
     enabled = (data as SyntheticConfigUpdatedPayload).config.usageStatus;
-
     if (!enabled) {
-      refresher.stopAutoRefresh(currentContext);
-      return;
-    }
-
-    if (currentContext && currentProvider === "synthetic") {
-      refresher.startAutoRefresh();
-      void refresher.refreshFor(currentContext);
+      clearStatus(currentContext);
+    } else if (currentContext && currentProvider === "synthetic") {
+      if (lastSnapshot) {
+        renderFromSnapshot(currentContext);
+      } else {
+        setLoadingStatus(currentContext);
+        requestQuotas();
+      }
     }
   });
 
@@ -198,43 +133,48 @@ export default async function (pi: ExtensionAPI) {
     currentContext = ctx;
     currentProvider = ctx.model?.provider;
     if (!enabled || ctx.model?.provider !== "synthetic") return;
-    refresher.startAutoRefresh();
-    await refresher.setLoadingStatus(ctx);
-    await refresher.refreshFor(ctx);
-  });
-
-  pi.on("turn_end", (_event, ctx) => {
-    currentContext = ctx;
-    currentProvider = ctx.model?.provider;
-    if (!enabled || ctx.model?.provider !== "synthetic") return;
-    void refresher.refreshFor(ctx);
-  });
-
-  pi.on("session_switch", (_event, ctx) => {
-    currentContext = ctx;
-    currentProvider = ctx.model?.provider;
-    if (enabled && ctx.model?.provider === "synthetic") {
-      void refresher.refreshFor(ctx);
+    // The provider extension fetches quotas on session_start and emits the
+    // result via synthetic:quotas:updated. Just show loading and wait.
+    if (lastSnapshot) {
+      renderFromSnapshot(ctx);
     } else {
-      refresher.stopAutoRefresh(ctx);
+      setLoadingStatus(ctx);
     }
   });
 
   pi.on("model_select", (_event, ctx) => {
     currentContext = ctx;
     currentProvider = ctx.model?.provider;
-    if (enabled && ctx.model?.provider === "synthetic") {
-      refresher.startAutoRefresh();
-      void refresher.refreshFor(ctx);
+    if (!enabled || ctx.model?.provider !== "synthetic") {
+      clearStatus(ctx);
+      return;
+    }
+    if (lastSnapshot) {
+      renderFromSnapshot(ctx);
     } else {
-      refresher.stopAutoRefresh(ctx);
+      setLoadingStatus(ctx);
+      requestQuotas();
+    }
+  });
+
+  pi.on("session_before_switch", (_event, ctx) => {
+    currentContext = ctx;
+    currentProvider = ctx.model?.provider;
+    if (enabled && ctx.model?.provider === "synthetic") {
+      if (lastSnapshot) {
+        renderFromSnapshot(ctx);
+      } else {
+        setLoadingStatus(ctx);
+      }
+    } else {
+      clearStatus(ctx);
     }
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
     currentContext = undefined;
     currentProvider = undefined;
-    refresher.stopAutoRefresh(ctx);
+    clearStatus(ctx);
   });
 
   pi.events.on(SYNTHETIC_EXTENSIONS_REQUEST_EVENT, () => {
