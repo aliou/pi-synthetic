@@ -187,10 +187,10 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     contextWindow: 262144,
     maxTokens: 65536,
   },
-  // API: hf:moonshotai/Kimi-K2.5 → ctx=262144, out=65536
+  // API: hf:moonshotai/Kimi-K2.6 → ctx=262144, out=65536
   {
-    id: "hf:moonshotai/Kimi-K2.5",
-    name: "moonshotai/Kimi-K2.5",
+    id: "hf:moonshotai/Kimi-K2.6",
+    name: "moonshotai/Kimi-K2.6",
     provider: "synthetic",
     reasoning: true,
     compat: {
@@ -199,19 +199,19 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     },
     input: ["text", "image"],
     cost: {
-      input: 0.45,
-      output: 3.4,
-      cacheRead: 0.45,
+      input: 0.95,
+      output: 4,
+      cacheRead: 0.95,
       cacheWrite: 0,
     },
     contextWindow: 262144,
     maxTokens: 65536,
   },
-  // API: hf:nvidia/Kimi-K2.5-NVFP4 → ctx=262144, out=65536 (NVFP4 quantized)
+  // API: hf:nvidia/Kimi-K2.5-NVFP4 → ctx=262144; models.dev: out=65536 (NVFP4 quantized)
   {
     id: "hf:nvidia/Kimi-K2.5-NVFP4",
     name: "nvidia/Kimi-K2.5-NVFP4",
-    provider: "synthetic",
+    provider: "together",
     reasoning: true,
     compat: {
       supportsReasoningEffort: true,
@@ -219,9 +219,9 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     },
     input: ["text", "image"],
     cost: {
-      input: 0.45,
-      output: 3.4,
-      cacheRead: 0.45,
+      input: 0.5,
+      output: 2.8,
+      cacheRead: 0.5,
       cacheWrite: 0,
     },
     contextWindow: 262144,
