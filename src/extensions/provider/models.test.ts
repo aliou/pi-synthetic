@@ -29,6 +29,12 @@ interface Discrepancy {
   api: unknown;
 }
 
+const IGNORED_API_MODEL_IDS = new Set([
+  // Deprecated Kimi K2.5 alias still appears in the raw API, but was removed
+  // from Synthetic's public models page and should not be exposed by pi-synthetic.
+  "hf:nvidia/Kimi-K2.5-NVFP4",
+]);
+
 async function fetchApiModels(): Promise<ApiModel[]> {
   // Making ourselves known
   const response = await fetch("https://api.synthetic.new/openai/v1/models", {
@@ -174,6 +180,7 @@ function compareModels(
 
   // Check for API models not in hardcoded list
   for (const apiModel of apiModels) {
+    if (IGNORED_API_MODEL_IDS.has(apiModel.id)) continue;
     const hardcoded = hardcodedModels.find((m) => m.id === apiModel.id);
     if (!hardcoded) {
       discrepancies.push({
