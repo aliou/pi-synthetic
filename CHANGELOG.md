@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.13.5
+
+### Patch Changes
+
+- 0209f86: Refresh Synthetic model metadata for the Kimi model lineup.
+
 ## 0.13.4
 
 ### Patch Changes
