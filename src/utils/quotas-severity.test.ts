@@ -1,4 +1,12 @@
-import { assert, describe, expect, it } from "vitest";
+import {
+  afterEach,
+  assert,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import {
   assessWindow,
   getPacePercent,
@@ -132,6 +140,15 @@ describe("assessWindow", () => {
   });
 
   describe("with pace (showPace: true)", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it("returns none when usage is low and pace is normal", () => {
       const w = makeWindow({
         usedPercent: 20,
