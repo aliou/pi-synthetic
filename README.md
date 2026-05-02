@@ -2,7 +2,7 @@
 
 # Pi Synthetic Extension
 
-A Pi extension that adds [Synthetic](https://synthetic.new) as a model provider, giving you access to open-source models through an OpenAI-compatible API.
+A Pi extension that adds [Synthetic](https://synthetic.new) as a model provider, giving you access to open-source models through Synthetic's OpenAI-compatible API.
 
 ## Installation
 
@@ -52,6 +52,12 @@ Once installed, select `synthetic` as your provider and choose from available mo
 /model synthetic hf:moonshotai/Kimi-K2.5
 ```
 
+### Model Hosting
+
+All models are accessed through Synthetic's API. Some models are hosted by Synthetic directly; others are proxied by Synthetic to upstream backends such as Fireworks or Together.
+
+The code tracks this in `src/extensions/provider/models.ts` with each model's `provider` field. That field is for maintenance only and is stripped before registering models with Pi, so users always select the `synthetic` provider.
+
 ### Web Search Tool
 
 The extension registers `synthetic_web_search` — a zero-data-retention web search tool. The tool is always visible; it fails with a clear message if credentials are missing or the account lacks a subscription.
@@ -89,21 +95,22 @@ The extension automatically notifies you when you approach or exceed your Synthe
 
 ## Disabling Features
 
-Each feature (provider, web search, quotas command, usage status, quota warnings) is a separate Pi extension. You can disable individual features using `pi config`:
+Each feature (provider, web search, quotas command, sub bar integration, usage status, quota warnings) is a separate Pi extension. You can disable individual features using `pi config`:
 
 ```
 pi config extensions.disabled add @aliou/pi-synthetic/quota-warnings
 ```
 
-This prevents the quota-warnings extension from loading while keeping the rest of pi-synthetic active. Replace `quota-warnings` with `web-search`, `command-quotas`, or `provider` to disable other features.
+This prevents the quota-warnings extension from loading while keeping the rest of pi-synthetic active. Replace `quota-warnings` with `web-search`, `command-quotas`, `sub-bar-integration`, `usage-status`, or `provider` to disable other features.
 
 ## Adding or Updating Models
 
-Models are hardcoded in `src/providers/models.ts`. To add or update models:
+Models are hardcoded in `src/extensions/provider/models.ts`. To add or update models:
 
-1. Edit `src/providers/models.ts`
+1. Edit `src/extensions/provider/models.ts`
 2. Add the model configuration following the `SyntheticModelConfig` interface
-3. Run `pnpm run typecheck` to verify
+3. Set `provider` to the upstream backend Synthetic uses for that model, such as `synthetic`, `fireworks`, or `together`
+4. Run `pnpm run typecheck` to verify
 
 ## Development
 
@@ -156,7 +163,7 @@ This repository uses [Changesets](https://github.com/changesets/changesets) for 
 
 ## Requirements
 
-- Pi coding agent v0.50.0+
+- Pi coding agent v0.72.0+
 - Synthetic API key (configured in `~/.pi/agent/auth.json` or via `SYNTHETIC_API_KEY`)
 
 ## Links

@@ -58,6 +58,7 @@ Use the failures to identify:
 - stale fields on existing models
 - models that exist in code but no longer exist upstream
 - new Synthetic models missing from `SYNTHETIC_MODELS`
+- upstream backend changes in the model `provider` field
 
 If the test passes, still check for drift manually by reading the current file and comparing with fresh endpoint data. Do not assume no work is needed just because tests pass.
 
@@ -92,10 +93,13 @@ curl -s https://api.synthetic.new/openai/v1/models \
       output_modalities,
       context_length,
       max_output_length,
+      provider,
       pricing,
       supported_features
     }' --arg id 'hf:zai-org/GLM-4.7-Flash'
 ```
+
+The endpoint `provider` field is the upstream backend Synthetic uses for that model. A value of `synthetic` means the model is hosted by Synthetic directly. Values such as `fireworks` or `together` mean Synthetic proxies the request to that backend.
 
 ### 4) Fetch models.dev data
 
@@ -122,6 +126,7 @@ Copy these directly from the Synthetic endpoint when available:
 
 - `id`
 - `name`
+- `provider` -> `provider` (`synthetic` for Synthetic-hosted models, otherwise the proxied upstream backend such as `fireworks` or `together`)
 - `context_length` -> `contextWindow`
 - `max_output_length` -> `maxTokens` when present and trustworthy
 - `pricing.prompt` -> `cost.input` per 1M
@@ -143,6 +148,7 @@ Cross-check these from models.dev:
 - Remove models only when they are truly gone from Synthetic, not because of a temporary fetch issue.
 - Set `input` from the Synthetic endpoint first.
 - Set pricing from the Synthetic endpoint.
+- Set `provider` from the Synthetic endpoint. Do not infer hosting from the model name. `synthetic` means Synthetic-hosted; `fireworks`, `together`, or another value means Synthetic proxies to that backend.
 - Set `contextWindow` from the Synthetic endpoint.
 - Set `maxTokens` from Synthetic when exposed; otherwise use models.dev Synthetic data.
 - Set `reasoning` from:
@@ -204,7 +210,9 @@ If Synthetic rejects image input, keep `input: ["text"]`.
 
 ## Compat rules
 
-`src/extensions/provider/models.ts` supports an optional `compat` object per model.
+`src/extensions/provider/models.ts` includes a required `provider` field and supports an optional `compat` object per model.
+
+`provider` is maintenance metadata only. `registerSyntheticProvider` strips it before registering models with Pi, so it must describe Synthetic's upstream backend, not the Pi provider name users select.
 
 Only add or change `compat` when live behavior, provider quirks, or current repo conventions require it.
 
@@ -226,7 +234,7 @@ Do not add `compat` by default.
 
 When done:
 
-1. Ensure `src/extensions/provider/models.ts` is updated.
+1. Ensure `src/extensions/provider/models.ts` is updated, including correct `provider` values for Synthetic-hosted vs proxied models.
 2. Re-run `pnpm test -- src/extensions/provider/models.test.ts`.
 3. If the change is user-facing, prepare a changeset per repo conventions.
 4. Commit the model update and changeset. **Never use `--no-verify`.**
