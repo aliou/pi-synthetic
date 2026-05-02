@@ -54,9 +54,11 @@ Once installed, select `synthetic` as your provider and choose from available mo
 
 ### Model Hosting
 
-All models are accessed through Synthetic's API. Some models are hosted by Synthetic directly; others are proxied by Synthetic to upstream backends such as Fireworks or Together.
+All models are accessed through Synthetic's API. Some models are hosted by Synthetic directly (`provider: "synthetic"` in the model config); others are proxied by Synthetic to upstream backends such as Fireworks or Together.
 
-The code tracks this in `src/extensions/provider/models.ts` with each model's `provider` field. That field is for maintenance only and is stripped before registering models with Pi, so users always select the `synthetic` provider.
+By default, new installs show only Synthetic-hosted models. You can enable proxied models in `/synthetic:settings` under **Models > Proxied Models**. Existing configurations keep proxied models enabled to preserve prior behavior.
+
+The `provider` field in `src/extensions/provider/models.ts` is for maintenance only and is stripped before registering models with Pi, so users always select the `synthetic` provider.
 
 ### Web Search Tool
 
@@ -102,6 +104,8 @@ pi config extensions.disabled add @aliou/pi-synthetic/quota-warnings
 ```
 
 This prevents the quota-warnings extension from loading while keeping the rest of pi-synthetic active. Replace `quota-warnings` with `web-search`, `command-quotas`, `sub-bar-integration`, `usage-status`, or `provider` to disable other features.
+
+The **Proxied Models** setting is not a loadable extension feature. It is a regular setting controlled through `/synthetic:settings`.
 
 ## Adding or Updating Models
 

@@ -25,12 +25,7 @@ export interface SyntheticExtensionsRegisterPayload {
   feature: SyntheticFeatureId;
 }
 
-/**
- * Config schema version. Stamped on disk when the initial migration runs or
- * when the config is seeded. Uses the package version; bumping the package
- * does not retrigger migrations (we only run them when `configVersion` is
- * missing), but it records which release first created the file.
- */
+/** Config schema version. Stamped on disk when config is seeded or migrated. */
 export const SYNTHETIC_CONFIG_VERSION: string = pkg.version;
 
 export interface SyntheticConfig {
@@ -40,6 +35,7 @@ export interface SyntheticConfig {
   usageStatus?: boolean;
   quotaWarnings?: boolean;
   subBarIntegration?: boolean;
+  proxiedModels?: boolean;
 }
 
 export interface ResolvedSyntheticConfig {
@@ -49,6 +45,7 @@ export interface ResolvedSyntheticConfig {
   usageStatus: boolean;
   quotaWarnings: boolean;
   subBarIntegration: boolean;
+  proxiedModels: boolean;
 }
 
 const DEFAULT_CONFIG: ResolvedSyntheticConfig = {
@@ -58,39 +55,33 @@ const DEFAULT_CONFIG: ResolvedSyntheticConfig = {
   usageStatus: false,
   quotaWarnings: false,
   subBarIntegration: true,
+  proxiedModels: false,
 };
 
-// Module-level flag set when the v1 migration runs or when the global config
-// is seeded for the first time. Consumed once by the provider extension to
-// display a one-time notice about the new settings UI.
-let pendingMigrationNotice = false;
+export const pendingMessages: string[] = [];
 
-export function hasPendingMigrationNotice(): boolean {
-  return pendingMigrationNotice;
-}
-
-export function clearPendingMigrationNotice(): void {
-  pendingMigrationNotice = false;
-}
-
-function markMigrationNoticePending(): void {
-  pendingMigrationNotice = true;
+function needsProxiedModelsMigration(config: SyntheticConfig): boolean {
+  if (config.proxiedModels !== undefined) return false;
+  if (config.configVersion === undefined) return true;
+  return (
+    config.configVersion.localeCompare("0.13.5", undefined, {
+      numeric: true,
+    }) <= 0
+  );
 }
 
 const migrations: Migration<SyntheticConfig>[] = [
   {
-    name: "seed-defaults",
-    shouldRun: (config) => config.configVersion === undefined,
+    name: "seed-proxied-models",
+    shouldRun: needsProxiedModelsMigration,
     run: (config) => {
-      markMigrationNoticePending();
+      pendingMessages.push(
+        "This provider now differentiates hosted models from proxied models and allows disabling them. Use `/synthetic:settings` to disable them.",
+      );
       return {
+        ...config,
         configVersion: SYNTHETIC_CONFIG_VERSION,
-        webSearch: config.webSearch ?? DEFAULT_CONFIG.webSearch,
-        quotasCommand: config.quotasCommand ?? DEFAULT_CONFIG.quotasCommand,
-        usageStatus: config.usageStatus ?? DEFAULT_CONFIG.usageStatus,
-        quotaWarnings: config.quotaWarnings ?? DEFAULT_CONFIG.quotaWarnings,
-        subBarIntegration:
-          config.subBarIntegration ?? DEFAULT_CONFIG.subBarIntegration,
+        proxiedModels: true,
       };
     },
   },
@@ -106,8 +97,7 @@ export const configLoader = new ConfigLoader<
 
 /**
  * Seed the global config file on first use. When no config file exists in
- * any scope, this writes the current defaults (with configVersion) to the
- * global scope and flags the migration notice as pending.
+ * any scope, this writes the current defaults with configVersion.
  *
  * Must be called after `configLoader.load()`.
  */
@@ -115,18 +105,10 @@ export async function seedSyntheticConfigIfMissing(): Promise<void> {
   if (configLoader.hasConfig("global") || configLoader.hasConfig("local")) {
     return;
   }
-  markMigrationNoticePending();
   try {
-    await configLoader.save("global", {
-      configVersion: SYNTHETIC_CONFIG_VERSION,
-      webSearch: DEFAULT_CONFIG.webSearch,
-      quotasCommand: DEFAULT_CONFIG.quotasCommand,
-      usageStatus: DEFAULT_CONFIG.usageStatus,
-      quotaWarnings: DEFAULT_CONFIG.quotaWarnings,
-      subBarIntegration: DEFAULT_CONFIG.subBarIntegration,
-    });
+    await configLoader.save("global", DEFAULT_CONFIG);
   } catch {
-    // If the write fails, keep the notice pending so the user still sees it.
+    // Ignore seed failures. Defaults still resolve in memory.
   }
 }
 
@@ -191,10 +173,24 @@ export function registerSyntheticSettings(
       const quotaWarnings = tabConfig?.quotaWarnings ?? resolved.quotaWarnings;
       const subBarIntegration =
         tabConfig?.subBarIntegration ?? resolved.subBarIntegration;
+      const proxiedModels = tabConfig?.proxiedModels ?? resolved.proxiedModels;
 
       const sections: SettingsSection[] = [];
 
       sections.push(
+        {
+          label: "Models",
+          items: [
+            {
+              id: "proxiedModels",
+              label: "Proxied Models",
+              description:
+                "Allow models that Synthetic proxies to upstream backends such as Fireworks or Together. Disable to show only models hosted directly by Synthetic.",
+              currentValue: proxiedModels ? "enabled" : "disabled",
+              values: ["enabled", "disabled"],
+            },
+          ],
+        },
         {
           label: "Tools",
           items: [
@@ -250,12 +246,25 @@ export function registerSyntheticSettings(
       return sections;
     },
     onSettingChange: (id, newValue, config) => {
-      if (!getLoadedFeatures().has(id as SyntheticFeatureId)) {
+      const featureIds = new Set<string>([
+        "webSearch",
+        "quotasCommand",
+        "usageStatus",
+        "quotaWarnings",
+        "subBarIntegration",
+      ]);
+
+      if (
+        featureIds.has(id) &&
+        !getLoadedFeatures().has(id as SyntheticFeatureId)
+      ) {
         return null;
       }
 
       const enabled = newValue === "enabled";
       switch (id) {
+        case "proxiedModels":
+          return { ...config, proxiedModels: enabled };
         case "webSearch":
           return { ...config, webSearch: enabled };
         case "quotasCommand":

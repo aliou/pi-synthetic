@@ -149,6 +149,7 @@ Cross-check these from models.dev:
 - Set `input` from the Synthetic endpoint first.
 - Set pricing from the Synthetic endpoint.
 - Set `provider` from the Synthetic endpoint. Do not infer hosting from the model name. `synthetic` means Synthetic-hosted; `fireworks`, `together`, or another value means Synthetic proxies to that backend.
+- A model with `provider` other than `"synthetic"` will be hidden from users when the **Proxied Models** setting is disabled.
 - Set `contextWindow` from the Synthetic endpoint.
 - Set `maxTokens` from Synthetic when exposed; otherwise use models.dev Synthetic data.
 - Set `reasoning` from:
