@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.15.0
+
+### Minor Changes
+
+- 85d9896: Add setting to control Synthetic-proxied models. New installs default to Synthetic-hosted models only, while existing configs keep proxied models enabled.
+
 ## 0.14.0
 
 ### Minor Changes
