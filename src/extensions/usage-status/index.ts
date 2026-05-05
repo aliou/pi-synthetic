@@ -73,6 +73,25 @@ function formatStatus(ctx: ExtensionContext, windows: WindowStatus[]): string {
   return parts.join(" ");
 }
 
+/**
+ * Check if an ExtensionContext is still usable.
+ * Pi's ExtensionContext getters (hasUI, ui, modelRegistry, etc.) call
+ * assertActive() internally, which throws if the ctx is stale after
+ * session replacement, reload, or fork. This helper safely probes
+ * hasUI to detect staleness without crashing.
+ */
+function isCtxLive(ctx: ExtensionContext | undefined): ctx is ExtensionContext {
+  if (!ctx) return false;
+  try {
+    // hasUI is a getter that throws on stale contexts.
+    // If it returns false, the ctx is live but in a non-UI mode —
+    // we keep it alive but skip UI updates.
+    return ctx.hasUI !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 function createStatusRefresher() {
   let refreshTimer: ReturnType<typeof setInterval> | undefined;
   let activeContext: ExtensionContext | undefined;
@@ -81,6 +100,7 @@ function createStatusRefresher() {
   let lastSnapshot: WindowStatus[] | undefined;
 
   async function updateFooterStatus(ctx: ExtensionContext): Promise<void> {
+    if (!isCtxLive(ctx)) return;
     if (!ctx.hasUI) return;
     if (isRefreshInFlight) {
       queuedRefresh = true;
@@ -89,12 +109,16 @@ function createStatusRefresher() {
     isRefreshInFlight = true;
     try {
       const apiKey = await getSyntheticApiKey(ctx.modelRegistry.authStorage);
+      // Re-check liveness after async gap — ctx may have gone stale during await
+      if (!isCtxLive(ctx)) return;
       if (!apiKey) {
         lastSnapshot = undefined;
         ctx.ui.setStatus(EXTENSION_ID, undefined);
         return;
       }
       const result = await fetchQuotas(apiKey);
+      // Re-check liveness after second async gap
+      if (!isCtxLive(ctx)) return;
       if (!result.success) {
         ctx.ui.setStatus(
           EXTENSION_ID,
@@ -110,15 +134,27 @@ function createStatusRefresher() {
       }
       ctx.ui.setStatus(EXTENSION_ID, formatStatus(ctx, windows));
     } catch {
-      ctx.ui.setStatus(
-        EXTENSION_ID,
-        ctx.ui.theme.fg("warning", "usage unavailable"),
-      );
+      // Use isCtxLive instead of touching ctx directly — the catch path
+      // previously called ctx.ui.setStatus which re-throws on stale ctx
+      if (!isCtxLive(ctx)) return;
+      try {
+        ctx.ui.setStatus(
+          EXTENSION_ID,
+          ctx.ui.theme.fg("warning", "usage unavailable"),
+        );
+      } catch {
+        // Stale ctx detected after isCtxLive check — silently abandon
+      }
     } finally {
       isRefreshInFlight = false;
       if (queuedRefresh) {
         queuedRefresh = false;
-        void updateFooterStatus(ctx);
+        // Use activeContext (the current session) instead of the captured
+        // ctx parameter, which may belong to a previous session
+        const nextCtx = activeContext;
+        if (isCtxLive(nextCtx)) {
+          void updateFooterStatus(nextCtx);
+        }
       }
     }
   }
@@ -131,7 +167,10 @@ function createStatusRefresher() {
   function startAutoRefresh(): void {
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(() => {
-      if (!activeContext) return;
+      if (!isCtxLive(activeContext)) {
+        activeContext = undefined;
+        return;
+      }
       void updateFooterStatus(activeContext);
     }, REFRESH_INTERVAL_MS);
     refreshTimer.unref?.();
@@ -142,14 +181,19 @@ function createStatusRefresher() {
       clearInterval(refreshTimer);
       refreshTimer = undefined;
     }
-    ctx?.ui.setStatus(EXTENSION_ID, undefined);
+    activeContext = undefined;
+    if (isCtxLive(ctx)) {
+      ctx.ui.setStatus(EXTENSION_ID, undefined);
+    }
   }
 
   async function setLoadingStatus(ctx: ExtensionContext): Promise<void> {
-    if (!ctx.hasUI) return;
+    if (!isCtxLive(ctx)) return;
     const apiKey = await getSyntheticApiKey(
       ctx.modelRegistry.authStorage,
     ).catch(() => undefined);
+    // Re-check after async gap
+    if (!isCtxLive(ctx)) return;
     if (!apiKey) {
       ctx.ui.setStatus(EXTENSION_ID, undefined);
       return;
@@ -158,7 +202,7 @@ function createStatusRefresher() {
   }
 
   function renderFromLastSnapshot(ctx: ExtensionContext): boolean {
-    if (!ctx.hasUI || !lastSnapshot) return false;
+    if (!isCtxLive(ctx) || !lastSnapshot) return false;
     ctx.ui.setStatus(EXTENSION_ID, formatStatus(ctx, lastSnapshot));
     return true;
   }
@@ -188,7 +232,7 @@ export default async function (pi: ExtensionAPI) {
       return;
     }
 
-    if (currentContext && currentProvider === "synthetic") {
+    if (isCtxLive(currentContext) && currentProvider === "synthetic") {
       refresher.startAutoRefresh();
       void refresher.refreshFor(currentContext);
     }
