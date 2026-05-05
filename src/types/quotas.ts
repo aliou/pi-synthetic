@@ -6,9 +6,23 @@ export const SYNTHETIC_QUOTAS_UPDATED_EVENT =
 export const SYNTHETIC_QUOTAS_REQUEST_EVENT =
   "synthetic:quotas:request" as const;
 
-export interface SyntheticQuotasUpdatedPayload {
+export const SYNTHETIC_QUOTAS_READ_EVENT = "synthetic:quotas:read" as const;
+
+export interface SyntheticQuotasSnapshotPayload {
   quotas: QuotasResponse;
   source: QuotaSource;
+  updatedAt: number;
+}
+
+export interface SyntheticQuotasUpdatedPayload
+  extends SyntheticQuotasSnapshotPayload {}
+
+export interface SyntheticQuotasReadPayload {
+  respond: (snapshot: SyntheticQuotasSnapshotPayload | undefined) => void;
+}
+
+export interface SyntheticQuotasRequestPayload {
+  respond?: (snapshot: SyntheticQuotasSnapshotPayload | undefined) => void;
 }
 
 export type QuotasErrorKind =

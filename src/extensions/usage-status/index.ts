@@ -11,9 +11,11 @@ import {
 } from "../../config";
 import {
   type QuotasResponse,
+  SYNTHETIC_QUOTAS_READ_EVENT,
   SYNTHETIC_QUOTAS_REQUEST_EVENT,
-  SYNTHETIC_QUOTAS_UPDATED_EVENT,
-  type SyntheticQuotasUpdatedPayload,
+  type SyntheticQuotasReadPayload,
+  type SyntheticQuotasRequestPayload,
+  type SyntheticQuotasSnapshotPayload,
 } from "../../types/quotas";
 import { formatResetTime } from "../../utils/quotas";
 import {
@@ -80,100 +82,90 @@ export default async function (pi: ExtensionAPI) {
   await configLoader.load();
 
   let enabled = configLoader.getConfig().usageStatus;
-  let currentContext: ExtensionContext | undefined;
-  let currentProvider: string | undefined;
-  let lastSnapshot: WindowStatus[] | undefined;
 
-  function renderFromSnapshot(ctx: ExtensionContext): void {
+  function requestQuotas(
+    respond: (snapshot: SyntheticQuotasSnapshotPayload | undefined) => void,
+  ): void {
+    pi.events.emit(SYNTHETIC_QUOTAS_REQUEST_EVENT, {
+      respond,
+    } satisfies SyntheticQuotasRequestPayload);
+  }
+
+  function readQuotas(
+    respond: (snapshot: SyntheticQuotasSnapshotPayload | undefined) => void,
+  ): void {
+    pi.events.emit(SYNTHETIC_QUOTAS_READ_EVENT, {
+      respond,
+    } satisfies SyntheticQuotasReadPayload);
+  }
+
+  function renderSnapshot(
+    ctx: ExtensionContext,
+    snapshot: SyntheticQuotasSnapshotPayload | undefined,
+  ): void {
     if (!ctx.hasUI) return;
-    if (!lastSnapshot || lastSnapshot.length === 0) {
+    if (!snapshot) {
+      ctx.ui.setStatus(
+        EXTENSION_ID,
+        ctx.ui.theme.fg("dim", "loading usage..."),
+      );
+      return;
+    }
+
+    const windows = parseSnapshot(snapshot.quotas);
+    if (windows.length === 0) {
       ctx.ui.setStatus(EXTENSION_ID, undefined);
       return;
     }
-    ctx.ui.setStatus(EXTENSION_ID, formatStatus(ctx, lastSnapshot));
+
+    ctx.ui.setStatus(EXTENSION_ID, formatStatus(ctx, windows));
   }
 
-  function requestQuotas(): void {
-    pi.events.emit(SYNTHETIC_QUOTAS_REQUEST_EVENT, undefined);
-  }
-
-  function setLoadingStatus(ctx: ExtensionContext): void {
+  function clearStatus(ctx: ExtensionContext): void {
     if (!ctx.hasUI) return;
-    ctx.ui.setStatus(EXTENSION_ID, ctx.ui.theme.fg("dim", "loading usage..."));
+    ctx.ui.setStatus(EXTENSION_ID, undefined);
   }
 
-  function clearStatus(ctx?: ExtensionContext): void {
-    lastSnapshot = undefined;
-    ctx?.ui.setStatus(EXTENSION_ID, undefined);
-  }
-
-  // Receive quota updates from the provider extension
-  pi.events.on(SYNTHETIC_QUOTAS_UPDATED_EVENT, (data: unknown) => {
-    if (!enabled || currentProvider !== "synthetic") return;
-    const { quotas } = data as SyntheticQuotasUpdatedPayload;
-    lastSnapshot = parseSnapshot(quotas);
-    if (currentContext) renderFromSnapshot(currentContext);
-  });
-
-  pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
-    enabled = (data as SyntheticConfigUpdatedPayload).config.usageStatus;
-    if (!enabled) {
-      clearStatus(currentContext);
-    } else if (currentContext && currentProvider === "synthetic") {
-      if (lastSnapshot) {
-        renderFromSnapshot(currentContext);
-      } else {
-        setLoadingStatus(currentContext);
-        requestQuotas();
-      }
-    }
-  });
-
-  pi.on("session_start", async (_event, ctx) => {
-    currentContext = ctx;
-    currentProvider = ctx.model?.provider;
-    if (!enabled || ctx.model?.provider !== "synthetic") return;
-    // The provider extension fetches quotas on session_start and emits the
-    // result via synthetic:quotas:updated. Just show loading and wait.
-    if (lastSnapshot) {
-      renderFromSnapshot(ctx);
-    } else {
-      setLoadingStatus(ctx);
-    }
-  });
-
-  pi.on("model_select", (_event, ctx) => {
-    currentContext = ctx;
-    currentProvider = ctx.model?.provider;
+  function renderFromStoreOrRefresh(ctx: ExtensionContext): void {
     if (!enabled || ctx.model?.provider !== "synthetic") {
       clearStatus(ctx);
       return;
     }
-    if (lastSnapshot) {
-      renderFromSnapshot(ctx);
-    } else {
-      setLoadingStatus(ctx);
-      requestQuotas();
-    }
+    readQuotas((snapshot) => {
+      if (snapshot) {
+        renderSnapshot(ctx, snapshot);
+      } else {
+        renderSnapshot(ctx, undefined); // show loading
+        requestQuotas((refreshed) => renderSnapshot(ctx, refreshed));
+      }
+    });
+  }
+
+  pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
+    enabled = (data as SyntheticConfigUpdatedPayload).config.usageStatus;
+  });
+
+  pi.on("session_start", (_event, ctx) => {
+    renderFromStoreOrRefresh(ctx);
+  });
+
+  pi.on("model_select", (_event, ctx) => {
+    renderFromStoreOrRefresh(ctx);
+  });
+
+  pi.on("agent_end", (_event, ctx) => {
+    renderFromStoreOrRefresh(ctx);
+  });
+
+  pi.on("turn_end", (_event, ctx) => {
+    renderFromStoreOrRefresh(ctx);
   });
 
   pi.on("session_before_switch", (_event, ctx) => {
-    currentContext = ctx;
-    currentProvider = ctx.model?.provider;
-    if (enabled && ctx.model?.provider === "synthetic") {
-      if (lastSnapshot) {
-        renderFromSnapshot(ctx);
-      } else {
-        setLoadingStatus(ctx);
-      }
-    } else {
-      clearStatus(ctx);
-    }
+    clearStatus(ctx);
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
-    currentContext = undefined;
-    currentProvider = undefined;
     clearStatus(ctx);
   });
 

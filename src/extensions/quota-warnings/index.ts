@@ -11,33 +11,61 @@ import {
 } from "../../config";
 import { QuotaWarningNotifier } from "../../services/quota-warnings";
 import {
+  SYNTHETIC_QUOTAS_READ_EVENT,
   SYNTHETIC_QUOTAS_REQUEST_EVENT,
-  SYNTHETIC_QUOTAS_UPDATED_EVENT,
-  type SyntheticQuotasUpdatedPayload,
+  type SyntheticQuotasReadPayload,
+  type SyntheticQuotasRequestPayload,
+  type SyntheticQuotasSnapshotPayload,
 } from "../../types/quotas";
 
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
 
   let enabled = configLoader.getConfig().quotaWarnings;
-  let currentProvider: string | undefined;
-  let currentContext: ExtensionContext | undefined;
 
-  // Pi-agnostic notifier — all logic is testable without Pi
   const notifier = new QuotaWarningNotifier();
 
-  function requestQuotas(): void {
-    pi.events.emit(SYNTHETIC_QUOTAS_REQUEST_EVENT, undefined);
+  function requestQuotas(
+    respond?: (snapshot: SyntheticQuotasSnapshotPayload | undefined) => void,
+  ): void {
+    pi.events.emit(SYNTHETIC_QUOTAS_REQUEST_EVENT, {
+      respond,
+    } satisfies SyntheticQuotasRequestPayload);
   }
 
-  // Receive quota updates from the provider extension and evaluate warnings
-  pi.events.on(SYNTHETIC_QUOTAS_UPDATED_EVENT, (data: unknown) => {
-    if (!enabled || currentProvider !== "synthetic" || !currentContext) return;
-    const { quotas, source } = data as SyntheticQuotasUpdatedPayload;
-    notifier.evaluate(quotas, source === "header", (message, level) => {
-      if (currentContext) currentContext.ui.notify(message, level);
+  function readQuotas(
+    respond: (snapshot: SyntheticQuotasSnapshotPayload | undefined) => void,
+  ): void {
+    pi.events.emit(SYNTHETIC_QUOTAS_READ_EVENT, {
+      respond,
+    } satisfies SyntheticQuotasReadPayload);
+  }
+
+  function evaluateFromStoreOrRefresh(ctx: ExtensionContext): void {
+    if (!enabled || ctx.model?.provider !== "synthetic") return;
+    readQuotas((snapshot) => {
+      if (snapshot) {
+        notifier.evaluate(
+          snapshot.quotas,
+          snapshot.source === "header",
+          (message, level) => {
+            ctx.ui.notify(message, level);
+          },
+        );
+      } else {
+        requestQuotas((refreshed) => {
+          if (!refreshed) return;
+          notifier.evaluate(
+            refreshed.quotas,
+            refreshed.source === "header",
+            (message, level) => {
+              ctx.ui.notify(message, level);
+            },
+          );
+        });
+      }
     });
-  });
+  }
 
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
     enabled = (data as SyntheticConfigUpdatedPayload).config.quotaWarnings;
@@ -47,39 +75,33 @@ export default async function (pi: ExtensionAPI) {
       return;
     }
 
-    if (currentContext && currentProvider === "synthetic") {
-      notifier.clearAlertState();
-      requestQuotas();
-    }
+    notifier.clearAlertState();
+    // In config updates we don't have ctx, so we just clear. The next lifecycle event will refresh.
   });
 
-  pi.on("session_start", async (_event, ctx) => {
-    currentContext = ctx;
-    currentProvider = ctx.model?.provider;
-    if (!enabled || ctx.model?.provider !== "synthetic") return;
+  pi.on("session_start", (_event, ctx) => {
     notifier.clearAlertState();
-    // Provider fetches on session_start; warnings fire when the event arrives.
+    evaluateFromStoreOrRefresh(ctx);
   });
 
   pi.on("model_select", (_event, ctx) => {
-    currentContext = ctx;
-    currentProvider = ctx.model?.provider;
-    if (!enabled || ctx.model?.provider !== "synthetic") {
-      notifier.clearAlertState();
-      return;
-    }
     notifier.clearAlertState();
-    requestQuotas();
+    evaluateFromStoreOrRefresh(ctx);
   });
 
-  pi.on("session_before_switch", (_event, ctx) => {
-    currentContext = ctx;
-    currentProvider = ctx.model?.provider;
+  pi.on("agent_end", (_event, ctx) => {
+    evaluateFromStoreOrRefresh(ctx);
+  });
+
+  pi.on("turn_end", (_event, ctx) => {
+    evaluateFromStoreOrRefresh(ctx);
+  });
+
+  pi.on("session_before_switch", () => {
+    notifier.clearAlertState();
   });
 
   pi.on("session_shutdown", () => {
-    currentContext = undefined;
-    currentProvider = undefined;
     notifier.clearAlertState();
   });
 

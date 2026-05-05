@@ -25,6 +25,7 @@ export class QuotaStore {
   private listeners = new Set<Listener>();
   private lastHeaderIngestAt = 0;
   private inFlightRefresh: Promise<QuotaSnapshot | undefined> | undefined;
+  private inFlightId = 0;
 
   /** Throttle header ingestion: skip if last header ingest was within this window. */
   headerThrottleMs = 5_000;
@@ -76,15 +77,20 @@ export class QuotaStore {
   ): Promise<QuotaSnapshot | undefined> {
     if (this.inFlightRefresh) return this.inFlightRefresh;
 
+    this.inFlightId++;
+    const id = this.inFlightId;
+
     this.inFlightRefresh = (async () => {
       try {
         const quotas = await fetcher();
-        if (quotas) {
+        if (quotas && id === this.inFlightId) {
           this.ingest(quotas, "api");
         }
         return this.snapshot;
       } finally {
-        this.inFlightRefresh = undefined;
+        if (id === this.inFlightId) {
+          this.inFlightRefresh = undefined;
+        }
       }
     })();
 
@@ -98,6 +104,7 @@ export class QuotaStore {
 
   /** Clear all state. Call on session shutdown or reset. */
   clear(): void {
+    this.inFlightId++; // Invalidates in-flight refresh
     this.snapshot = undefined;
     this.lastHeaderIngestAt = 0;
     this.inFlightRefresh = undefined;

@@ -17,8 +17,11 @@ import { QuotaStore } from "../../services/quota-store";
 import {
   parseQuotaHeader,
   type QuotasResponse,
+  SYNTHETIC_QUOTAS_READ_EVENT,
   SYNTHETIC_QUOTAS_REQUEST_EVENT,
   SYNTHETIC_QUOTAS_UPDATED_EVENT,
+  type SyntheticQuotasReadPayload,
+  type SyntheticQuotasRequestPayload,
 } from "../../types/quotas";
 import { fetchQuotas } from "../../utils/quotas";
 import { SYNTHETIC_MODELS } from "./models";
@@ -95,6 +98,7 @@ export default async function (pi: ExtensionAPI) {
     pi.events.emit(SYNTHETIC_QUOTAS_UPDATED_EVENT, {
       quotas: snapshot.quotas,
       source: snapshot.source,
+      updatedAt: snapshot.updatedAt,
     });
   });
 
@@ -104,8 +108,27 @@ export default async function (pi: ExtensionAPI) {
     if (quotas) quotaStore.ingest(quotas, "header");
   });
 
-  pi.events.on(SYNTHETIC_QUOTAS_REQUEST_EVENT, async () => {
-    await quotaStore.refreshFromApi(fetchQuotasFromAuth);
+  pi.events.on(SYNTHETIC_QUOTAS_REQUEST_EVENT, async (data: unknown) => {
+    const payload = data as SyntheticQuotasRequestPayload | undefined;
+    const snapshot = await quotaStore.refreshFromApi(fetchQuotasFromAuth);
+    if (payload?.respond) {
+      payload.respond(snapshot);
+    }
+  });
+
+  pi.events.on(SYNTHETIC_QUOTAS_READ_EVENT, (data: unknown) => {
+    const { respond } = data as SyntheticQuotasReadPayload;
+    respond(quotaStore.getSnapshot());
+  });
+
+  pi.on("session_before_switch", () => {
+    quotaStore.clear();
+    currentAuthStorage = undefined;
+  });
+
+  pi.on("session_shutdown", () => {
+    quotaStore.clear();
+    currentAuthStorage = undefined;
   });
 
   pi.on("session_start", async (_event, ctx) => {
