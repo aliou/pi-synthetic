@@ -1,5 +1,17 @@
 # @aliou/pi-synthetic
 
+## 0.16.0
+
+### Minor Changes
+
+- 62e6902: Use event-driven Synthetic quota updates without polling.
+
+  Quota data is now extracted from the `x-synthetic-quotas` response header on Synthetic provider responses and stored centrally. Usage status and quota warnings read the latest quota snapshot through short-lived callbacks from fresh Pi lifecycle contexts, avoiding stale `ExtensionContext` crashes after reloads or session switches.
+
+- 1176b1d: Avoid stale contexts in status update.
+
+  Use events to retrieve quotas from the shared store.
+
 ## 0.15.0
 
 ### Minor Changes
