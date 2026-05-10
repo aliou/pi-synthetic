@@ -1,5 +1,15 @@
 # @aliou/pi-synthetic
 
+## 0.17.1
+
+### Patch Changes
+
+- 0404301: Normalize Synthetic context overflow errors so Pi's built-in compact-and-retry triggers.
+
+  Some Synthetic backends return overflow errors that Pi does not detect natively (e.g. "The input (N tokens) is longer than the model's context length" or "Context limit exceeded"). A `message_end` handler now prefixes these with `context_length_exceeded:` so Pi recognizes them and auto-compacts.
+
+- 553ac07: Add truncation and temp file persistence to `synthetic_web_search` tool
+
 ## 0.17.0
 
 ### Minor Changes
