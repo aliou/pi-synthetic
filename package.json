@@ -22,7 +22,7 @@
       "./src/extensions/quota-warnings/index.ts",
       "./src/extensions/usage-status/index.ts"
     ],
-    "video": "https://assets.aliou.me/pi-extensions/demos/pi-synthetic.mp4"
+    "video": "https://assets.aliou.me/github/aliou/pi-synthetic/demo.mp4"
   },
   "publishConfig": {
     "access": "public"

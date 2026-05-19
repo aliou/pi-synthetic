@@ -1,4 +1,4 @@
-![banner](https://assets.aliou.me/pi-extensions/banners/pi-synthetic.png)
+![banner](https://assets.aliou.me/github/aliou/pi-synthetic/banner.png)
 
 # Pi Synthetic Extension
 
