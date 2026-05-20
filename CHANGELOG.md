@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.17.2
+
+### Patch Changes
+
+- c1c440e: Refresh Synthetic model reasoning metadata from live model sources.
+
 ## 0.17.1
 
 ### Patch Changes
