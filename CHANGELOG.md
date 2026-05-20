@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.17.3
+
+### Patch Changes
+
+- 00169c1: Handle 400 errors and trigger compaction
+
 ## 0.17.2
 
 ### Patch Changes
