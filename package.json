@@ -29,7 +29,8 @@
   },
   "files": [
     "src",
-    "README.md"
+    "README.md",
+    "!src/**/*.test.ts"
   ],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "0.74.0",
@@ -52,8 +53,8 @@
     "@aliou/pi-utils-ui": "^0.4.0"
   },
   "devDependencies": {
-    "@aliou/biome-plugins": "^0.7.0",
-    "@biomejs/biome": "^2.4.2",
+    "@aliou/biome-plugins": "^0.8.1",
+    "@biomejs/biome": "^2.4.15",
     "@changesets/cli": "^2.27.11",
     "@earendil-works/pi-coding-agent": "0.74.0",
     "typebox": "^1.1.37",
