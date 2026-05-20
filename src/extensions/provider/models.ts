@@ -160,7 +160,7 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     id: "hf:Qwen/Qwen3-Coder-480B-A35B-Instruct",
     name: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
     provider: "together",
-    reasoning: true,
+    reasoning: false,
     input: ["text"],
     cost: {
       input: 2,
