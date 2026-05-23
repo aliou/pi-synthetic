@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.17.4
+
+### Patch Changes
+
+- 6c96fb3: Remove Synthetic models that are no longer exposed by the live models endpoint.
+
 ## 0.17.3
 
 ### Patch Changes
