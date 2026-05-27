@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.18.0
+
+### Minor Changes
+
+- 0fde0fa: Add syn:large:text, syn:small:text, syn:large:vision, syn:small:vision alias models
+
 ## 0.17.4
 
 ### Patch Changes
