@@ -216,4 +216,85 @@ export const SYNTHETIC_MODELS: SyntheticModelConfig[] = [
     contextWindow: 262144,
     maxTokens: 65536,
   },
+  // API: syn:large:text → alias for hf:zai-org/GLM-5.1 → ctx=196608, out=65536
+  {
+    id: "syn:large:text",
+    name: "syn:large:text",
+    provider: "synthetic",
+    reasoning: true,
+    thinkingLevelMap: { minimal: null, xhigh: null },
+    compat: {
+      supportsReasoningEffort: true,
+      supportsDeveloperRole: false,
+    },
+    input: ["text"],
+    cost: {
+      input: 1,
+      output: 3,
+      cacheRead: 1,
+      cacheWrite: 0,
+    },
+    contextWindow: 196608,
+    maxTokens: 65536,
+  },
+  // API: syn:small:text → alias for hf:zai-org/GLM-4.7-Flash → ctx=196608, out=65536
+  {
+    id: "syn:small:text",
+    name: "syn:small:text",
+    provider: "synthetic",
+    reasoning: true,
+    thinkingLevelMap: { minimal: null, xhigh: null },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text"],
+    cost: {
+      input: 0.1,
+      output: 0.5,
+      cacheRead: 0.1,
+      cacheWrite: 0,
+    },
+    contextWindow: 196608,
+    maxTokens: 65536,
+  },
+  // API: syn:large:vision → alias for hf:moonshotai/Kimi-K2.6 → ctx=262144, out=65536
+  {
+    id: "syn:large:vision",
+    name: "syn:large:vision",
+    provider: "synthetic",
+    reasoning: true,
+    thinkingLevelMap: { minimal: null, low: null, xhigh: null },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 0.95,
+      output: 4,
+      cacheRead: 0.95,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 65536,
+  },
+  // API: syn:small:vision → alias for hf:moonshotai/Kimi-K2.6 → ctx=262144, out=65536
+  {
+    id: "syn:small:vision",
+    name: "syn:small:vision",
+    provider: "synthetic",
+    reasoning: true,
+    thinkingLevelMap: { minimal: null, low: null, xhigh: null },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 0.95,
+      output: 4,
+      cacheRead: 0.95,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 65536,
+  },
 ];
