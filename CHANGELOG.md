@@ -1,5 +1,17 @@
 # @aliou/pi-synthetic
 
+## 0.18.2
+
+### Patch Changes
+
+- 9620c30: Update Pi package metadata and docs for Pi 0.77.0 compatibility.
+- e9fe27d: Use Pi 0.77 environment interpolation for the Synthetic provider API key fallback.
+- f205650: Refresh Synthetic model metadata from the live API.
+
+  Removed models no longer returned by Synthetic (`hf:zai-org/GLM-5`, `hf:deepseek-ai/DeepSeek-V3.2`), added `hf:Qwen/Qwen3.6-27B`, and updated `syn:small:vision` to point at the new Qwen target.
+
+- b8b1383: Register the Synthetic web search tool with Pi's current defineTool helper.
+
 ## 0.18.1
 
 ### Patch Changes
