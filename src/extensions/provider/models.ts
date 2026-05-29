@@ -51,11 +51,11 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
     name: "syn:large:vision",
     aliasFor: "hf:moonshotai/Kimi-K2.6",
   },
-  // API: syn:small:vision → alias for hf:moonshotai/Kimi-K2.6
+  // API: syn:small:vision → alias for hf:Qwen/Qwen3.6-27B
   {
     id: "syn:small:vision",
     name: "syn:small:vision",
-    aliasFor: "hf:moonshotai/Kimi-K2.6",
+    aliasFor: "hf:Qwen/Qwen3.6-27B",
   },
   // API: hf:zai-org/GLM-4.7 → ctx=202752
   {
@@ -82,33 +82,6 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
       cacheWrite: 0,
     },
     contextWindow: 202752,
-    maxTokens: 65536,
-  },
-  // API: hf:zai-org/GLM-5 → ctx=196608, out=65536
-  {
-    id: "hf:zai-org/GLM-5",
-    name: "zai-org/GLM-5",
-    provider: "synthetic",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: "medium",
-      high: null,
-      xhigh: null,
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text"],
-    cost: {
-      input: 1,
-      output: 3,
-      cacheRead: 1,
-      cacheWrite: 0,
-    },
-    contextWindow: 196608,
     maxTokens: 65536,
   },
   // API: hf:zai-org/GLM-5.1 → ctx=196608, out=65536
@@ -165,33 +138,6 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
     },
     contextWindow: 196608,
     maxTokens: 65536,
-  },
-  // models.dev: synthetic/hf:deepseek-ai/DeepSeek-V3.2 → ctx=162816, out=8000
-  {
-    id: "hf:deepseek-ai/DeepSeek-V3.2",
-    name: "deepseek-ai/DeepSeek-V3.2",
-    provider: "fireworks",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: "medium",
-      high: null,
-      xhigh: null,
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text"],
-    cost: {
-      input: 0.56,
-      output: 1.68,
-      cacheRead: 0.56,
-      cacheWrite: 0,
-    },
-    contextWindow: 162816,
-    maxTokens: 8000,
   },
   // models.dev: synthetic/hf:openai/gpt-oss-120b → ctx=128000, out=32768
   {
@@ -274,6 +220,33 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
       input: 0.6,
       output: 3.6,
       cacheRead: 0.6,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 65536,
+  },
+  // API: hf:Qwen/Qwen3.6-27B → ctx=262144, out=65536
+  {
+    id: "hf:Qwen/Qwen3.6-27B",
+    name: "Qwen/Qwen3.6-27B",
+    provider: "synthetic",
+    reasoning: true,
+    thinkingLevelMap: {
+      off: "none",
+      minimal: null,
+      low: null,
+      medium: "medium",
+      high: null,
+      xhigh: null,
+    },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 0.45,
+      output: 3.6,
+      cacheRead: 0.45,
       cacheWrite: 0,
     },
     contextWindow: 262144,
