@@ -80,7 +80,7 @@ export function registerSyntheticProvider(
 ): void {
   pi.registerProvider("synthetic", {
     baseUrl: "https://api.synthetic.new/openai/v1",
-    apiKey: "SYNTHETIC_API_KEY",
+    apiKey: "$SYNTHETIC_API_KEY",
     api: "openai-completions",
     headers: {
       Referer: "https://pi.dev",
