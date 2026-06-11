@@ -155,22 +155,6 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
     contextWindow: 131072,
     maxTokens: 32768,
   },
-  // API: hf:Qwen/Qwen3-Coder-480B-A35B-Instruct → ctx=262144, out=65536
-  {
-    id: "hf:Qwen/Qwen3-Coder-480B-A35B-Instruct",
-    name: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
-    provider: "together",
-    reasoning: false,
-    input: ["text"],
-    cost: {
-      input: 2,
-      output: 2,
-      cacheRead: 2,
-      cacheWrite: 0,
-    },
-    contextWindow: 262144,
-    maxTokens: 65536,
-  },
   // API: hf:moonshotai/Kimi-K2.6 → ctx=262144, out=65536
   {
     id: "hf:moonshotai/Kimi-K2.6",
