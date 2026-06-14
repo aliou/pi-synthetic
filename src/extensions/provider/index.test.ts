@@ -35,7 +35,7 @@ describe("buildSyntheticProviderModels", () => {
 
   it("preserves model-specific compat overrides", () => {
     const models = buildSyntheticProviderModels(true);
-    const miniMax = models.find((m) => m.id === "hf:MiniMaxAI/MiniMax-M2.5");
+    const miniMax = models.find((m) => m.id === "hf:MiniMaxAI/MiniMax-M3");
     expect(miniMax).toBeDefined();
     expect(miniMax?.compat).toMatchObject({
       supportsDeveloperRole: false,
