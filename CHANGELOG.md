@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.19.1
+
+### Patch Changes
+
+- 6760cb8: Remove quota fetch on session start. Quotas are now only ingested from response headers on demand, avoiding an unnecessary authenticated API call when the session loads.
+
 ## 0.19.0
 
 ### Minor Changes
