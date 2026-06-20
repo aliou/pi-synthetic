@@ -67,8 +67,8 @@ src/
 - `buildSyntheticProviderModels` resolves aliases from their targets, then filters the model list based on the `proxiedModels` config setting: when disabled, only models whose `provider` is `"synthetic"` are exposed. Aliases always resolve with `provider: "synthetic"`, so they remain visible even when proxied models are hidden
 - Alias entries (`syn:*` IDs) are thin references. The `aliasFor` value maps to the `hugging_face_id` field from the Synthetic API (prefixed with `hf:`). All other fields are inherited from the target at build time
 - All user-facing model selection still uses the Pi provider name `synthetic`
-- Web search tool and quotas command are always registered; they fail at call time if credentials/subscription are missing
-- Error messages guide users to add credentials to `~/.pi/agent/auth.json` or set `SYNTHETIC_API_KEY`
+- Web search tool and quotas command are always registered; they fail at call time if credentials/subscription are missing unless an unauthenticated utility API proxy is configured
+- Error messages guide users to add credentials to `~/.pi/agent/auth.json`, set `SYNTHETIC_API_KEY`, or configure an unauthenticated utility API proxy when relevant
 - Quota data flows event-driven: provider ingests `x-synthetic-quotas` header from `after_provider_response` into `QuotaStore`, which broadcasts via `synthetic:quotas:updated`; consumers (usage-status, quota-warnings, sub-bar-integration) listen and request refreshes via `synthetic:quotas:request` — no polling
 
 ## Model Configuration
@@ -144,8 +144,8 @@ Uses changesets. Run `pnpm changeset` before committing user-facing changes.
 ## Key Features
 
 1. **Provider**: OpenAI-compatible chat completions with hardcoded Synthetic model metadata; filters proxied models based on `proxiedModels` setting
-2. **Web Search Tool**: Zero-data-retention web search via `synthetic_web_search`
-3. **Quotas Command**: Interactive TUI for viewing API usage limits
+2. **Web Search Tool**: Zero-data-retention web search via `synthetic_web_search`; can use the utility API proxy
+3. **Quotas Command**: Interactive TUI for viewing API usage limits; can use the utility API proxy
 4. **Usage Status**: Footer status bar showing live quota percentages, colored by severity (event-driven)
 5. **Sub Integration**: Real-time usage tracking when used with pi-sub-core (event-driven)
 6. **Quota Warnings**: Notifications when quota usage approaches or exceeds thresholds

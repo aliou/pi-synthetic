@@ -16,6 +16,7 @@ import {
   seedSyntheticConfigIfMissing,
 } from "../../config";
 import { getSyntheticApiKey } from "../../lib/env";
+import { resolveSyntheticUtilityApiAuth } from "../../lib/utility-api";
 import { QuotaStore } from "../../services/quota-store";
 import {
   parseQuotaHeader,
@@ -94,13 +95,29 @@ export default async function (pi: ExtensionAPI) {
   await configLoader.load();
   await seedSyntheticConfigIfMissing();
 
-  const includeProxiedModels = configLoader.getConfig().proxiedModels;
+  const initialConfig = configLoader.getConfig();
+  const includeProxiedModels = initialConfig.proxiedModels;
+  let utilityApiProxyUrl = initialConfig.proxyUrl;
+  let utilityApiProxyRequiresAuth = initialConfig.proxyRequiresAuth;
+  const quotaStore = new QuotaStore();
+  let currentAuthStorage: AuthStorage | undefined;
+
   registerSyntheticProvider(pi, { includeProxiedModels });
 
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
-    const includeProxiedModels = (data as SyntheticConfigUpdatedPayload).config
-      .proxiedModels;
-    registerSyntheticProvider(pi, { includeProxiedModels });
+    const config = (data as SyntheticConfigUpdatedPayload).config;
+    registerSyntheticProvider(pi, {
+      includeProxiedModels: config.proxiedModels,
+    });
+
+    if (
+      config.proxyUrl !== utilityApiProxyUrl ||
+      config.proxyRequiresAuth !== utilityApiProxyRequiresAuth
+    ) {
+      quotaStore.clear();
+      utilityApiProxyUrl = config.proxyUrl;
+      utilityApiProxyRequiresAuth = config.proxyRequiresAuth;
+    }
   });
 
   const loadedFeatures = new Set<SyntheticFeatureId>();
@@ -114,14 +131,20 @@ export default async function (pi: ExtensionAPI) {
     getLoadedFeatures: () => loadedFeatures,
   });
 
-  const quotaStore = new QuotaStore();
-  let currentAuthStorage: AuthStorage | undefined;
-
   async function fetchQuotasFromAuth(): Promise<QuotasResponse | undefined> {
-    if (!currentAuthStorage) return undefined;
-    const apiKey = await getSyntheticApiKey(currentAuthStorage);
-    if (!apiKey) return undefined;
-    const result = await fetchQuotas(apiKey);
+    const config = configLoader.getConfig();
+    const auth = await resolveSyntheticUtilityApiAuth(config, () =>
+      currentAuthStorage
+        ? getSyntheticApiKey(currentAuthStorage)
+        : Promise.resolve(undefined),
+    );
+    if (!auth) return undefined;
+
+    const result = await fetchQuotas({
+      apiKey: auth.apiKey,
+      proxyUrl: config.proxyUrl,
+      requiresAuth: auth.requiresAuth,
+    });
     return result.success ? result.data.quotas : undefined;
   }
 

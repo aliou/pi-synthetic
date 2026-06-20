@@ -1,6 +1,17 @@
+import {
+  resolveSyntheticUtilityApiBaseUrl,
+  syntheticUtilityApiUrl,
+} from "../lib/utility-api";
 import type { QuotasResponse, QuotasResult } from "../types/quotas";
 
 const FETCH_TIMEOUT_MS = 15_000;
+
+export interface FetchQuotasOptions {
+  apiKey?: string;
+  proxyUrl?: string;
+  requiresAuth?: boolean;
+  signal?: AbortSignal;
+}
 
 function isTimeoutReason(reason: unknown): boolean {
   return (
@@ -10,23 +21,37 @@ function isTimeoutReason(reason: unknown): boolean {
 }
 
 export async function fetchQuotas(
-  apiKey: string,
-  signal?: AbortSignal,
+  options: FetchQuotasOptions,
 ): Promise<QuotasResult> {
-  if (!apiKey) {
+  const requiresAuth = options.requiresAuth ?? true;
+  if (requiresAuth && !options.apiKey) {
     return {
       success: false,
       error: { message: "No API key provided", kind: "config" },
     };
   }
 
+  let url: string;
+  try {
+    const baseUrl = resolveSyntheticUtilityApiBaseUrl(options.proxyUrl);
+    url = syntheticUtilityApiUrl(baseUrl, "/v2/quotas");
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Invalid proxy URL";
+    return { success: false, error: { message, kind: "config" } };
+  }
+
   const signals: AbortSignal[] = [AbortSignal.timeout(FETCH_TIMEOUT_MS)];
-  if (signal) signals.push(signal);
+  if (options.signal) signals.push(options.signal);
   const combined = AbortSignal.any(signals);
 
   try {
-    const response = await fetch("https://api.synthetic.new/v2/quotas", {
-      headers: { Authorization: `Bearer ${apiKey}` },
+    const headers: Record<string, string> = {};
+    if (options.apiKey) {
+      headers.Authorization = `Bearer ${options.apiKey}`;
+    }
+
+    const response = await fetch(url, {
+      headers,
       signal: combined,
     });
 

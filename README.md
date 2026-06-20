@@ -64,7 +64,7 @@ The `provider` field in `src/extensions/provider/models.ts` is for maintenance o
 
 ### Web Search Tool
 
-The extension registers `synthetic_web_search` — a zero-data-retention web search tool. The tool is always visible; it fails with a clear message if credentials are missing or the account lacks a subscription.
+The extension registers `synthetic_web_search` — a zero-data-retention web search tool. The tool is always visible; it fails with a clear message if credentials are missing, the account lacks a subscription, or the configured utility proxy rejects the request.
 
 ### Reasoning Levels
 
@@ -84,6 +84,12 @@ Check your API usage:
 ```
 /synthetic:quotas
 ```
+
+### Utility API Proxy
+
+Web search and quotas can use a proxy instead of `https://api.synthetic.new`. Configure it with `/synthetic:settings` under **Connection > Utility API Proxy**. The proxy is only used for `/v2/search` and `/v2/quotas`; model provider calls still use Synthetic's OpenAI-compatible endpoint directly.
+
+If the proxy requires auth, pi-synthetic still requires a Synthetic API key and sends `Authorization: Bearer ...`. If the proxy does not require auth, disable **Requires auth** and these utility calls skip API key checks and omit `Authorization`.
 
 ### Usage Status
 
@@ -107,7 +113,7 @@ pi config extensions.disabled add @aliou/pi-synthetic/quota-warnings
 
 This prevents the quota-warnings extension from loading while keeping the rest of pi-synthetic active. Replace `quota-warnings` with `web-search`, `command-quotas`, `sub-bar-integration`, `usage-status`, or `provider` to disable other features.
 
-The **Proxied Models** setting is not a loadable extension feature. It is a regular setting controlled through `/synthetic:settings`.
+The **Proxied Models** and **Utility API Proxy** settings are not loadable extension features. They are regular settings controlled through `/synthetic:settings`.
 
 ## Adding or Updating Models
 
@@ -181,7 +187,7 @@ This repository uses [Changesets](https://github.com/changesets/changesets) for 
 ## Requirements
 
 - Pi coding agent v0.77.0+
-- Synthetic API key (configured in `~/.pi/agent/auth.json` or via `SYNTHETIC_API_KEY`)
+- Synthetic API key (configured in `~/.pi/agent/auth.json` or via `SYNTHETIC_API_KEY`) for model provider calls and authenticated utility API calls
 
 ## Links
 
