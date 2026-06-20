@@ -14,6 +14,11 @@ import { Container, Text } from "@earendil-works/pi-tui";
 import { type Static, Type } from "typebox";
 import { configLoader } from "../../config";
 import { getSyntheticApiKey } from "../../lib/env";
+import {
+  resolveSyntheticUtilityApiAuth,
+  resolveSyntheticUtilityApiBaseUrl,
+  syntheticUtilityApiUrl,
+} from "../../lib/utility-api";
 
 export const SYNTHETIC_WEB_SEARCH_TOOL = "synthetic_web_search" as const;
 
@@ -69,28 +74,46 @@ export const syntheticWebSearchTool = defineTool({
       details: { query: params.query },
     });
 
-    if (!configLoader.getConfig().webSearch) {
+    const config = configLoader.getConfig();
+    if (!config.webSearch) {
       throw new Error(
         "Synthetic web search is disabled. Re-enable it with synthetic:settings or pi config.",
       );
     }
 
-    const apiKey = await getSyntheticApiKey(ctx.modelRegistry.authStorage);
-    if (!apiKey) {
+    const auth = await resolveSyntheticUtilityApiAuth(config, () =>
+      getSyntheticApiKey(ctx.modelRegistry.authStorage),
+    );
+    if (!auth) {
       throw new Error(
-        "Synthetic web search requires a Synthetic subscription. Add credentials to ~/.pi/agent/auth.json or set SYNTHETIC_API_KEY environment variable.",
+        "Synthetic web search requires a Synthetic subscription or an unauthenticated proxy. Add credentials to ~/.pi/agent/auth.json, set SYNTHETIC_API_KEY, or disable proxy auth in /synthetic:settings.",
       );
     }
 
-    const response = await fetch("https://api.synthetic.new/v2/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    let baseUrl: string;
+    try {
+      baseUrl = resolveSyntheticUtilityApiBaseUrl(config.proxyUrl);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Invalid proxy URL";
+      throw new Error(`Synthetic web search: ${message}`);
+    }
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (auth.apiKey) {
+      headers.Authorization = `Bearer ${auth.apiKey}`;
+    }
+
+    const response = await fetch(
+      syntheticUtilityApiUrl(baseUrl, "/v2/search"),
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ query: params.query }),
+        signal,
       },
-      body: JSON.stringify({ query: params.query }),
-      signal,
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();

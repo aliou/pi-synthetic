@@ -2,11 +2,17 @@ import {
   ConfigLoader,
   type Migration,
   registerSettingsCommand,
+  SettingsDetailEditor,
   type SettingsSection,
 } from "@aliou/pi-utils-settings";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { SettingItem } from "@earendil-works/pi-tui";
 import pkg from "../package.json" with { type: "json" };
+import {
+  formatSyntheticUtilityApiProxySummary,
+  hasSyntheticUtilityApiProxy,
+  validateSyntheticUtilityApiProxyUrl,
+} from "./lib/utility-api";
 
 export type SyntheticFeatureId =
   | "webSearch"
@@ -36,6 +42,8 @@ export interface SyntheticConfig {
   quotaWarnings?: boolean;
   subBarIntegration?: boolean;
   proxiedModels?: boolean;
+  proxyUrl?: string;
+  proxyRequiresAuth?: boolean;
 }
 
 export interface ResolvedSyntheticConfig {
@@ -46,6 +54,8 @@ export interface ResolvedSyntheticConfig {
   quotaWarnings: boolean;
   subBarIntegration: boolean;
   proxiedModels: boolean;
+  proxyUrl: string;
+  proxyRequiresAuth: boolean;
 }
 
 const DEFAULT_CONFIG: ResolvedSyntheticConfig = {
@@ -56,6 +66,8 @@ const DEFAULT_CONFIG: ResolvedSyntheticConfig = {
   quotaWarnings: false,
   subBarIntegration: true,
   proxiedModels: false,
+  proxyUrl: "",
+  proxyRequiresAuth: true,
 };
 
 export const pendingMessages: string[] = [];
@@ -165,7 +177,7 @@ export function registerSyntheticSettings(
     commandDescription: "Configure Synthetic extension settings",
     title: "Synthetic Settings",
     configStore: configLoader,
-    buildSections: (tabConfig, resolved): SettingsSection[] => {
+    buildSections: (tabConfig, resolved, ctx): SettingsSection[] => {
       const loaded = getLoadedFeatures();
       const webSearch = tabConfig?.webSearch ?? resolved.webSearch;
       const quotasCommand = tabConfig?.quotasCommand ?? resolved.quotasCommand;
@@ -174,10 +186,100 @@ export function registerSyntheticSettings(
       const subBarIntegration =
         tabConfig?.subBarIntegration ?? resolved.subBarIntegration;
       const proxiedModels = tabConfig?.proxiedModels ?? resolved.proxiedModels;
+      const proxyUrl = tabConfig?.proxyUrl ?? resolved.proxyUrl;
+      const proxyRequiresAuth =
+        tabConfig?.proxyRequiresAuth ?? resolved.proxyRequiresAuth;
 
       const sections: SettingsSection[] = [];
 
       sections.push(
+        {
+          label: "Connection",
+          items: [
+            {
+              id: "utilityApiProxy",
+              label: "Utility API Proxy",
+              description:
+                "Override the Synthetic quotas and web search API root. The provider endpoint is not proxied.",
+              currentValue: formatSyntheticUtilityApiProxySummary({
+                proxyUrl,
+                proxyRequiresAuth,
+              }),
+              submenu: (_current, done) => {
+                const current: SyntheticConfig =
+                  tabConfig ?? (ctx.scope === "memory" ? resolved : {});
+                let nextProxyUrl = proxyUrl;
+                let nextProxyRequiresAuth =
+                  proxyUrl.trim() || proxyRequiresAuth
+                    ? proxyRequiresAuth
+                    : true;
+
+                const syncDraft = () => {
+                  ctx.setDraft({
+                    ...current,
+                    proxyUrl: nextProxyUrl.trim() || undefined,
+                    proxyRequiresAuth: nextProxyRequiresAuth,
+                  });
+                };
+
+                return new SettingsDetailEditor({
+                  title: "Utility API Proxy",
+                  theme: ctx.theme,
+                  fields: [
+                    {
+                      id: "proxyUrl.detail",
+                      type: "text",
+                      label: "Proxy URL",
+                      description:
+                        "Leave empty to call https://api.synthetic.new directly for quotas and web search.",
+                      getValue: () => nextProxyUrl,
+                      setValue: (value) => {
+                        nextProxyUrl = value;
+                        // Requires auth only makes sense with a proxy.
+                        // Enforce enabled state when the URL is empty.
+                        if (!value.trim()) nextProxyRequiresAuth = true;
+                        syncDraft();
+                      },
+                      validate: validateSyntheticUtilityApiProxyUrl,
+                      emptyValueText: "direct",
+                    },
+                    {
+                      id: "proxyRequiresAuth.detail",
+                      type: "boolean",
+                      label: "Requires auth",
+                      description:
+                        "When disabled, quotas and web search skip the Synthetic API key check and omit Authorization. Only effective when a proxy URL is set.",
+                      getValue: () =>
+                        hasSyntheticUtilityApiProxy({
+                          proxyUrl: nextProxyUrl,
+                          proxyRequiresAuth: nextProxyRequiresAuth,
+                        })
+                          ? nextProxyRequiresAuth
+                          : true,
+                      setValue: (value) => {
+                        nextProxyRequiresAuth = hasSyntheticUtilityApiProxy({
+                          proxyUrl: nextProxyUrl,
+                          proxyRequiresAuth: nextProxyRequiresAuth,
+                        })
+                          ? value
+                          : true;
+                        syncDraft();
+                      },
+                      trueLabel: "enabled",
+                      falseLabel: "disabled",
+                    },
+                  ],
+                  onDone: done,
+                  getDoneSummary: () =>
+                    formatSyntheticUtilityApiProxySummary({
+                      proxyUrl: nextProxyUrl,
+                      proxyRequiresAuth: nextProxyRequiresAuth,
+                    }),
+                });
+              },
+            },
+          ],
+        },
         {
           label: "Models",
           items: [
