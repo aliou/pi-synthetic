@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.20.0
+
+### Minor Changes
+
+- d3a22a8: Add a configurable utility API proxy for quotas and web search, with optional auth gating.
+
 ## 0.19.1
 
 ### Patch Changes
