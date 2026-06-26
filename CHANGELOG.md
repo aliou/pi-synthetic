@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.20.1
+
+### Patch Changes
+
+- 4c12b48: Update `hf:MiniMaxAI/MiniMax-M3` context window from 524288 to 262144 to match the current Synthetic API metadata.
+
 ## 0.20.0
 
 ### Minor Changes
