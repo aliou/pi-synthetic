@@ -177,11 +177,11 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
     contextWindow: 196608,
     maxTokens: 65536,
   },
-  // models.dev: synthetic/hf:openai/gpt-oss-120b → ctx=128000, out=32768
+  // API: hf:openai/gpt-oss-120b → ctx=131072, out=65536
   {
     id: "hf:openai/gpt-oss-120b",
     name: "openai/gpt-oss-120b",
-    provider: "fireworks",
+    provider: "synthetic",
     reasoning: true,
     input: ["text"],
     cost: {
@@ -191,7 +191,7 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
       cacheWrite: 0,
     },
     contextWindow: 131072,
-    maxTokens: 32768,
+    maxTokens: 65536,
   },
   // API: hf:moonshotai/Kimi-K2.6 → ctx=262144, out=65536
   {
