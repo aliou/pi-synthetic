@@ -45,44 +45,17 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
     name: "syn:small:text",
     aliasFor: "hf:zai-org/GLM-4.7-Flash",
   },
-  // API: syn:large:vision → alias for hf:moonshotai/Kimi-K2.6
+  // API: syn:large:vision → alias for hf:moonshotai/Kimi-K2.7-Code
   {
     id: "syn:large:vision",
     name: "syn:large:vision",
-    aliasFor: "hf:moonshotai/Kimi-K2.6",
+    aliasFor: "hf:moonshotai/Kimi-K2.7-Code",
   },
   // API: syn:small:vision → alias for hf:Qwen/Qwen3.6-27B
   {
     id: "syn:small:vision",
     name: "syn:small:vision",
     aliasFor: "hf:Qwen/Qwen3.6-27B",
-  },
-  // API: hf:zai-org/GLM-4.7 → ctx=202752
-  {
-    id: "hf:zai-org/GLM-4.7",
-    name: "zai-org/GLM-4.7",
-    provider: "synthetic",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: "medium",
-      high: null,
-      xhigh: null,
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text"],
-    cost: {
-      input: 0.45,
-      output: 2.19,
-      cacheRead: 0.45,
-      cacheWrite: 0,
-    },
-    contextWindow: 202752,
-    maxTokens: 65536,
   },
   // API: hf:zai-org/GLM-5.1 → ctx=196608, out=65536
   {
@@ -193,6 +166,33 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
     contextWindow: 131072,
     maxTokens: 65536,
   },
+  // API: hf:moonshotai/Kimi-K2.7-Code → ctx=262144, out=65536
+  {
+    id: "hf:moonshotai/Kimi-K2.7-Code",
+    name: "moonshotai/Kimi-K2.7-Code",
+    provider: "synthetic",
+    reasoning: true,
+    thinkingLevelMap: {
+      off: null,
+      minimal: null,
+      low: null,
+      medium: "medium",
+      high: null,
+      xhigh: null,
+    },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 0.95,
+      output: 4,
+      cacheRead: 0.95,
+      cacheWrite: 0,
+    },
+    contextWindow: 262144,
+    maxTokens: 65536,
+  },
   // API: hf:moonshotai/Kimi-K2.6 → ctx=262144, out=65536
   {
     id: "hf:moonshotai/Kimi-K2.6",
@@ -215,33 +215,6 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
       input: 0.95,
       output: 4,
       cacheRead: 0.95,
-      cacheWrite: 0,
-    },
-    contextWindow: 262144,
-    maxTokens: 65536,
-  },
-  // API: hf:Qwen/Qwen3.5-397B-A17B → ctx=262144, out=65536
-  {
-    id: "hf:Qwen/Qwen3.5-397B-A17B",
-    name: "Qwen/Qwen3.5-397B-A17B",
-    provider: "together",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: "medium",
-      high: null,
-      xhigh: null,
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text", "image"],
-    cost: {
-      input: 0.6,
-      output: 3.6,
-      cacheRead: 0.6,
       cacheWrite: 0,
     },
     contextWindow: 262144,
