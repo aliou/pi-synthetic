@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.21.0
+
+### Minor Changes
+
+- b4f5b84: Update Synthetic model catalog with Kimi K2.7 Code and remove delisted models.
+
 ## 0.20.2
 
 ### Patch Changes
