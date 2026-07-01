@@ -1,6 +1,8 @@
+import { getApiProvider } from "@earendil-works/pi-ai";
 import type {
   AuthStorage,
   ExtensionAPI,
+  ProviderConfig,
 } from "@earendil-works/pi-coding-agent";
 import {
   configLoader,
@@ -34,6 +36,7 @@ import {
   isAlias,
   SYNTHETIC_MODELS,
 } from "./models";
+import { wrapSyntheticStreamSimple } from "./stream-simple";
 
 export function buildSyntheticProviderModels(includeProxiedModels: boolean) {
   const concreteModels = SYNTHETIC_MODELS.filter(
@@ -79,7 +82,7 @@ export function registerSyntheticProvider(
   pi: ExtensionAPI,
   options: RegisterSyntheticProviderOptions,
 ): void {
-  pi.registerProvider("synthetic", {
+  const config: ProviderConfig = {
     baseUrl: "https://api.synthetic.new/openai/v1",
     apiKey: "$SYNTHETIC_API_KEY",
     api: "openai-completions",
@@ -88,7 +91,14 @@ export function registerSyntheticProvider(
       "X-Title": "npm:@aliou/pi-synthetic",
     },
     models: buildSyntheticProviderModels(options.includeProxiedModels),
-  });
+  };
+
+  const provider = getApiProvider("openai-completions");
+  if (provider?.streamSimple) {
+    config.streamSimple = wrapSyntheticStreamSimple(provider.streamSimple);
+  }
+
+  pi.registerProvider("synthetic", config);
 }
 
 export default async function (pi: ExtensionAPI) {
