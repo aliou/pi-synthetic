@@ -57,34 +57,6 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
     name: "syn:small:vision",
     aliasFor: "hf:Qwen/Qwen3.6-27B",
   },
-  // API: hf:zai-org/GLM-5.1 → ctx=196608, out=65536
-  {
-    id: "hf:zai-org/GLM-5.1",
-    name: "zai-org/GLM-5.1",
-    provider: "synthetic",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: "medium",
-      high: null,
-      xhigh: null,
-    },
-    compat: {
-      supportsReasoningEffort: true,
-      supportsDeveloperRole: false,
-    },
-    input: ["text"],
-    cost: {
-      input: 1,
-      output: 3,
-      cacheRead: 1,
-      cacheWrite: 0,
-    },
-    contextWindow: 196608,
-    maxTokens: 65536,
-  },
   // API: hf:zai-org/GLM-5.2 → ctx=524288, out=65536
   // Reasoning: GLM-5.2 has only two effective levels — `max` (default, highest) and `high`
   // (lower). Per the GLM-5.2 chat template: unset -> max; "high" -> high; every other value
@@ -174,33 +146,6 @@ export const SYNTHETIC_MODELS: SyntheticModelEntry[] = [
     reasoning: true,
     thinkingLevelMap: {
       off: null,
-      minimal: null,
-      low: null,
-      medium: "medium",
-      high: null,
-      xhigh: null,
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text", "image"],
-    cost: {
-      input: 0.95,
-      output: 4,
-      cacheRead: 0.95,
-      cacheWrite: 0,
-    },
-    contextWindow: 262144,
-    maxTokens: 65536,
-  },
-  // API: hf:moonshotai/Kimi-K2.6 → ctx=262144, out=65536
-  {
-    id: "hf:moonshotai/Kimi-K2.6",
-    name: "moonshotai/Kimi-K2.6",
-    provider: "synthetic",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
       minimal: null,
       low: null,
       medium: "medium",
