@@ -30,7 +30,7 @@ describe("QuotaWarningNotifier", () => {
     },
     rollingFiveHourLimit: {
       nextTickAt: new Date(Date.now() + 2.5 * 3600 * 1000).toISOString(),
-      tickPercent: 10,
+      tickPercent: 0.05,
       remaining: 90,
       max: 100,
       limited: false,
@@ -180,7 +180,7 @@ describe("QuotaWarningNotifier", () => {
         ...baseQuotas,
         rollingFiveHourLimit: {
           nextTickAt: new Date(Date.now() + 2.5 * 3600 * 1000).toISOString(),
-          tickPercent: 10,
+          tickPercent: 0.05,
           remaining: 5,
           max: 100,
           limited: false,
@@ -200,7 +200,7 @@ describe("QuotaWarningNotifier", () => {
         ...baseQuotas,
         rollingFiveHourLimit: {
           nextTickAt: new Date(Date.now() + 2.5 * 3600 * 1000).toISOString(),
-          tickPercent: 10,
+          tickPercent: 0.05,
           remaining: 95,
           max: 100,
           limited: true,
@@ -312,7 +312,7 @@ describe("QuotaWarningNotifier", () => {
         ...baseQuotas,
         rollingFiveHourLimit: {
           nextTickAt: new Date(Date.now() + 2.5 * 3600 * 1000).toISOString(),
-          tickPercent: 10,
+          tickPercent: 0.05,
           remaining: 5,
           max: 100,
           limited: false,
@@ -334,7 +334,7 @@ describe("QuotaWarningNotifier", () => {
         ...baseQuotas,
         rollingFiveHourLimit: {
           nextTickAt: new Date(Date.now() + 2.5 * 3600 * 1000).toISOString(),
-          tickPercent: 10,
+          tickPercent: 0.05,
           remaining: 15,
           max: 100,
           limited: false,
@@ -359,7 +359,7 @@ describe("QuotaWarningNotifier", () => {
         ...baseQuotas,
         rollingFiveHourLimit: {
           nextTickAt: new Date(Date.now() + 2.5 * 3600 * 1000).toISOString(),
-          tickPercent: 10,
+          tickPercent: 0.05,
           remaining: 8,
           max: 100,
           limited: false,
@@ -378,7 +378,7 @@ describe("QuotaWarningNotifier", () => {
         ...baseQuotas,
         rollingFiveHourLimit: {
           nextTickAt: new Date(Date.now() + 2.5 * 3600 * 1000).toISOString(),
-          tickPercent: 10,
+          tickPercent: 0.05,
           remaining: 2,
           max: 100,
           limited: true,
