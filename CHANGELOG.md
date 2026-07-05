@@ -1,5 +1,12 @@
 # @aliou/pi-synthetic
 
+## 0.21.2
+
+### Patch Changes
+
+- 9d29f21: Fix quota warnings over-firing. `high` and `critical` severity windows now respect the same 60-minute cooldown as `warning` (escalation still notifies immediately). Stop clearing alert state on `session_start` and `model_select` right before evaluating, which previously bypassed the cooldown on every switch. Only reset alert state on genuine identity transitions (`session_before_switch`, `session_shutdown`) or a real `quotaWarnings` config toggle.
+- 4a603be: Account for tick refills in 5-hour window severity so quota warnings stop firing on imminent-tick threshold bounces and still surface genuine on-pace drain. Adds a refill-aware projection (ported from pi-harness's burn-vs-refill model) that derives the burn rate from recent snapshots, subtracts the refill rate, and projects usage forward over a 1-hour horizon. The tick cadence is deduced from the invariant "all ticks in the window fully refill the quota" (`interval = tickPercent * windowDuration`), so it is not hardcoded. The `QuotaStore` now keeps a bounded in-memory snapshot buffer to compute the projection; `assessWindow` accepts an optional projection used by the warning notifier. Windows with insufficient history fall back to the existing raw-threshold behavior.
+
 ## 0.21.1
 
 ### Patch Changes
