@@ -93,21 +93,39 @@ describe("QuotaWarningNotifier", () => {
       expect(notifier.shouldNotify("Credits / week", "warning")).toBe(false);
     });
 
-    it("does notify on downgrade to high (no cooldown)", () => {
+    it("does not notify on downgrade to high within cooldown", () => {
       const notifier = new QuotaWarningNotifier();
       notifier.markNotified("Requests / 5h", "critical");
-      expect(notifier.shouldNotify("Requests / 5h", "high")).toBe(true);
+      expect(notifier.shouldNotify("Requests / 5h", "high")).toBe(false);
     });
 
-    it("always notifies for high severity (no cooldown)", () => {
+    it("suppresses repeated high severity within cooldown", () => {
       const notifier = new QuotaWarningNotifier();
       notifier.markNotified("Credits / week", "high");
+      expect(notifier.shouldNotify("Credits / week", "high")).toBe(false);
+    });
+
+    it("re-notifies high severity after cooldown elapsed", () => {
+      const notifier = new QuotaWarningNotifier();
+      notifier.markNotified("Credits / week", "high");
+
+      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+
       expect(notifier.shouldNotify("Credits / week", "high")).toBe(true);
     });
 
-    it("always notifies for critical severity (no cooldown)", () => {
+    it("suppresses repeated critical severity within cooldown", () => {
       const notifier = new QuotaWarningNotifier();
       notifier.markNotified("Credits / week", "critical");
+      expect(notifier.shouldNotify("Credits / week", "critical")).toBe(false);
+    });
+
+    it("re-notifies critical severity after cooldown elapsed", () => {
+      const notifier = new QuotaWarningNotifier();
+      notifier.markNotified("Credits / week", "critical");
+
+      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
+
       expect(notifier.shouldNotify("Credits / week", "critical")).toBe(true);
     });
   });
@@ -122,10 +140,17 @@ describe("QuotaWarningNotifier", () => {
       expect(notifier.shouldNotify("Requests / 5h", "warning")).toBe(true);
     });
 
-    it("allows re-notification after escalation then downgrade then re-escalation", () => {
+    it("suppresses repeat high after downgrade-and-re-escalation within cooldown", () => {
+      // Scenario: high → warning (downgrade, suppressed) → high again.
+      // Because the state was never re-notified at warning, a same-severity
+      // high check is still within cooldown and should not re-fire.
       const notifier = new QuotaWarningNotifier();
       notifier.markNotified("Test", "high");
       expect(notifier.shouldNotify("Test", "warning")).toBe(false);
+      expect(notifier.shouldNotify("Test", "high")).toBe(false);
+
+      // After cooldown, repeating the same severity re-notifies.
+      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
       expect(notifier.shouldNotify("Test", "high")).toBe(true);
     });
   });
@@ -340,7 +365,11 @@ describe("QuotaWarningNotifier", () => {
       notifier.evaluate(highQuotas, true, notify);
       expect(calls).toHaveLength(1);
 
-      // Escalate to critical (limited)
+      // Same severity re-evaluated within cooldown: suppressed (over-firing bug).
+      notifier.evaluate(highQuotas, true, notify);
+      expect(calls).toHaveLength(1);
+
+      // Escalate to critical (limited): bypasses cooldown, fires again.
       const criticalQuotas: QuotasResponse = {
         ...baseQuotas,
         rollingFiveHourLimit: {
@@ -369,7 +398,8 @@ describe("QuotaWarningNotifier", () => {
       expect(notifier.shouldNotify("Credits / week", "high")).toBe(true);
       notifier.markNotified("Credits / week", "high");
 
-      expect(notifier.shouldNotify("Credits / week", "high")).toBe(true);
+      // Same severity within cooldown is suppressed (the over-firing bug).
+      expect(notifier.shouldNotify("Credits / week", "high")).toBe(false);
     });
 
     it("allows re-notification after clear", () => {

@@ -48,16 +48,19 @@ export class QuotaWarningNotifier {
    * and severity rules.
    *
    * Rules:
-   * - First time seeing this window at risk: notify
-   * - Severity escalation (warning → high → critical): notify
-   * - Cooldown elapsed (60 min) AND severity is "warning": notify
-   * - High/Critical severity: always notify (no cooldown)
+   * - First time seeing this window at risk: notify.
+   * - Severity escalation (warning → high → critical): notify immediately,
+   *   bypassing cooldown, so the user learns of a worsening situation.
+   * - Same or lower severity within the cooldown (60 min): suppress. This
+   *   keeps a persistent high/critical window from re-firing on every turn.
+   * - Cooldown elapsed: notify again, to remind the user the risk persists.
    */
   shouldNotify(windowKey: string, severity: RiskSeverity): boolean {
     const state = this.windowAlerts.get(windowKey);
 
     if (!state) return true;
 
+    // Escalation always notifies immediately (none → warning → high → critical).
     const severityOrder: RiskSeverity[] = [
       "none",
       "warning",
@@ -68,13 +71,10 @@ export class QuotaWarningNotifier {
     const lastIndex = severityOrder.indexOf(state.lastSeverity);
     if (currentIndex > lastIndex) return true;
 
-    if (severity === "high" || severity === "critical") return true;
-
-    if (severity === "warning") {
-      return Date.now() - state.lastNotifiedAt >= COOLDOWN_MS;
-    }
-
-    return false;
+    // Same severity or downgrade: respect the cooldown so a window sitting at
+    // high/critical does not re-fire on every evaluation cycle (agent_end,
+    // turn_end, model_select, ...). Escalation above still bypasses this.
+    return Date.now() - state.lastNotifiedAt >= COOLDOWN_MS;
   }
 
   /** Updates alert state after notifying. */

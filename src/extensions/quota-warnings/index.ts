@@ -68,24 +68,27 @@ export default async function (pi: ExtensionAPI) {
   }
 
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
+    const wasEnabled = enabled;
     enabled = (data as SyntheticConfigUpdatedPayload).config.quotaWarnings;
 
-    if (!enabled) {
+    // Only reset alert state when the feature itself is toggled, so unrelated
+    // config changes (e.g. proxiedModels) do not re-trigger one-time warnings.
+    if (wasEnabled !== enabled) {
       notifier.clearAlertState();
-      return;
     }
-
-    notifier.clearAlertState();
-    // In config updates we don't have ctx, so we just clear. The next lifecycle event will refresh.
   });
 
+  // Note: we intentionally do NOT clearAlertState() on session_start or
+  // model_select. Quota state is account-wide and persists across sessions;
+  // clearing right before evaluate() would hit the first-time-seen path on
+  // every switch and bypass the cooldown. Clearing is reserved for genuine
+  // identity resets: session_before_switch, session_shutdown, or a config
+  // toggle (handled above).
   pi.on("session_start", (_event, ctx) => {
-    notifier.clearAlertState();
     evaluateFromStoreOrRefresh(ctx);
   });
 
   pi.on("model_select", (_event, ctx) => {
-    notifier.clearAlertState();
     evaluateFromStoreOrRefresh(ctx);
   });
 
