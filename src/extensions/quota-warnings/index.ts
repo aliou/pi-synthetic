@@ -51,6 +51,7 @@ export default async function (pi: ExtensionAPI) {
           (message, level) => {
             ctx.ui.notify(message, level);
           },
+          snapshot.projections,
         );
       } else {
         requestQuotas((refreshed) => {
@@ -61,6 +62,7 @@ export default async function (pi: ExtensionAPI) {
             (message, level) => {
               ctx.ui.notify(message, level);
             },
+            refreshed.projections,
           );
         });
       }

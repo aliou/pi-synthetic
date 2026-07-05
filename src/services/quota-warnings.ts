@@ -1,4 +1,4 @@
-import type { QuotasResponse } from "../types/quotas";
+import type { ProjectionHint, QuotasResponse } from "../types/quotas";
 import {
   assessWindow,
   formatTimeRemaining,
@@ -35,11 +35,18 @@ export type NotifyFn = (message: string, level: "warning" | "error") => void;
 export class QuotaWarningNotifier {
   private windowAlerts = new Map<string, WindowAlertState>();
 
-  /** Finds windows that exceed the risk threshold. */
-  findHighRiskWindows(quotas: QuotasResponse): WindowRisk[] {
+  /** Finds windows that exceed the risk threshold.
+   * @param projections - optional refill-aware projections keyed by window id. */
+  findHighRiskWindows(
+    quotas: QuotasResponse,
+    projections?: Map<string, ProjectionHint>,
+  ): WindowRisk[] {
     const windows = toWindows(quotas);
     return windows
-      .map((window) => ({ window, assessment: assessWindow(window) }))
+      .map((window) => ({
+        window,
+        assessment: assessWindow(window, projections?.get(window.id)),
+      }))
       .filter((item) => item.assessment.severity !== "none");
   }
 
@@ -113,13 +120,17 @@ export class QuotaWarningNotifier {
    * @param skipAlreadyWarned - If true, only warn for windows not yet warned.
    *                            If false, warn for all high-usage windows.
    * @param notify - Callback to display the notification
+   * @param projections - Optional refill-aware projections keyed by window id,
+   *   used to suppress imminent-tick threshold bounces and to surface on-pace
+   *   drain for windows where pace is unavailable (e.g. the 5-hour window).
    */
   evaluate(
     quotas: QuotasResponse,
     skipAlreadyWarned: boolean,
     notify: NotifyFn,
+    projections?: Map<string, ProjectionHint>,
   ): void {
-    const highRiskWindows = this.findHighRiskWindows(quotas);
+    const highRiskWindows = this.findHighRiskWindows(quotas, projections);
     if (highRiskWindows.length === 0) return;
 
     const windowsToNotify = skipAlreadyWarned

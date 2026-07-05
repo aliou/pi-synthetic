@@ -17,7 +17,7 @@ import {
 } from "../../config";
 import { getSyntheticApiKey } from "../../lib/env";
 import { resolveSyntheticUtilityApiAuth } from "../../lib/utility-api";
-import { QuotaStore } from "../../services/quota-store";
+import { type QuotaSnapshot, QuotaStore } from "../../services/quota-store";
 import {
   parseQuotaHeader,
   type QuotasResponse,
@@ -26,8 +26,10 @@ import {
   SYNTHETIC_QUOTAS_UPDATED_EVENT,
   type SyntheticQuotasReadPayload,
   type SyntheticQuotasRequestPayload,
+  type SyntheticQuotasSnapshotPayload,
 } from "../../types/quotas";
 import { fetchQuotas } from "../../utils/quotas";
+import { buildProjectionHints } from "../../utils/quotas-projection";
 import { SYNTHETIC_OVERFLOW_PATTERN } from "./context-overflow";
 import {
   type ConcreteSyntheticModelConfig,
@@ -156,6 +158,20 @@ export default async function (pi: ExtensionAPI) {
     });
   });
 
+  // Attach refill-aware projections to read/request responses. Computed from
+  // the in-memory snapshot buffer; absent when there is insufficient history.
+  function snapshotWithProjections(
+    snapshot: QuotaSnapshot | undefined,
+  ): SyntheticQuotasSnapshotPayload | undefined {
+    if (!snapshot) return undefined;
+    return {
+      quotas: snapshot.quotas,
+      source: snapshot.source,
+      updatedAt: snapshot.updatedAt,
+      projections: buildProjectionHints(quotaStore.getRecentSnapshots()),
+    };
+  }
+
   pi.on("after_provider_response", (event, ctx) => {
     if (ctx.model?.provider !== "synthetic") return;
     const quotas = parseQuotaHeader(event.headers);
@@ -184,13 +200,13 @@ export default async function (pi: ExtensionAPI) {
     const payload = data as SyntheticQuotasRequestPayload | undefined;
     const snapshot = await quotaStore.refreshFromApi(fetchQuotasFromAuth);
     if (payload?.respond) {
-      payload.respond(snapshot);
+      payload.respond(snapshotWithProjections(snapshot));
     }
   });
 
   pi.events.on(SYNTHETIC_QUOTAS_READ_EVENT, (data: unknown) => {
     const { respond } = data as SyntheticQuotasReadPayload;
-    respond(quotaStore.getSnapshot());
+    respond(snapshotWithProjections(quotaStore.getSnapshot()));
   });
 
   pi.on("session_before_switch", () => {

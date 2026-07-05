@@ -7,7 +7,7 @@ import {
   it,
   vi,
 } from "vitest";
-import type { QuotasResponse } from "../types/quotas";
+import type { ProjectionHint, QuotasResponse } from "../types/quotas";
 import { assessWindow, type QuotaWindow } from "../utils/quotas-severity";
 import { type NotifyFn, QuotaWarningNotifier } from "./quota-warnings";
 
@@ -224,6 +224,7 @@ describe("QuotaWarningNotifier", () => {
     it("formats single window warning", () => {
       const notifier = new QuotaWarningNotifier();
       const w: QuotaWindow = {
+        id: "rollingFiveHourLimit",
         label: "Requests / 5h",
         usedPercent: 92,
         resetsAt: new Date(Date.now() + 2 * 3600 * 1000),
@@ -243,6 +244,7 @@ describe("QuotaWarningNotifier", () => {
     it("formats multiple windows", () => {
       const notifier = new QuotaWarningNotifier();
       const w1: QuotaWindow = {
+        id: "weeklyTokenLimit",
         label: "Credits / week",
         usedPercent: 85,
         resetsAt: new Date(Date.now() + 6 * 24 * 3600 * 1000),
@@ -253,6 +255,7 @@ describe("QuotaWarningNotifier", () => {
         paceScale: 1 / 7,
       };
       const w2: QuotaWindow = {
+        id: "rollingFiveHourLimit",
         label: "Requests / 5h",
         usedPercent: 92,
         resetsAt: new Date(Date.now() + 2 * 3600 * 1000),
@@ -274,6 +277,7 @@ describe("QuotaWarningNotifier", () => {
     it("includes severity label for non-none severities", () => {
       const notifier = new QuotaWarningNotifier();
       const w: QuotaWindow = {
+        id: "rollingFiveHourLimit",
         label: "Requests / 5h",
         usedPercent: 92,
         resetsAt: new Date(Date.now() + 2 * 3600 * 1000),
@@ -384,6 +388,97 @@ describe("QuotaWarningNotifier", () => {
       notifier.evaluate(criticalQuotas, true, notify);
       expect(calls).toHaveLength(2);
       expect(calls[1][1]).toBe("error");
+    });
+  });
+
+  describe("evaluate with refill-aware projections", () => {
+    const FIVE_HOUR_ID = "rollingFiveHourLimit";
+
+    function quotasAt(usedPercent: number): QuotasResponse {
+      const max = 100;
+      const remaining = max - Math.round((usedPercent / 100) * max);
+      return {
+        ...baseQuotas,
+        rollingFiveHourLimit: {
+          nextTickAt: new Date(Date.now() + 2.5 * 3600 * 1000).toISOString(),
+          tickPercent: 0.05,
+          remaining,
+          max,
+          limited: false,
+        },
+      };
+    }
+
+    it("suppresses the imminent-tick bounce (raw high, projection none)", () => {
+      // Raw 92% used would be `high`, but the refill-aware projection says the
+      // quota is recovering -> severity none -> no notification.
+      const notifier = new QuotaWarningNotifier();
+      const calls: Array<[string, string]> = [];
+      const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
+      const projections = new Map<string, ProjectionHint>([
+        [FIVE_HOUR_ID, { kind: "stable" }],
+      ]);
+
+      notifier.evaluate(quotasAt(92), false, notify, projections);
+      expect(calls).toHaveLength(0);
+    });
+
+    it("does not warn when projected usage drops below the threshold", () => {
+      // Raw 82% would warn, but the projection says usage will be 79% -> none.
+      const notifier = new QuotaWarningNotifier();
+      const calls: Array<[string, string]> = [];
+      const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
+      const projections = new Map<string, ProjectionHint>([
+        [
+          FIVE_HOUR_ID,
+          { kind: "projected", usedPercent: 79, horizonMs: 3600_000 },
+        ],
+      ]);
+
+      notifier.evaluate(quotasAt(82), false, notify, projections);
+      expect(calls).toHaveLength(0);
+    });
+
+    it("warns when projected usage exceeds the warning threshold", () => {
+      const notifier = new QuotaWarningNotifier();
+      const calls: Array<[string, string]> = [];
+      const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
+      const projections = new Map<string, ProjectionHint>([
+        [
+          FIVE_HOUR_ID,
+          { kind: "projected", usedPercent: 86, horizonMs: 3600_000 },
+        ],
+      ]);
+
+      notifier.evaluate(quotasAt(82), false, notify, projections);
+      expect(calls).toHaveLength(1);
+      expect(calls[0][0]).toContain("Requests / 5h");
+    });
+
+    it("escalates to critical when projected usage saturates", () => {
+      const notifier = new QuotaWarningNotifier();
+      const calls: Array<[string, string]> = [];
+      const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
+      const projections = new Map<string, ProjectionHint>([
+        [
+          FIVE_HOUR_ID,
+          { kind: "projected", usedPercent: 100, horizonMs: 3600_000 },
+        ],
+      ]);
+
+      notifier.evaluate(quotasAt(82), false, notify, projections);
+      expect(calls).toHaveLength(1);
+      expect(calls[0][1]).toBe("error");
+    });
+
+    it("falls back to raw thresholds when no projection is supplied", () => {
+      const notifier = new QuotaWarningNotifier();
+      const calls: Array<[string, string]> = [];
+      const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
+
+      // No projections map -> raw 92% -> high -> notified.
+      notifier.evaluate(quotasAt(92), false, notify);
+      expect(calls).toHaveLength(1);
     });
   });
 

@@ -7,6 +7,7 @@ import {
   it,
   vi,
 } from "vitest";
+import type { ProjectionHint } from "../types/quotas";
 import {
   assessWindow,
   getPacePercent,
@@ -26,6 +27,7 @@ function makeWindow(
   const resetsAt =
     overrides.resetsAt ?? new Date(Date.now() + windowSeconds * 500);
   return {
+    id: "test",
     label: "Test Window",
     resetsAt,
     windowSeconds,
@@ -281,6 +283,97 @@ describe("assessWindow", () => {
         resetsAt: new Date(Date.now() + 54 * 60 * 1000),
       });
       expect(assessWindow(w).severity).toBe("critical");
+    });
+  });
+
+  describe("refill-aware projection (no pace)", () => {
+    const stable: ProjectionHint = { kind: "stable" };
+    const projected = (usedPercent: number): ProjectionHint => ({
+      kind: "projected",
+      usedPercent,
+      horizonMs: 60 * 60 * 1000,
+    });
+
+    it("suppresses warning when projection is stable (refill covers burn)", () => {
+      // Raw usage is 92% (would be high), but the quota is recovering.
+      const w = makeWindow({
+        id: "rollingFiveHourLimit",
+        usedPercent: 92,
+        showPace: false,
+      });
+      expect(assessWindow(w, stable).severity).toBe("none");
+    });
+
+    it("uses projected usedPercent for the threshold decision", () => {
+      // Raw usage 82% (would warn), but projected over the horizon is 86%.
+      const w = makeWindow({
+        id: "rollingFiveHourLimit",
+        usedPercent: 82,
+        showPace: false,
+      });
+      const result = assessWindow(w, projected(86));
+      expect(result.severity).toBe("warning");
+      expect(result.projectedPercent).toBe(86);
+    });
+
+    it("maps projected >= 90 to high", () => {
+      const w = makeWindow({
+        id: "rollingFiveHourLimit",
+        usedPercent: 82,
+        showPace: false,
+      });
+      expect(assessWindow(w, projected(93)).severity).toBe("high");
+    });
+
+    it("maps projected >= 100 to critical", () => {
+      const w = makeWindow({
+        id: "rollingFiveHourLimit",
+        usedPercent: 82,
+        showPace: false,
+      });
+      expect(assessWindow(w, projected(100)).severity).toBe("critical");
+    });
+
+    it("does not warn when projected is below the warning threshold", () => {
+      // The imminent-tick bounce: raw 82% would warn, but the refill-aware
+      // projection says usage will be 79% -> no warning.
+      const w = makeWindow({
+        id: "rollingFiveHourLimit",
+        usedPercent: 82,
+        showPace: false,
+      });
+      expect(assessWindow(w, projected(79)).severity).toBe("none");
+    });
+
+    it("ignores a projection for an unrelated window id", () => {
+      // Projection keyed to a different window should not affect this one.
+      const w = makeWindow({
+        id: "rollingFiveHourLimit",
+        usedPercent: 50,
+        showPace: false,
+      });
+      // assessWindow takes the projection directly (not a map), so this just
+      // confirms a low projected value yields none.
+      expect(assessWindow(w, projected(50)).severity).toBe("none");
+    });
+
+    it("still falls back to raw thresholds when no projection is given", () => {
+      const w = makeWindow({
+        id: "rollingFiveHourLimit",
+        usedPercent: 92,
+        showPace: false,
+      });
+      expect(assessWindow(w).severity).toBe("high");
+    });
+
+    it("limited overrides even a stable projection", () => {
+      const w = makeWindow({
+        id: "rollingFiveHourLimit",
+        usedPercent: 5,
+        showPace: false,
+        limited: true,
+      });
+      expect(assessWindow(w, stable).severity).toBe("critical");
     });
   });
 });

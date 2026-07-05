@@ -1,5 +1,16 @@
 export type QuotaSource = "header" | "api";
 
+/** Refill-aware projection for a quota window, derived from recent snapshots.
+ *
+ * - `stable`: net drain <= 0; the quota is refilling at least as fast as it is
+ *   being consumed, so no forward-looking warning is warranted.
+ * - `projected`: net drain > 0; `usedPercent` is where usage is expected to be
+ *   after `horizonMs`, accounting for both burn and refill.
+ */
+export type ProjectionHint =
+  | { kind: "stable" }
+  | { kind: "projected"; usedPercent: number; horizonMs: number };
+
 export const SYNTHETIC_QUOTAS_UPDATED_EVENT =
   "synthetic:quotas:updated" as const;
 
@@ -11,7 +22,10 @@ export const SYNTHETIC_QUOTAS_READ_EVENT = "synthetic:quotas:read" as const;
 export interface SyntheticQuotasSnapshotPayload {
   quotas: QuotasResponse;
   source: QuotaSource;
-  updatedAt: number;
+  updatedAt: number; // epoch ms
+  /** Refill-aware projections keyed by quota window id (e.g. "rollingFiveHourLimit").
+   * Only present when the store has enough history to compute one. */
+  projections?: Map<string, ProjectionHint>;
 }
 
 export interface SyntheticQuotasUpdatedPayload

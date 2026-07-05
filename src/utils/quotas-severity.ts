@@ -1,8 +1,10 @@
-import type { QuotasResponse } from "../types/quotas";
+import type { ProjectionHint, QuotasResponse } from "../types/quotas";
 
 export type RiskSeverity = "none" | "warning" | "high" | "critical";
 
 export interface QuotaWindow {
+  /** Stable quota id used to key projections (e.g. "rollingFiveHourLimit"). */
+  id: string;
   label: string;
   usedPercent: number;
   resetsAt: Date;
@@ -68,6 +70,7 @@ export function toWindows(quotas: QuotasResponse): QuotaWindow[] {
     const limitValue = parseCurrency(weeklyTokenLimit.maxCredits);
     const remainingValue = parseCurrency(weeklyTokenLimit.remainingCredits);
     windows.push({
+      id: "weeklyTokenLimit",
       label: "Credits / week",
       usedPercent: Math.max(
         0,
@@ -91,6 +94,7 @@ export function toWindows(quotas: QuotasResponse): QuotaWindow[] {
     const tickAmount =
       rollingFiveHourLimit.tickPercent * rollingFiveHourLimit.max;
     windows.push({
+      id: "rollingFiveHourLimit",
       label: "Requests / 5h",
       usedPercent: safePercent(used, rollingFiveHourLimit.max),
       resetsAt: new Date(rollingFiveHourLimit.nextTickAt),
@@ -107,6 +111,7 @@ export function toWindows(quotas: QuotasResponse): QuotaWindow[] {
   if (quotas.search?.hourly?.limit && quotas.search.hourly.limit > 0) {
     const { hourly } = quotas.search;
     windows.push({
+      id: "search.hourly",
       label: "Search / hour",
       usedPercent: safePercent(hourly.requests, hourly.limit),
       resetsAt: new Date(hourly.renewsAt),
@@ -121,6 +126,7 @@ export function toWindows(quotas: QuotasResponse): QuotaWindow[] {
 
   if (quotas.freeToolCalls?.limit && quotas.freeToolCalls.limit > 0) {
     windows.push({
+      id: "freeToolCalls",
       label: "Free Tool Calls / day",
       usedPercent: safePercent(
         quotas.freeToolCalls.requests,
@@ -156,7 +162,10 @@ export function getProjectedPercent(
   return Math.max(0, (usedPercent / effectivePace) * 100);
 }
 
-export function assessWindow(window: QuotaWindow): RiskAssessment {
+export function assessWindow(
+  window: QuotaWindow,
+  projection?: ProjectionHint,
+): RiskAssessment {
   // Respect showPace/paceScale: only compute pace when the window opts in,
   // and apply paceScale to normalize (e.g. weekly windows scale daily pace by 1/7).
   const rawPace = window.showPace ? getPacePercent(window) : null;
@@ -177,11 +186,28 @@ export function assessWindow(window: QuotaWindow): RiskAssessment {
     usedPercent: window.usedPercent,
   };
 
-  // Fallback when pace/progress unavailable: use static thresholds on projected only
+  // Fallback when pace/progress unavailable: use static thresholds. For the
+  // 5-hour window (and any other window where `resetsAt` is the next tick, not
+  // a full rollover), a refill-aware `projection` adjusts the decision so an
+  // imminent tick does not cause a false threshold bounce, and genuine on-pace
+  // drain is still caught. When no projection is available (e.g. insufficient
+  // history), raw `usedPercent` thresholds apply unchanged.
   if (progress === null) {
     let severity: RiskSeverity = "none";
+    let effectiveProjected = projectedPercent;
+
     if (window.limited) {
       severity = "critical";
+    } else if (projection) {
+      if (projection.kind === "stable") {
+        // Refilling at least as fast as burning: do not interrupt.
+        severity = "none";
+      } else {
+        effectiveProjected = projection.usedPercent;
+        if (effectiveProjected >= 100) severity = "critical";
+        else if (effectiveProjected >= 90) severity = "high";
+        else if (effectiveProjected >= 80) severity = "warning";
+      }
     } else if (projectedPercent >= 100) {
       severity = "critical";
     } else if (projectedPercent >= 90) {
@@ -192,6 +218,7 @@ export function assessWindow(window: QuotaWindow): RiskAssessment {
 
     return {
       ...base,
+      projectedPercent: effectiveProjected,
       usedFloorPercent: null,
       warnProjectedPercent: 80,
       highProjectedPercent: 90,
