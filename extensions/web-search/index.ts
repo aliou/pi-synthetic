@@ -5,7 +5,7 @@ import {
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
-} from "../../config";
+} from "../../src/config";
 import {
   registerSyntheticWebSearchTool,
   SYNTHETIC_WEB_SEARCH_TOOL,

@@ -3,7 +3,7 @@ import {
   configLoader,
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
-} from "../../config";
+} from "../../src/config";
 import { registerQuotasCommand } from "./command";
 
 export default async function (pi: ExtensionAPI) {

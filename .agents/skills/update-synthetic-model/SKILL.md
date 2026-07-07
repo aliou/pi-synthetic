@@ -1,11 +1,11 @@
 ---
 name: update-synthetic-model
-description: Update model metadata for the pi-synthetic extension. Use when adding or refreshing entries in src/extensions/provider/models.ts. Start by running the model tests, inspect current hardcoded definitions, fetch live data from Synthetic and models.dev, then update the file proactively without asking the user which model to change.
+description: Update model metadata for the pi-synthetic extension. Use when adding or refreshing entries in extensions/provider/models.ts. Start by running the model tests, inspect current hardcoded definitions, fetch live data from Synthetic and models.dev, then update the file proactively without asking the user which model to change.
 ---
 
 # Update Synthetic model
 
-Update `src/extensions/provider/models.ts` from live data, not guesswork.
+Update `extensions/provider/models.ts` from live data, not guesswork.
 
 ## Default behavior
 
@@ -15,12 +15,12 @@ Do not start by asking which model to update. First detect drift, then update wh
 
 1. Run `pnpm install` to ensure local dependencies are up to date.
 2. Run the model test to find mismatches and new models.
-3. Read the current hardcoded definitions in `src/extensions/provider/models.ts`.
+3. Read the current hardcoded definitions in `extensions/provider/models.ts`.
 4. Fetch live model data from:
    - `https://api.synthetic.new/openai/v1/models`
    - `https://models.dev/api.json`
 5. Reconcile the differences.
-6. Edit `src/extensions/provider/models.ts`.
+6. Edit `extensions/provider/models.ts`.
 7. Re-run the relevant tests.
 
 Only ask the user if there is a real blocker, such as missing credentials for runtime validation or conflicting evidence you cannot resolve.
@@ -30,7 +30,7 @@ Only ask the user if there is a real blocker, such as missing credentials for ru
 Use these in order:
 
 1. Synthetic models endpoint: `https://api.synthetic.new/openai/v1/models`
-2. Existing test failures from `src/extensions/provider/models.test.ts`
+2. Existing test failures from `extensions/provider/models.test.ts`
 3. `https://models.dev/api.json` under `.synthetic.models`
 4. Synthetic runtime behavior via direct `chat/completions` calls when needed
 5. If a model is missing under Synthetic on models.dev, inspect the same model under other providers on models.dev only as supporting evidence
@@ -50,7 +50,7 @@ pnpm install
 Run the targeted model test so you know what changed:
 
 ```bash
-pnpm test -- src/extensions/provider/models.test.ts
+pnpm test -- extensions/provider/models.test.ts
 ```
 
 Use the failures to identify:
@@ -66,8 +66,8 @@ If the test passes, still check for drift manually by reading the current file a
 
 Read:
 
-- `src/extensions/provider/models.ts`
-- `src/extensions/provider/models.test.ts`
+- `extensions/provider/models.ts`
+- `extensions/provider/models.test.ts`
 
 Use the current file shape and comments as the formatting baseline.
 
@@ -289,7 +289,7 @@ If Synthetic rejects image input, keep `input: ["text"]`.
 
 ## Compat rules
 
-`src/extensions/provider/models.ts` includes a required `provider` field and supports an optional `compat` object per model.
+`extensions/provider/models.ts` includes a required `provider` field and supports an optional `compat` object per model.
 
 `provider` is maintenance metadata only. `registerSyntheticProvider` strips it before registering models with Pi, so it must describe Synthetic's upstream backend, not the Pi provider name users select.
 
@@ -315,8 +315,8 @@ Do not add `compat` by default.
 
 When done:
 
-1. Ensure `src/extensions/provider/models.ts` is updated, including correct `provider` values for Synthetic-hosted vs proxied models.
-2. Re-run `pnpm test -- src/extensions/provider/models.test.ts`.
+1. Ensure `extensions/provider/models.ts` is updated, including correct `provider` values for Synthetic-hosted vs proxied models.
+2. Re-run `pnpm test -- extensions/provider/models.test.ts`.
 3. If the change is user-facing, prepare a changeset per repo conventions.
 4. Commit the model update and changeset. **Never use `--no-verify`.**
 5. If the pre-commit hooks fail (typecheck, lint, test), **stash the model changes** (`git stash`) and investigate the failing hook. Fix the underlying issue but **do not commit the fix yourself** — report the findings to the user and let them decide.
@@ -326,5 +326,5 @@ When done:
 
 Use these exact paths in this repo:
 
-- `src/extensions/provider/models.ts`
-- `src/extensions/provider/models.test.ts`
+- `extensions/provider/models.ts`
+- `extensions/provider/models.test.ts`

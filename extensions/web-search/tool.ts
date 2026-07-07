@@ -12,26 +12,15 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
 import { type Static, Type } from "typebox";
-import { configLoader } from "../../config";
-import { getSyntheticApiKey } from "../../lib/env";
 import {
+  createSyntheticClient,
   resolveSyntheticUtilityApiAuth,
-  resolveSyntheticUtilityApiBaseUrl,
-  syntheticUtilityApiUrl,
-} from "../../lib/utility-api";
+  type SyntheticSearchResponse,
+} from "../../src/client";
+import { configLoader } from "../../src/config";
+import { getSyntheticApiKey } from "../../src/lib/env";
 
 export const SYNTHETIC_WEB_SEARCH_TOOL = "synthetic_web_search" as const;
-
-interface SyntheticSearchResult {
-  url: string;
-  title: string;
-  text: string;
-  published: string;
-}
-
-interface SyntheticSearchResponse {
-  results: SyntheticSearchResult[];
-}
 
 interface WebSearchResultDetails {
   title: string;
@@ -90,45 +79,17 @@ export const syntheticWebSearchTool = defineTool({
       );
     }
 
-    let baseUrl: string;
-    try {
-      baseUrl = resolveSyntheticUtilityApiBaseUrl(config.proxyUrl);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Invalid proxy URL";
-      throw new Error(`Synthetic web search: ${message}`);
-    }
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (auth.apiKey) {
-      headers.Authorization = `Bearer ${auth.apiKey}`;
-    }
-
-    const response = await fetch(
-      syntheticUtilityApiUrl(baseUrl, "/v2/search"),
-      {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ query: params.query }),
-        signal,
-      },
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Search API error: ${response.status} ${errorText}`);
-    }
-
     let data: SyntheticSearchResponse;
     try {
-      data = await response.json();
-    } catch (parseError) {
-      throw new Error(
-        parseError instanceof Error
-          ? `Failed to parse search results: ${parseError.message}`
-          : "Failed to parse search results",
-      );
+      const client = createSyntheticClient({
+        apiKey: auth.apiKey,
+        proxyUrl: config.proxyUrl,
+        requiresAuth: auth.requiresAuth,
+      });
+      data = await client.search(params.query, { signal });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Search failed";
+      throw new Error(`Synthetic web search: ${message}`);
     }
 
     let content = `Found ${data.results.length} result(s):\n\n`;

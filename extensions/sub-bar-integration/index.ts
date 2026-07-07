@@ -5,14 +5,14 @@ import {
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
-} from "../../config";
+} from "../../src/config";
 import {
   type QuotasResponse,
   SYNTHETIC_QUOTAS_REQUEST_EVENT,
   SYNTHETIC_QUOTAS_UPDATED_EVENT,
   type SyntheticQuotasUpdatedPayload,
-} from "../../types/quotas";
-import { formatResetTime } from "../../utils/quotas";
+} from "../../src/types/quotas";
+import { formatResetTime } from "../../src/utils/quotas";
 
 interface RateWindow {
   label: string;

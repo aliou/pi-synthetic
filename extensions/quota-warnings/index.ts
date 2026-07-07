@@ -8,15 +8,15 @@ import {
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
-} from "../../config";
-import { QuotaWarningNotifier } from "../../services/quota-warnings";
+} from "../../src/config";
+import { QuotaWarningNotifier } from "../../src/services/quota-warnings";
 import {
   SYNTHETIC_QUOTAS_READ_EVENT,
   SYNTHETIC_QUOTAS_REQUEST_EVENT,
   type SyntheticQuotasReadPayload,
   type SyntheticQuotasRequestPayload,
   type SyntheticQuotasSnapshotPayload,
-} from "../../types/quotas";
+} from "../../src/types/quotas";
 
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();

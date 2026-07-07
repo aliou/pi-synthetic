@@ -3,6 +3,10 @@ import type {
   ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
 import {
+  createSyntheticClient,
+  resolveSyntheticUtilityApiAuth,
+} from "../../src/client";
+import {
   configLoader,
   emitSyntheticConfigUpdated,
   pendingMessages,
@@ -14,10 +18,9 @@ import {
   type SyntheticExtensionsRegisterPayload,
   type SyntheticFeatureId,
   seedSyntheticConfigIfMissing,
-} from "../../config";
-import { getSyntheticApiKey } from "../../lib/env";
-import { resolveSyntheticUtilityApiAuth } from "../../lib/utility-api";
-import { type QuotaSnapshot, QuotaStore } from "../../services/quota-store";
+} from "../../src/config";
+import { getSyntheticApiKey } from "../../src/lib/env";
+import { type QuotaSnapshot, QuotaStore } from "../../src/services/quota-store";
 import {
   parseQuotaHeader,
   type QuotasResponse,
@@ -27,9 +30,8 @@ import {
   type SyntheticQuotasReadPayload,
   type SyntheticQuotasRequestPayload,
   type SyntheticQuotasSnapshotPayload,
-} from "../../types/quotas";
-import { fetchQuotas } from "../../utils/quotas";
-import { buildProjectionHints } from "../../utils/quotas-projection";
+} from "../../src/types/quotas";
+import { buildProjectionHints } from "../../src/utils/quotas-projection";
 import { SYNTHETIC_OVERFLOW_PATTERN } from "./context-overflow";
 import {
   type ConcreteSyntheticModelConfig,
@@ -142,11 +144,12 @@ export default async function (pi: ExtensionAPI) {
     );
     if (!auth) return undefined;
 
-    const result = await fetchQuotas({
+    const client = createSyntheticClient({
       apiKey: auth.apiKey,
       proxyUrl: config.proxyUrl,
       requiresAuth: auth.requiresAuth,
     });
+    const result = await client.quotas();
     return result.success ? result.data.quotas : undefined;
   }
 

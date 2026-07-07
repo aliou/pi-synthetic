@@ -23,26 +23,29 @@ pnpm changeset    # Create changeset for versioning
 ## Structure
 
 ```
+extensions/
+  provider/
+    index.ts                    # Provider extension entry point; ingests quota headers
+    models.ts                   # Hardcoded provider model definitions
+    models.test.ts              # Model config tests
+    context-overflow.ts         # Provider-specific overflow normalization
+  web-search/
+    index.ts                    # Web search extension entry point
+    tool.ts                     # Synthetic web search tool registration
+  command-quotas/
+    index.ts                    # Quotas command extension entry point
+    command.ts                  # `synthetic:quotas` command for usage display
+    components/
+      quotas-display.ts         # TUI component for quotas display (all states)
+  quota-warnings/
+    index.ts                    # Quota warning notifications (event-driven)
+  sub-bar-integration/
+    index.ts                    # pi-sub-core usage bar (event-driven)
+  usage-status/
+    index.ts                    # Footer status bar showing live quota usage
 src/
-  extensions/
-    provider/
-      index.ts                  # Provider extension entry point; ingests quota headers
-      models.ts                 # Hardcoded model definitions
-      models.test.ts            # Model config tests
-    web-search/
-      index.ts                  # Web search extension entry point
-      tool.ts                   # Synthetic web search tool registration
-    command-quotas/
-      index.ts                  # Quotas command extension entry point
-      command.ts                # `synthetic:quotas` command for usage display
-      components/
-        quotas-display.ts       # TUI component for quotas display (all states)
-    quota-warnings/
-      index.ts                  # Quota warning notifications (event-driven)
-    sub-bar-integration/
-      index.ts                  # pi-sub-core usage bar (event-driven)
-    usage-status/
-      index.ts                  # Footer status bar showing live quota usage
+  client/
+    index.ts                    # Synthetic client for quotas, web search, and model-list endpoints
   services/
     quota-store.ts              # In-memory quota store (header throttling, deduped refresh)
     quota-store.test.ts         # Tests
@@ -54,15 +57,17 @@ src/
   types/
     quotas.ts                   # Quotas API types, event constants, parseQuotaHeader
   utils/
-    quotas.ts                   # Quotas fetching and formatting utilities
+    quotas.ts                   # Quota formatting helpers
     quotas-severity.ts          # Quota severity calculations
+    quotas-projection.ts        # Refill-aware quota projections
 ```
 
 ## Conventions
 
 - Credentials come from Pi auth handling (`AuthStorage`): `~/.pi/agent/auth.json` (recommended) or `SYNTHETIC_API_KEY` environment variable
 - Provider uses OpenAI-compatible API at `https://api.synthetic.new/openai/v1`
-- Models are hardcoded in `src/extensions/provider/models.ts`
+- Non-provider Synthetic endpoints (`/v2/quotas`, `/v2/search`, `/openai/v1/models`) go through `src/client/index.ts`
+- Models are hardcoded in `extensions/provider/models.ts`
 - The model `provider` field records the upstream backend Synthetic uses (`synthetic`, `fireworks`, `together`, etc.); `registerSyntheticProvider` strips it before registering models with Pi
 - `buildSyntheticProviderModels` resolves aliases from their targets, then filters the model list based on the `proxiedModels` config setting: when disabled, only models whose `provider` is `"synthetic"` are exposed. Aliases always resolve with `provider: "synthetic"`, so they remain visible even when proxied models are hidden
 - Alias entries (`syn:*` IDs) are thin references. The `aliasFor` value maps to the `hugging_face_id` field from the Synthetic API (prefixed with `hf:`). All other fields are inherited from the target at build time
@@ -73,7 +78,7 @@ src/
 
 ## Model Configuration
 
-Entries in `src/extensions/provider/models.ts` are a union of concrete models and thin aliases.
+Entries in `extensions/provider/models.ts` are a union of concrete models and thin aliases.
 
 ### Alias entry (at top of array)
 

@@ -1,11 +1,12 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { configLoader } from "../../config";
-import { getSyntheticApiKey } from "../../lib/env";
 import {
+  createSyntheticClient,
   resolveSyntheticUtilityApiAuth,
+  type SyntheticClientOptions,
   type SyntheticUtilityApiConfig,
-} from "../../lib/utility-api";
-import { type FetchQuotasOptions, fetchQuotas } from "../../utils/quotas";
+} from "../../src/client";
+import { configLoader } from "../../src/config";
+import { getSyntheticApiKey } from "../../src/lib/env";
 import { QuotasComponent } from "./components/quotas-display";
 
 const MISSING_AUTH_MESSAGE =
@@ -14,7 +15,7 @@ const MISSING_AUTH_MESSAGE =
 async function buildQuotasOptions(
   config: SyntheticUtilityApiConfig,
   authStorage: NonNullable<Parameters<typeof getSyntheticApiKey>[0]>,
-): Promise<FetchQuotasOptions | undefined> {
+): Promise<SyntheticClientOptions | undefined> {
   const auth = await resolveSyntheticUtilityApiAuth(config, () =>
     getSyntheticApiKey(authStorage),
   );
@@ -66,10 +67,9 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
         );
 
         async function loadQuotas(): Promise<void> {
-          const fetchResult = await fetchQuotas({
-            ...quotasOptions,
-            signal: controller.signal,
-          });
+          const fetchResult = await createSyntheticClient(quotasOptions).quotas(
+            { signal: controller.signal },
+          );
           if (controller.signal.aborted) return;
           if (fetchResult.success) {
             component.setState({
@@ -100,7 +100,7 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
 
       // Non-interactive fallback (RPC, print, JSON modes)
       if (result === undefined) {
-        const fetchResult = await fetchQuotas(quotasOptions);
+        const fetchResult = await createSyntheticClient(quotasOptions).quotas();
         if (!fetchResult.success) {
           ctx.ui.notify(
             JSON.stringify({ error: fetchResult.error.message }),

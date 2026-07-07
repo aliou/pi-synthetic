@@ -12,7 +12,7 @@ import {
   formatSyntheticUtilityApiProxySummary,
   hasSyntheticUtilityApiProxy,
   validateSyntheticUtilityApiProxyUrl,
-} from "./lib/utility-api";
+} from "./client";
 
 export type SyntheticFeatureId =
   | "webSearch"

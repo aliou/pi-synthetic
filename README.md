@@ -60,7 +60,7 @@ Synthetic also provides permanent aliases (`syn:large:text`, `syn:small:text`, `
 
 By default, new installs show only Synthetic-hosted models. You can enable proxied models in `/synthetic:settings` under **Models > Proxied Models**. Existing configurations keep proxied models enabled to preserve prior behavior.
 
-The `provider` field in `src/extensions/provider/models.ts` is for maintenance only and is stripped before registering models with Pi, so users always select the `synthetic` provider.
+The `provider` field in `extensions/provider/models.ts` is for maintenance only and is stripped before registering models with Pi, so users always select the `synthetic` provider.
 
 ### Web Search Tool
 
@@ -117,11 +117,11 @@ The **Proxied Models** and **Utility API Proxy** settings are not loadable exten
 
 ## Adding or Updating Models
 
-Models are hardcoded in `src/extensions/provider/models.ts`. Entries are a union of concrete models and thin aliases (`syn:*` IDs).
+Models are hardcoded in `extensions/provider/models.ts`. Entries are a union of concrete models and thin aliases (`syn:*` IDs).
 
 ### Adding a concrete model
 
-1. Edit `src/extensions/provider/models.ts`
+1. Edit `extensions/provider/models.ts`
 2. Append a concrete model following the `SyntheticModelConfig` interface
 3. Set `provider` to the upstream backend Synthetic uses for that model, such as `synthetic`, `fireworks`, or `together`
 4. Run `pnpm run typecheck` to verify

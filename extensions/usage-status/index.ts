@@ -8,7 +8,7 @@ import {
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
-} from "../../config";
+} from "../../src/config";
 import {
   type QuotasResponse,
   SYNTHETIC_QUOTAS_READ_EVENT,
@@ -16,14 +16,14 @@ import {
   type SyntheticQuotasReadPayload,
   type SyntheticQuotasRequestPayload,
   type SyntheticQuotasSnapshotPayload,
-} from "../../types/quotas";
-import { formatResetTime } from "../../utils/quotas";
+} from "../../src/types/quotas";
+import { formatResetTime } from "../../src/utils/quotas";
 import {
   assessWindow,
   getSeverityColor,
   type RiskSeverity,
   toWindows,
-} from "../../utils/quotas-severity";
+} from "../../src/utils/quotas-severity";
 
 const EXTENSION_ID = "synthetic-usage";
 

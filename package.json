@@ -15,12 +15,12 @@
   },
   "pi": {
     "extensions": [
-      "./src/extensions/provider/index.ts",
-      "./src/extensions/web-search/index.ts",
-      "./src/extensions/command-quotas/index.ts",
-      "./src/extensions/sub-bar-integration/index.ts",
-      "./src/extensions/quota-warnings/index.ts",
-      "./src/extensions/usage-status/index.ts"
+      "./extensions/provider/index.ts",
+      "./extensions/web-search/index.ts",
+      "./extensions/command-quotas/index.ts",
+      "./extensions/sub-bar-integration/index.ts",
+      "./extensions/quota-warnings/index.ts",
+      "./extensions/usage-status/index.ts"
     ],
     "video": "https://assets.aliou.me/github/aliou/pi-synthetic/demo.mp4"
   },
@@ -29,8 +29,10 @@
   },
   "files": [
     "src",
+    "extensions",
     "README.md",
-    "!src/**/*.test.ts"
+    "!src/**/*.test.ts",
+    "!extensions/**/*.test.ts"
   ],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",

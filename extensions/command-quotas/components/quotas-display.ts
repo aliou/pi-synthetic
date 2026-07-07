@@ -2,14 +2,14 @@ import type { Theme } from "@earendil-works/pi-coding-agent";
 import { DynamicBorder } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
 import { Loader, matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
-import type { QuotasResponse } from "../../../types/quotas";
+import type { QuotasResponse } from "../../../src/types/quotas";
 import {
   assessWindow,
   formatTimeRemaining,
   getSeverityColor,
   type QuotaWindow,
   toWindows,
-} from "../../../utils/quotas-severity";
+} from "../../../src/utils/quotas-severity";
 
 type QuotasState =
   | { type: "loading" }
