@@ -248,7 +248,8 @@ export class SyntheticClient {
     }
 
     try {
-      return (await response.json()) as SyntheticSearchResponse;
+      const data = await response.json();
+      return data as SyntheticSearchResponse;
     } catch (parseError) {
       throw new Error(
         parseError instanceof Error
@@ -278,7 +279,8 @@ export class SyntheticClient {
       );
     }
 
-    return (await response.json()) as SyntheticModelsResponse;
+    const data = await response.json();
+    return data as SyntheticModelsResponse;
   }
 }
 

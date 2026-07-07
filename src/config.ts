@@ -121,6 +121,7 @@ export async function seedSyntheticConfigIfMissing(): Promise<void> {
     await configLoader.save("global", DEFAULT_CONFIG);
   } catch {
     // Ignore seed failures. Defaults still resolve in memory.
+    return;
   }
 }
 

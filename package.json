@@ -56,16 +56,16 @@
     "@aliou/pi-utils-ui": "^0.4.0"
   },
   "devDependencies": {
-    "@aliou/biome-plugins": "^0.8.1",
-    "@biomejs/biome": "^2.4.15",
+    "@aliou/biome-plugins": "^0.11.0",
+    "@biomejs/biome": "^2.5.2",
     "@changesets/cli": "^2.27.11",
     "@earendil-works/pi-coding-agent": "0.77.0",
-    "typebox": "^1.1.37",
+    "@earendil-works/pi-tui": "0.77.0",
     "@types/node": "^25.0.10",
     "husky": "^9.1.7",
+    "typebox": "^1.1.37",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18",
-    "@earendil-works/pi-tui": "0.77.0"
+    "vitest": "^4.0.18"
   },
   "pnpm": {
     "overrides": {
