@@ -13,8 +13,8 @@ import {
 import { Container, Text } from "@earendil-works/pi-tui";
 import { type Static, Type } from "typebox";
 import {
-  createSyntheticClient,
-  resolveSyntheticUtilityApiAuth,
+  resolveSyntheticClientOptions,
+  SyntheticClient,
   type SyntheticSearchResponse,
 } from "../../src/client";
 import { configLoader } from "../../src/config";
@@ -70,10 +70,10 @@ export const syntheticWebSearchTool = defineTool({
       );
     }
 
-    const auth = await resolveSyntheticUtilityApiAuth(config, () =>
+    const clientOptions = await resolveSyntheticClientOptions(config, () =>
       getSyntheticApiKey(ctx.modelRegistry.authStorage),
     );
-    if (!auth) {
+    if (!clientOptions) {
       throw new Error(
         "Synthetic web search requires a Synthetic subscription or an unauthenticated proxy. Add credentials to ~/.pi/agent/auth.json, set SYNTHETIC_API_KEY, or disable proxy auth in /synthetic:settings.",
       );
@@ -81,11 +81,7 @@ export const syntheticWebSearchTool = defineTool({
 
     let data: SyntheticSearchResponse;
     try {
-      const client = createSyntheticClient({
-        apiKey: auth.apiKey,
-        proxyUrl: config.proxyUrl,
-        requiresAuth: auth.requiresAuth,
-      });
+      const client = new SyntheticClient(clientOptions);
       data = await client.search(params.query, { signal });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Search failed";

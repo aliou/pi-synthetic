@@ -3,8 +3,8 @@ import type {
   ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
 import {
-  createSyntheticClient,
-  resolveSyntheticUtilityApiAuth,
+  resolveSyntheticClientOptions,
+  SyntheticClient,
 } from "../../src/client";
 import {
   configLoader,
@@ -137,18 +137,14 @@ export default async function (pi: ExtensionAPI) {
 
   async function fetchQuotasFromAuth(): Promise<QuotasResponse | undefined> {
     const config = configLoader.getConfig();
-    const auth = await resolveSyntheticUtilityApiAuth(config, () =>
+    const clientOptions = await resolveSyntheticClientOptions(config, () =>
       currentAuthStorage
         ? getSyntheticApiKey(currentAuthStorage)
         : Promise.resolve(undefined),
     );
-    if (!auth) return undefined;
+    if (!clientOptions) return undefined;
 
-    const client = createSyntheticClient({
-      apiKey: auth.apiKey,
-      proxyUrl: config.proxyUrl,
-      requiresAuth: auth.requiresAuth,
-    });
+    const client = new SyntheticClient(clientOptions);
     const result = await client.quotas();
     return result.success ? result.data.quotas : undefined;
   }

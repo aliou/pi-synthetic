@@ -1,8 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
-  createSyntheticClient,
-  resolveSyntheticUtilityApiAuth,
-  type SyntheticClientOptions,
+  resolveSyntheticClientOptions,
+  SyntheticClient,
   type SyntheticUtilityApiConfig,
 } from "../../src/client";
 import { configLoader } from "../../src/config";
@@ -12,20 +11,16 @@ import { QuotasComponent } from "./components/quotas-display";
 const MISSING_AUTH_MESSAGE =
   "Synthetic quotas requires a Synthetic subscription or an unauthenticated proxy. Add credentials to ~/.pi/agent/auth.json, set SYNTHETIC_API_KEY, or disable proxy auth in /synthetic:settings.";
 
-async function buildQuotasOptions(
+async function buildQuotasClient(
   config: SyntheticUtilityApiConfig,
   authStorage: NonNullable<Parameters<typeof getSyntheticApiKey>[0]>,
-): Promise<SyntheticClientOptions | undefined> {
-  const auth = await resolveSyntheticUtilityApiAuth(config, () =>
+): Promise<SyntheticClient | undefined> {
+  const options = await resolveSyntheticClientOptions(config, () =>
     getSyntheticApiKey(authStorage),
   );
-  if (!auth) return undefined;
+  if (!options) return undefined;
 
-  return {
-    apiKey: auth.apiKey,
-    proxyUrl: config.proxyUrl,
-    requiresAuth: auth.requiresAuth,
-  };
+  return new SyntheticClient(options);
 }
 
 export function registerQuotasCommand(pi: ExtensionAPI): void {
@@ -41,14 +36,15 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
         return;
       }
 
-      const quotasOptions = await buildQuotasOptions(
+      const client = await buildQuotasClient(
         config,
         ctx.modelRegistry.authStorage,
       );
-      if (!quotasOptions) {
+      if (!client) {
         ctx.ui.notify(MISSING_AUTH_MESSAGE, "warning");
         return;
       }
+      const quotasClient = client;
 
       const result = await ctx.ui.custom<null>((tui, theme, _kb, done) => {
         const controller = new AbortController();
@@ -67,9 +63,9 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
         );
 
         async function loadQuotas(): Promise<void> {
-          const fetchResult = await createSyntheticClient(quotasOptions).quotas(
-            { signal: controller.signal },
-          );
+          const fetchResult = await quotasClient.quotas({
+            signal: controller.signal,
+          });
           if (controller.signal.aborted) return;
           if (fetchResult.success) {
             component.setState({
@@ -100,7 +96,7 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
 
       // Non-interactive fallback (RPC, print, JSON modes)
       if (result === undefined) {
-        const fetchResult = await createSyntheticClient(quotasOptions).quotas();
+        const fetchResult = await quotasClient.quotas();
         if (!fetchResult.success) {
           ctx.ui.notify(
             JSON.stringify({ error: fetchResult.error.message }),

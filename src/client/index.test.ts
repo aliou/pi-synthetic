@@ -1,15 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  createSyntheticClient,
   DEFAULT_SYNTHETIC_API_BASE_URL,
   formatSyntheticUtilityApiProxySummary,
-  resolveSyntheticUtilityApiAuth,
+  resolveSyntheticClientOptions,
   resolveSyntheticUtilityApiBaseUrl,
+  SyntheticClient,
   type SyntheticClientOptions,
   syntheticUtilityApiRequiresAuth,
-  syntheticUtilityApiUrl,
   validateSyntheticUtilityApiProxyUrl,
 } from "./index";
+import { syntheticUtilityApiUrl } from "./utility-api";
 
 const QUOTAS_BODY = {
   subscription: { limit: 1000, requests: 5, renewsAt: "2026-01-01T00:00:00Z" },
@@ -107,22 +107,30 @@ describe("Synthetic utility API endpoints", () => {
   });
 });
 
-describe("resolveSyntheticUtilityApiAuth", () => {
+describe("resolveSyntheticClientOptions", () => {
   it("requires the key for direct calls and skips it for authless proxies", async () => {
-    const getApiKey = async () => "synthetic-key";
+    const getApiKey = vi.fn(async () => "synthetic-key");
 
-    const direct = await resolveSyntheticUtilityApiAuth({}, getApiKey);
-    expect(direct).toEqual({ apiKey: "synthetic-key", requiresAuth: true });
+    const direct = await resolveSyntheticClientOptions({}, getApiKey);
+    expect(direct).toEqual({
+      apiKey: "synthetic-key",
+      proxyUrl: undefined,
+      requiresAuth: true,
+    });
 
-    const authless = await resolveSyntheticUtilityApiAuth(
+    const authless = await resolveSyntheticClientOptions(
       { proxyUrl: "https://proxy.example.com", proxyRequiresAuth: false },
       getApiKey,
     );
-    expect(authless).toEqual({ apiKey: undefined, requiresAuth: false });
+    expect(authless).toEqual({
+      apiKey: undefined,
+      proxyUrl: "https://proxy.example.com",
+      requiresAuth: false,
+    });
   });
 
   it("returns null when auth is required but no key is available", async () => {
-    const result = await resolveSyntheticUtilityApiAuth(
+    const result = await resolveSyntheticClientOptions(
       {},
       async () => undefined,
     );
@@ -130,18 +138,18 @@ describe("resolveSyntheticUtilityApiAuth", () => {
   });
 
   it("does not invoke the key resolver for authless proxies", async () => {
-    let called = false;
-    const getApiKey = async () => {
-      called = true;
-      return "should-not-be-called";
-    };
+    const getApiKey = vi.fn(async () => "should-not-be-called");
 
-    const result = await resolveSyntheticUtilityApiAuth(
+    const result = await resolveSyntheticClientOptions(
       { proxyUrl: "https://proxy.example.com", proxyRequiresAuth: false },
       getApiKey,
     );
-    expect(result).toEqual({ apiKey: undefined, requiresAuth: false });
-    expect(called).toBe(false);
+    expect(result).toEqual({
+      apiKey: undefined,
+      proxyUrl: "https://proxy.example.com",
+      requiresAuth: false,
+    });
+    expect(getApiKey).not.toHaveBeenCalled();
   });
 });
 
@@ -152,7 +160,7 @@ describe("SyntheticClient.quotas", () => {
       captured = init;
     });
 
-    const result = await createSyntheticClient({
+    const result = await new SyntheticClient({
       apiKey: "synthetic-key",
       requiresAuth: true,
     } satisfies SyntheticClientOptions).quotas();
@@ -171,7 +179,7 @@ describe("SyntheticClient.quotas", () => {
       captured = init;
     });
 
-    const result = await createSyntheticClient({
+    const result = await new SyntheticClient({
       proxyUrl: "https://proxy.example.com/synthetic/",
       requiresAuth: false,
     } satisfies SyntheticClientOptions).quotas();
@@ -183,7 +191,7 @@ describe("SyntheticClient.quotas", () => {
   });
 
   it("returns a config error when auth is required but missing", async () => {
-    const result = await createSyntheticClient({ requiresAuth: true }).quotas();
+    const result = await new SyntheticClient({ requiresAuth: true }).quotas();
 
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -192,7 +200,7 @@ describe("SyntheticClient.quotas", () => {
   });
 
   it("returns a config error when the proxy URL is invalid", async () => {
-    const result = await createSyntheticClient({
+    const result = await new SyntheticClient({
       proxyUrl: "ftp://proxy.example.com",
       requiresAuth: false,
     }).quotas();
@@ -211,7 +219,7 @@ describe("SyntheticClient.search", () => {
       captured = init;
     });
 
-    const result = await createSyntheticClient({
+    const result = await new SyntheticClient({
       apiKey: "synthetic-key",
       requiresAuth: true,
     }).search("pi extensions");
@@ -232,7 +240,7 @@ describe("SyntheticClient.models", () => {
   it("always targets the direct Synthetic models endpoint", async () => {
     mockFetchOk({ data: [] });
 
-    await createSyntheticClient({
+    await new SyntheticClient({
       proxyUrl: "https://proxy.example.com/synthetic/",
       requiresAuth: false,
     }).models();
