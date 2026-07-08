@@ -87,8 +87,9 @@ export interface QuotasResponse {
 /** Parse the `x-synthetic-quotas` header value into a QuotasResponse.
  *  Returns undefined if the header is missing or invalid. */
 export function parseQuotaHeader(
-  headers: Record<string, string>,
+  headers: Record<string, string> | undefined,
 ): QuotasResponse | undefined {
+  if (!headers) return undefined;
   const entry = Object.entries(headers).find(
     ([key]) => key.toLowerCase() === "x-synthetic-quotas",
   );
