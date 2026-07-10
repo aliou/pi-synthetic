@@ -146,7 +146,7 @@ export const syntheticWebSearchTool = defineTool({
     };
   },
 
-  renderCall(args: SearchParamsType, theme: Theme) {
+  renderCall(args: SearchParamsType, theme: Theme, _context) {
     return new ToolCallHeader(
       {
         toolName: "Synthetic: WebSearch",
@@ -157,7 +157,7 @@ export const syntheticWebSearchTool = defineTool({
     );
   },
 
-  renderResult(result, options, theme: Theme) {
+  renderResult(result, options, theme: Theme, context) {
     const { expanded, isPartial } = options;
 
     if (isPartial) {
@@ -174,8 +174,8 @@ export const syntheticWebSearchTool = defineTool({
 
     // When the tool throws, the framework calls renderResult with
     // details={} (empty object) and the error message in content.
-    // Detect this by checking for missing results in details.
-    if (!details?.results) {
+    // Detect this both via context.isError and missing expected details.
+    if (context.isError || !details?.results) {
       const textBlock = result.content.find((c) => c.type === "text");
       const errorMsg =
         (textBlock?.type === "text" && textBlock.text) || "Search failed";

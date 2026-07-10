@@ -186,7 +186,7 @@ This repository uses [Changesets](https://github.com/changesets/changesets) for 
 
 ## Requirements
 
-- Pi coding agent v0.77.0+
+- Pi coding agent v0.80.6+
 - Synthetic API key (configured in `~/.pi/agent/auth.json` or via `SYNTHETIC_API_KEY`) for model provider calls and authenticated utility API calls
 
 ## Links

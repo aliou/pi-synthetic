@@ -126,16 +126,14 @@ export class QuotasComponent implements Component {
     this.state = state;
   }
 
-  handleInput(data: string): boolean {
+  handleInput(data: string): void {
     if (matchesKey(data, "escape") || data === "q") {
       this.onClose();
-      return true;
+      return;
     }
     if (data === "r") {
       this.onRefetch();
-      return true;
     }
-    return false;
   }
 
   render(width: number): string[] {
