@@ -1,5 +1,12 @@
 # @aliou/pi-synthetic
 
+## 0.21.3
+
+### Patch Changes
+
+- 7fe8f53: Move extension entry points to the top-level `extensions/` directory and centralize non-provider Synthetic API calls in a shared client.
+- 265b5d7: Update Pi compatibility to v0.80.6 and adjust tool/renderer signatures to match current Pi conventions.
+
 ## 0.21.2
 
 ### Patch Changes
