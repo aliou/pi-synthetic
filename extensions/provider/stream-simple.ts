@@ -13,14 +13,10 @@ import {
   type SimpleStreamOptions,
   type Usage,
 } from "@earendil-works/pi-ai";
-import { parseQuotaHeader, type QuotasResponse } from "../../src/types/quotas";
+import { parseQuotaHeader } from "../../src/types/quotas";
+import { type BillingMode, detectBillingMode } from "../../src/utils/quotas";
 
-/** How a Synthetic request is billed. Determined from the response quota
- *  header: subscription accounts carry one of the subscription quota
- *  windows (`subscription`, `weeklyTokenLimit`, `rollingFiveHourLimit`);
- *  PAYG accounts either omit the header or only carry legacy
- *  `search`/`freeToolCalls` fields. */
-export type BillingMode = "subscription" | "pay-as-you-go";
+export { type BillingMode, detectBillingMode } from "../../src/utils/quotas";
 
 // Synthetic's public docs describe subscription credits and cache token fields,
 // but do not document the cache-read discount. Back-to-back runtime validation
@@ -33,16 +29,6 @@ export type SyntheticStreamSimple = (
   context: Context,
   options?: SimpleStreamOptions,
 ) => AssistantMessageEventStream;
-
-export function detectBillingMode(
-  quotas: QuotasResponse | undefined,
-): BillingMode {
-  return quotas?.subscription ||
-    quotas?.weeklyTokenLimit ||
-    quotas?.rollingFiveHourLimit
-    ? "subscription"
-    : "pay-as-you-go";
-}
 
 export function calculateSyntheticUsageCost(
   model: Pick<Model<Api>, "cost">,

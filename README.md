@@ -64,7 +64,7 @@ The `provider` field in `extensions/provider/models.ts` is for maintenance only 
 
 ### Web Search Tool
 
-The extension registers `synthetic_web_search` — a zero-data-retention web search tool. The tool is always visible; it fails with a clear message if credentials are missing, the account lacks a subscription, or the configured utility proxy rejects the request.
+The extension registers `synthetic_web_search` — a zero-data-retention web search tool. At session start, it checks the Synthetic quotas API in the background even when another provider is selected. The tool is available only after that check confirms a Synthetic subscription; it remains hidden for pay-as-you-go accounts, missing credentials, and quota API failures.
 
 ### Reasoning Levels
 
