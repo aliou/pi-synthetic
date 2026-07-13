@@ -16,8 +16,10 @@ import {
 import { parseQuotaHeader, type QuotasResponse } from "../../src/types/quotas";
 
 /** How a Synthetic request is billed. Determined from the response quota
- *  header: subscription accounts send `x-synthetic-quotas`, PAYG accounts do
- *  not. */
+ *  header: subscription accounts carry one of the subscription quota
+ *  windows (`subscription`, `weeklyTokenLimit`, `rollingFiveHourLimit`);
+ *  PAYG accounts either omit the header or only carry legacy
+ *  `search`/`freeToolCalls` fields. */
 export type BillingMode = "subscription" | "pay-as-you-go";
 
 // Synthetic's public docs describe subscription credits and cache token fields,
