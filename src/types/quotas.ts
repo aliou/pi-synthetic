@@ -1,4 +1,43 @@
+import { type Static, Type } from "typebox";
+import { Value } from "typebox/value";
+
 export type QuotaSource = "header" | "api";
+
+const RequestQuotaSchema = Type.Object({
+  limit: Type.Number(),
+  requests: Type.Number(),
+  renewsAt: Type.String(),
+});
+
+export const QuotasResponseSchema = Type.Object({
+  subscription: Type.Optional(RequestQuotaSchema),
+  search: Type.Optional(
+    Type.Object({
+      hourly: Type.Optional(RequestQuotaSchema),
+    }),
+  ),
+  freeToolCalls: Type.Optional(RequestQuotaSchema),
+  weeklyTokenLimit: Type.Optional(
+    Type.Object({
+      nextRegenAt: Type.String(),
+      percentRemaining: Type.Number(),
+      maxCredits: Type.String(),
+      remainingCredits: Type.String(),
+      nextRegenCredits: Type.String(),
+    }),
+  ),
+  rollingFiveHourLimit: Type.Optional(
+    Type.Object({
+      nextTickAt: Type.String(),
+      tickPercent: Type.Number(),
+      remaining: Type.Number(),
+      max: Type.Number(),
+      limited: Type.Boolean(),
+    }),
+  ),
+});
+
+export type QuotasResponse = Static<typeof QuotasResponseSchema>;
 
 /** Refill-aware projection for a quota window, derived from recent snapshots.
  *
@@ -50,40 +89,6 @@ export type QuotasResult =
   | { success: true; data: { quotas: QuotasResponse } }
   | { success: false; error: { message: string; kind: QuotasErrorKind } };
 
-export interface QuotasResponse {
-  subscription?: {
-    limit: number;
-    requests: number;
-    renewsAt: string;
-  };
-  search?: {
-    hourly?: {
-      limit: number;
-      requests: number;
-      renewsAt: string;
-    };
-  };
-  freeToolCalls?: {
-    limit: number;
-    requests: number;
-    renewsAt: string;
-  };
-  weeklyTokenLimit?: {
-    nextRegenAt: string;
-    percentRemaining: number;
-    maxCredits: string;
-    remainingCredits: string;
-    nextRegenCredits: string;
-  };
-  rollingFiveHourLimit?: {
-    nextTickAt: string;
-    tickPercent: number;
-    remaining: number;
-    max: number;
-    limited: boolean;
-  };
-}
-
 /** Parse the `x-synthetic-quotas` header value into a QuotasResponse.
  *  Returns undefined if the header is missing or invalid. */
 export function parseQuotaHeader(
@@ -96,10 +101,7 @@ export function parseQuotaHeader(
   if (!entry?.[1]) return undefined;
   try {
     const parsed = JSON.parse(entry[1]);
-    // Basic structural check: must be a non-null object
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
-      return undefined;
-    return parsed as QuotasResponse;
+    return Value.Check(QuotasResponseSchema, parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
