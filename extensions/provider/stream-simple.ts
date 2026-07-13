@@ -139,9 +139,14 @@ async function forwardSyntheticStream(
   model: Model<Api>,
   getBillingMode: () => BillingMode,
 ): Promise<void> {
+  let terminated = false;
   try {
     for await (const event of inner) {
-      outer.push(adjustFinalEventCost(model, event, getBillingMode()));
+      const adjusted = adjustFinalEventCost(model, event, getBillingMode());
+      if (adjusted.type === "done" || adjusted.type === "error") {
+        terminated = true;
+      }
+      outer.push(adjusted);
     }
   } catch (err) {
     // The streamSimple contract says errors are encoded as stream error
@@ -152,7 +157,21 @@ async function forwardSyntheticStream(
       reason: "error",
       error: createErrorMessage(model, getBillingMode(), err),
     });
+    terminated = true;
   } finally {
+    // If the base stream ended without a terminal done/error event, emit a
+    // fallback error so result() resolves instead of hanging forever.
+    if (!terminated) {
+      outer.push({
+        type: "error",
+        reason: "error",
+        error: createErrorMessage(
+          model,
+          getBillingMode(),
+          new Error("synthetic stream ended without a terminal event"),
+        ),
+      });
+    }
     outer.end();
   }
 }

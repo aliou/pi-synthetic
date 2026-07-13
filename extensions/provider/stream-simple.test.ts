@@ -1,6 +1,7 @@
 import {
   type Api,
   type AssistantMessage,
+  type AssistantMessageEventStream,
   type Context,
   createAssistantMessageEventStream,
   type Model,
@@ -168,5 +169,45 @@ describe("Synthetic streamSimple wrapper", () => {
       cacheWrite: 0.0003,
       total: 0.0553,
     });
+  });
+
+  it("emits a fallback error when the base stream ends without a terminal event", async () => {
+    const base: SyntheticStreamSimple = (_model, _context, options) => {
+      const stream = createAssistantMessageEventStream();
+      void options?.onResponse?.({ status: 200, headers: {} }, model);
+      // Ends cleanly without pushing a done/error event.
+      stream.end();
+      return stream;
+    };
+
+    const result = await wrapSyntheticStreamSimple(base)(
+      model,
+      context,
+    ).result();
+
+    expect(result.stopReason).toBe("error");
+    expect(result.errorMessage).toMatch(/without a terminal event/);
+  });
+
+  it("emits an error event when the base stream throws", async () => {
+    const base: SyntheticStreamSimple = (_model, _context, options) => {
+      void options?.onResponse?.({ status: 200, headers: {} }, model);
+      const iterator: AsyncIterator<never> = {
+        async next() {
+          throw new Error("upstream boom");
+        },
+      };
+      return {
+        [Symbol.asyncIterator]: () => iterator,
+      } as unknown as AssistantMessageEventStream;
+    };
+
+    const result = await wrapSyntheticStreamSimple(base)(
+      model,
+      context,
+    ).result();
+
+    expect(result.stopReason).toBe("error");
+    expect(result.errorMessage).toBe("upstream boom");
   });
 });
