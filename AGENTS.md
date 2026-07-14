@@ -94,7 +94,7 @@ src/
   },
   contextWindow: 202752,
   maxTokens: 65536,
-  thinkingLevelMap?: { off?: "none" | null; minimal?: null; low?: null; medium?: "medium" | null; high?: null; xhigh?: null; ... },
+  thinkingLevelMap?: { off?: "none" | null; minimal?: null; low?: null; medium?: "medium" | null; high?: null; xhigh?: null; max?: "max" | null; ... },
   compat?: {        // Optional provider-specific compatibility flags
     supportsDeveloperRole?: boolean,
     supportsReasoningEffort?: boolean,
