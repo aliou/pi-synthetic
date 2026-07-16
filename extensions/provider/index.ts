@@ -1,4 +1,8 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { getApiProvider } from "@earendil-works/pi-ai/compat";
+import type {
+  ExtensionAPI,
+  ProviderConfig,
+} from "@earendil-works/pi-coding-agent";
 import {
   resolveSyntheticClientOptions,
   SyntheticClient,
@@ -35,9 +39,10 @@ import {
   buildSyntheticProviderModelsFromStore,
 } from "./models";
 import { createSyntheticRefreshModels } from "./refresh-models";
+import { wrapSyntheticStreamSimple } from "./stream-simple";
 
 export function registerSyntheticProvider(pi: ExtensionAPI): void {
-  pi.registerProvider("synthetic", {
+  const config: ProviderConfig = {
     baseUrl: "https://api.synthetic.new/openai/v1",
     apiKey: "$SYNTHETIC_API_KEY",
     api: "openai-completions",
@@ -56,7 +61,21 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
       buildSyntheticProviderModelsFromApi,
       buildSyntheticProviderModelsFromStore,
     ),
-  });
+  };
+
+  const provider = getApiProvider("openai-completions");
+  if (provider?.streamSimple) {
+    config.streamSimple = wrapSyntheticStreamSimple(provider.streamSimple);
+  } else if (
+    process.env.PI_SYNTHETIC_DEBUG === "1" ||
+    process.env.PI_SYNTHETIC_DEBUG === "true"
+  ) {
+    console.warn(
+      "[synthetic] openai-completions streamSimple is not available; subscription cache-read discount will not be applied.",
+    );
+  }
+
+  pi.registerProvider("synthetic", config);
 }
 
 export default async function (pi: ExtensionAPI) {
