@@ -68,14 +68,13 @@ The extension registers `synthetic_web_search` — a zero-data-retention web sea
 
 ### Reasoning Levels
 
-For Synthetic models that support reasoning, Synthetic currently accepts only `low`, `medium`, and `high` reasoning effort values.
+Synthetic reasoning models are mostly binary on/off (a single `medium` toggle in Pi's UI). The exception is `hf:zai-org/GLM-5.2`, which exposes two tiers plus off:
 
-This extension clamps Pi reasoning levels to Synthetic's supported set:
-- `minimal` -> `low`
-- `low` -> `low`
-- `medium` -> `medium`
-- `high` -> `high`
-- `xhigh` -> `high`
+- off → `none` (disable reasoning)
+- high → `high` (GLM High tier, lower)
+- max → `max` (GLM Max tier, highest — native `max` thinking level, accepted by Synthetic's OpenAI shim)
+
+Other Pi levels (`minimal`, `low`, `medium`, `xhigh`) are hidden for GLM-5.2. Aliases such as `syn:large:text` inherit this map from their target at build time. The `max` level is opt-in and was added in Pi 0.80.6.
 
 ### Quotas Command
 

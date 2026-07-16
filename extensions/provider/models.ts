@@ -12,14 +12,11 @@ export type SyntheticModel = ProviderModelConfig;
 
 export const SYNTHETIC_MODELS: SyntheticModel[] = [
   // API: syn:large:text → ctx=524288, out=65536
-  // Reasoning: GLM-5.2 has only two effective levels — `max` (default, highest) and `high`
+  // Reasoning: GLM-5.2 has two effective tiers — `max` (default, highest) and `high`
   // (lower). Per the GLM-5.2 chat template: unset -> max; "high" -> high; every other value
-  // ("low", "medium", ...) falls through to max. So `max > high`.
-  // The Synthetic OpenAI shim validates `reasoning_effort` to the OpenAI enum and rejects
-  // literal `max` (and `xhigh` errors). To expose both tiers through Pi we map:
-  //   off    -> "none"      (disable thinking)
-  //   high   -> "high"       (High, lower)
-  //   xhigh  -> "medium"     (falls through to Max, highest)
+  // falls through to max. So `max > high`.
+  // Verified against Synthetic's OpenAI shim: `reasoning_effort: "max"` and `"none"` are
+  // accepted. Map the two tiers plus off; hide unsupported intermediate tiers.
   {
     id: "syn:large:text",
     name: "syn:large:text",
@@ -30,7 +27,8 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
       low: null,
       medium: null,
       high: "high",
-      xhigh: "medium",
+      xhigh: null,
+      max: "max",
     },
     compat: {
       supportsReasoningEffort: true,
@@ -149,7 +147,8 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
       low: null,
       medium: null,
       high: "high",
-      xhigh: "medium",
+      xhigh: null,
+      max: "max",
     },
     compat: {
       supportsReasoningEffort: true,
