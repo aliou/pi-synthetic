@@ -1,7 +1,4 @@
-import type {
-  AuthStorage,
-  ExtensionAPI,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   resolveSyntheticClientOptions,
   SyntheticClient,
@@ -19,7 +16,6 @@ import {
   type SyntheticFeatureId,
   seedSyntheticConfigIfMissing,
 } from "../../src/config";
-import { getSyntheticApiKey } from "../../src/lib/env";
 import { type QuotaSnapshot, QuotaStore } from "../../src/services/quota-store";
 import {
   parseQuotaHeader,
@@ -34,55 +30,13 @@ import {
 import { buildProjectionHints } from "../../src/utils/quotas-projection";
 import { SYNTHETIC_OVERFLOW_PATTERN } from "./context-overflow";
 import {
-  type ConcreteSyntheticModelConfig,
-  isAlias,
-  SYNTHETIC_MODELS,
+  buildSyntheticProviderModels,
+  buildSyntheticProviderModelsFromApi,
+  buildSyntheticProviderModelsFromStore,
 } from "./models";
+import { createSyntheticRefreshModels } from "./refresh-models";
 
-export function buildSyntheticProviderModels(includeProxiedModels: boolean) {
-  const concreteModels = SYNTHETIC_MODELS.filter(
-    (m): m is ConcreteSyntheticModelConfig => !isAlias(m),
-  );
-  const byId = new Map(concreteModels.map((m) => [m.id, m]));
-
-  const resolved = SYNTHETIC_MODELS.map((entry) => {
-    if (!isAlias(entry)) return entry;
-
-    const target = byId.get(entry.aliasFor);
-    if (!target) {
-      throw new Error(
-        `Synthetic alias "${entry.id}" references missing model "${entry.aliasFor}"`,
-      );
-    }
-
-    return {
-      ...target,
-      id: entry.id,
-      name: entry.name,
-      provider: "synthetic" as const,
-    };
-  });
-
-  return resolved
-    .filter((model) => includeProxiedModels || model.provider === "synthetic")
-    .map(({ provider: _provider, ...model }) => ({
-      ...model,
-      compat: {
-        supportsDeveloperRole: false,
-        maxTokensField: "max_tokens" as const,
-        ...model.compat,
-      },
-    }));
-}
-
-interface RegisterSyntheticProviderOptions {
-  includeProxiedModels: boolean;
-}
-
-export function registerSyntheticProvider(
-  pi: ExtensionAPI,
-  options: RegisterSyntheticProviderOptions,
-): void {
+export function registerSyntheticProvider(pi: ExtensionAPI): void {
   pi.registerProvider("synthetic", {
     baseUrl: "https://api.synthetic.new/openai/v1",
     apiKey: "$SYNTHETIC_API_KEY",
@@ -91,7 +45,17 @@ export function registerSyntheticProvider(
       Referer: "https://pi.dev",
       "X-Title": "npm:@aliou/pi-synthetic",
     },
-    models: buildSyntheticProviderModels(options.includeProxiedModels),
+    models: buildSyntheticProviderModels(),
+    refreshModels: createSyntheticRefreshModels(
+      buildSyntheticProviderModels(),
+      async (apiKey, signal) => {
+        const client = new SyntheticClient({ apiKey });
+        const result = await client.models({ signal });
+        return result.data ?? [];
+      },
+      buildSyntheticProviderModelsFromApi,
+      buildSyntheticProviderModelsFromStore,
+    ),
   });
 }
 
@@ -100,19 +64,16 @@ export default async function (pi: ExtensionAPI) {
   await seedSyntheticConfigIfMissing();
 
   const initialConfig = configLoader.getConfig();
-  const includeProxiedModels = initialConfig.proxiedModels;
   let utilityApiProxyUrl = initialConfig.proxyUrl;
   let utilityApiProxyRequiresAuth = initialConfig.proxyRequiresAuth;
   const quotaStore = new QuotaStore();
-  let currentAuthStorage: AuthStorage | undefined;
+  let getApiKey: (() => Promise<string | undefined>) | undefined;
 
-  registerSyntheticProvider(pi, { includeProxiedModels });
+  registerSyntheticProvider(pi);
 
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
     const config = (data as SyntheticConfigUpdatedPayload).config;
-    registerSyntheticProvider(pi, {
-      includeProxiedModels: config.proxiedModels,
-    });
+    registerSyntheticProvider(pi);
 
     if (
       config.proxyUrl !== utilityApiProxyUrl ||
@@ -138,9 +99,7 @@ export default async function (pi: ExtensionAPI) {
   async function fetchQuotasFromAuth(): Promise<QuotasResponse | undefined> {
     const config = configLoader.getConfig();
     const clientOptions = await resolveSyntheticClientOptions(config, () =>
-      currentAuthStorage
-        ? getSyntheticApiKey(currentAuthStorage)
-        : Promise.resolve(undefined),
+      getApiKey ? getApiKey() : Promise.resolve(undefined),
     );
     if (!clientOptions) return undefined;
 
@@ -210,12 +169,12 @@ export default async function (pi: ExtensionAPI) {
 
   pi.on("session_before_switch", () => {
     quotaStore.clear();
-    currentAuthStorage = undefined;
+    getApiKey = undefined;
   });
 
   pi.on("session_shutdown", () => {
     quotaStore.clear();
-    currentAuthStorage = undefined;
+    getApiKey = undefined;
   });
 
   pi.on("session_start", async (_event, ctx) => {
@@ -229,7 +188,7 @@ export default async function (pi: ExtensionAPI) {
 
     loadedFeatures.clear();
     quotaStore.clear();
-    currentAuthStorage = ctx.modelRegistry.authStorage;
+    getApiKey = () => ctx.modelRegistry.getApiKeyForProvider("synthetic");
     pi.events.emit(SYNTHETIC_EXTENSIONS_REQUEST_EVENT, undefined);
     emitSyntheticConfigUpdated(pi);
   });

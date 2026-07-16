@@ -18,7 +18,6 @@ import {
   type SyntheticSearchResponse,
 } from "../../src/client";
 import { configLoader } from "../../src/config";
-import { getSyntheticApiKey } from "../../src/lib/env";
 
 export const SYNTHETIC_WEB_SEARCH_TOOL = "synthetic_web_search" as const;
 
@@ -71,7 +70,7 @@ export const syntheticWebSearchTool = defineTool({
     }
 
     const clientOptions = await resolveSyntheticClientOptions(config, () =>
-      getSyntheticApiKey(ctx.modelRegistry.authStorage),
+      ctx.modelRegistry.getApiKeyForProvider("synthetic"),
     );
     if (!clientOptions) {
       throw new Error(

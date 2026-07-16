@@ -58,7 +58,6 @@ Use the failures to identify:
 - stale fields on existing models
 - models that exist in code but no longer exist upstream
 - new Synthetic models missing from `SYNTHETIC_MODELS`
-- upstream backend changes in the model `provider` field
 
 If the test passes, still check for drift manually by reading the current file and comparing with fresh endpoint data. Do not assume no work is needed just because tests pass.
 
@@ -93,13 +92,12 @@ curl -s https://api.synthetic.new/openai/v1/models \
       output_modalities,
       context_length,
       max_output_length,
-      provider,
       pricing,
       supported_features
     }' --arg id 'hf:zai-org/GLM-4.7-Flash'
 ```
 
-The endpoint `provider` field is the upstream backend Synthetic uses for that model. A value of `synthetic` means the model is hosted by Synthetic directly. Values such as `fireworks` or `together` mean Synthetic proxies the request to that backend.
+The hardcoded catalog is the offline fallback and override source; dynamic refresh discovers models automatically from this endpoint.
 
 ### 4) Fetch models.dev data
 
@@ -118,6 +116,8 @@ curl -sL -A 'Mozilla/5.0' https://models.dev/api.json \
     | map({provider: .key, model: .value.models["hf:zai-org/GLM-4.7-Flash"]})
     | map(select(.model != null))
     | map({provider, reasoning: .model.reasoning, input: .model.modalities.input, maxTokens: .model.max_output_tokens})'
+
+Use these only as supporting evidence; the Synthetic API is the source of truth.
 ```
 
 ## Field mapping
@@ -126,7 +126,6 @@ Copy these directly from the Synthetic endpoint when available:
 
 - `id`
 - `name`
-- `provider` -> `provider` (`synthetic` for Synthetic-hosted models, otherwise the proxied upstream backend such as `fireworks` or `together`)
 - `context_length` -> `contextWindow`
 - `max_output_length` -> `maxTokens` when present and trustworthy
 - `pricing.prompt` -> `cost.input` per 1M
@@ -141,6 +140,8 @@ Cross-check these from models.dev:
 - `modalities.input`
 - `max_output_tokens` / output token limit when Synthetic metadata is absent or suspicious
 
+Static `SYNTHETIC_MODELS` entries should only include `thinkingLevelMap` and `compat` overrides that the API cannot express; all other fields are discovered automatically.
+
 ## Decision rules
 
 - Start from test failures, but update all clearly stale entries you find in the same pass.
@@ -148,46 +149,15 @@ Cross-check these from models.dev:
 - Remove models only when they are truly gone from Synthetic, not because of a temporary fetch issue.
 - Set `input` from the Synthetic endpoint first.
 - Set pricing from the Synthetic endpoint.
-- Set `provider` from the Synthetic endpoint. Do not infer hosting from the model name. `synthetic` means Synthetic-hosted; `fireworks`, `together`, or another value means Synthetic proxies to that backend.
-- A model with `provider` other than `"synthetic"` will be hidden from users when the **Proxied Models** setting is disabled.
 - Set `contextWindow` from the Synthetic endpoint.
 - Set `maxTokens` from Synthetic when exposed; otherwise use models.dev Synthetic data.
 - Set `reasoning` from:
-  1. confirmed Synthetic runtime behavior
-  2. else Synthetic endpoint `supported_features`
+  1. Synthetic endpoint `supported_features`
+  2. else confirmed Synthetic runtime behavior
   3. else models.dev Synthetic entry
   4. else other providers on models.dev as weak evidence only
 - Keep existing `compat` unless live behavior or current repo conventions show it should change.
 - Do not ask the user which models to update unless there is a true ambiguity you cannot resolve.
-
-### Alias models
-
-Synthetic exposes permanent aliases (IDs starting with `syn:`) that route to underlying concrete models. These are thin references — they have no `provider`, `cost`, `contextWindow`, or `compat` of their own.
-
-**Identifying aliases:** Query the API for entries with `hugging_face_id` where the ID does not start with `hf:`:
-
-```bash
-curl -s https://api.synthetic.new/openai/v1/models \
-  | jq '.data[] | select(.hugging_face_id != null and (.id | startswith("hf:") | not)) | {id, name, hugging_face_id}'
-```
-
-**Mapping:**
-- `id` -> `id` (keep the `syn:` prefix)
-- `name` -> `name`
-- `hugging_face_id` -> `aliasFor`, prefixed with `hf:` (e.g. `hugging_face_id: "zai-org/GLM-5.1"` becomes `aliasFor: "hf:zai-org/GLM-5.1"`)
-
-**Rules:**
-- `syn:*` entries must be at the top of `SYNTHETIC_MODELS` to stay visible regardless of `proxiedModels` setting
-- Alias entries are only `{ id, name, aliasFor }`. Do not copy `provider`, `cost`, `contextWindow`, `maxTokens`, `compat`, or `thinkingLevelMap` from the API
-- Alias metadata (`cost`, `contextWindow`, `compat`, `thinkingLevelMap`) is resolved at build time from the concrete target
-- Alias `provider` is always forced to `"synthetic"` at build time regardless of the target's actual `provider`
-- When Synthetic changes which model an alias routes to, update only the `aliasFor` field
-- If an alias's API-reported metadata diverges from its target's metadata (e.g. pricing, context length), alert the user — this likely means the alias should become a concrete entry or the target has changed
-
-**Reasoning level classification for aliases:**
-- Classify reasoning for the **concrete target model only**, not the alias
-- The alias inherits `thinkingLevelMap` and `compat.supportsReasoningEffort` from its target automatically
-- Do not set `thinkingLevelMap` or `compat` on alias entries
 
 ## Required runtime checks
 
@@ -289,9 +259,7 @@ If Synthetic rejects image input, keep `input: ["text"]`.
 
 ## Compat rules
 
-`extensions/provider/models.ts` includes a required `provider` field and supports an optional `compat` object per model.
-
-`provider` is maintenance metadata only. `registerSyntheticProvider` strips it before registering models with Pi, so it must describe Synthetic's upstream backend, not the Pi provider name users select.
+`extensions/provider/models.ts` supports an optional `compat` object per model.
 
 Only add or change `compat` when live behavior, provider quirks, or current repo conventions require it.
 
@@ -309,13 +277,11 @@ Compat fields:
 
 Do not add `compat` by default.
 
-**Aliases inherit `compat` and `thinkingLevelMap` from their target.** Do not add `compat` or `thinkingLevelMap` to alias entries.
-
 ## Output expectations
 
 When done:
 
-1. Ensure `extensions/provider/models.ts` is updated, including correct `provider` values for Synthetic-hosted vs proxied models.
+1. Ensure `extensions/provider/models.ts` is updated with any new, removed, or changed models and compatibility overrides.
 2. Re-run `pnpm test -- extensions/provider/models.test.ts`.
 3. If the change is user-facing, prepare a changeset per repo conventions.
 4. Commit the model update and changeset. **Never use `--no-verify`.**

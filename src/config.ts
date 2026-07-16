@@ -41,7 +41,6 @@ export interface SyntheticConfig {
   usageStatus?: boolean;
   quotaWarnings?: boolean;
   subBarIntegration?: boolean;
-  proxiedModels?: boolean;
   proxyUrl?: string;
   proxyRequiresAuth?: boolean;
 }
@@ -53,7 +52,6 @@ export interface ResolvedSyntheticConfig {
   usageStatus: boolean;
   quotaWarnings: boolean;
   subBarIntegration: boolean;
-  proxiedModels: boolean;
   proxyUrl: string;
   proxyRequiresAuth: boolean;
 }
@@ -65,39 +63,13 @@ const DEFAULT_CONFIG: ResolvedSyntheticConfig = {
   usageStatus: false,
   quotaWarnings: false,
   subBarIntegration: true,
-  proxiedModels: false,
   proxyUrl: "",
   proxyRequiresAuth: true,
 };
 
 export const pendingMessages: string[] = [];
 
-function needsProxiedModelsMigration(config: SyntheticConfig): boolean {
-  if (config.proxiedModels !== undefined) return false;
-  if (config.configVersion === undefined) return true;
-  return (
-    config.configVersion.localeCompare("0.13.5", undefined, {
-      numeric: true,
-    }) <= 0
-  );
-}
-
-const migrations: Migration<SyntheticConfig>[] = [
-  {
-    name: "seed-proxied-models",
-    shouldRun: needsProxiedModelsMigration,
-    run: (config) => {
-      pendingMessages.push(
-        "This provider now differentiates hosted models from proxied models and allows disabling them. Use `/synthetic:settings` to disable them.",
-      );
-      return {
-        ...config,
-        configVersion: SYNTHETIC_CONFIG_VERSION,
-        proxiedModels: true,
-      };
-    },
-  },
-];
+const migrations: Migration<SyntheticConfig>[] = [];
 
 const QUOTA_WARNING_THRESHOLDS_DESCRIPTION =
   "Toggle warnings when your quotas reach thresholds. Thresholds: warning at 80% projected usage, high at 90%, critical at 100% for fixed windows; dynamic windows use adaptive projected thresholds based on window progress.";
@@ -186,7 +158,6 @@ export function registerSyntheticSettings(
       const quotaWarnings = tabConfig?.quotaWarnings ?? resolved.quotaWarnings;
       const subBarIntegration =
         tabConfig?.subBarIntegration ?? resolved.subBarIntegration;
-      const proxiedModels = tabConfig?.proxiedModels ?? resolved.proxiedModels;
       const proxyUrl = tabConfig?.proxyUrl ?? resolved.proxyUrl;
       const proxyRequiresAuth =
         tabConfig?.proxyRequiresAuth ?? resolved.proxyRequiresAuth;
@@ -282,19 +253,6 @@ export function registerSyntheticSettings(
           ],
         },
         {
-          label: "Models",
-          items: [
-            {
-              id: "proxiedModels",
-              label: "Proxied Models",
-              description:
-                "Allow models that Synthetic proxies to upstream backends such as Fireworks or Together. Disable to show only models hosted directly by Synthetic.",
-              currentValue: proxiedModels ? "enabled" : "disabled",
-              values: ["enabled", "disabled"],
-            },
-          ],
-        },
-        {
           label: "Tools",
           items: [
             featureRow(
@@ -366,8 +324,6 @@ export function registerSyntheticSettings(
 
       const enabled = newValue === "enabled";
       switch (id) {
-        case "proxiedModels":
-          return { ...config, proxiedModels: enabled };
         case "webSearch":
           return { ...config, webSearch: enabled };
         case "quotasCommand":

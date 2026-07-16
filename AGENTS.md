@@ -64,13 +64,11 @@ src/
 
 ## Conventions
 
-- Credentials come from Pi auth handling (`AuthStorage`): `~/.pi/agent/auth.json` (recommended) or `SYNTHETIC_API_KEY` environment variable
+- Credentials come from Pi's provider auth resolution: `~/.pi/agent/auth.json` (recommended), `SYNTHETIC_API_KEY` environment variable, or the `apiKey: "$SYNTHETIC_API_KEY"` configured on the provider
 - Provider uses OpenAI-compatible API at `https://api.synthetic.new/openai/v1`
 - Non-provider Synthetic endpoints (`/v2/quotas`, `/v2/search`, `/openai/v1/models`) go through `src/client/index.ts`
-- Models are hardcoded in `extensions/provider/models.ts`
-- The model `provider` field records the upstream backend Synthetic uses (`synthetic`, `fireworks`, `together`, etc.); `registerSyntheticProvider` strips it before registering models with Pi
-- `buildSyntheticProviderModels` resolves aliases from their targets, then filters the model list based on the `proxiedModels` config setting: when disabled, only models whose `provider` is `"synthetic"` are exposed. Aliases always resolve with `provider: "synthetic"`, so they remain visible even when proxied models are hidden
-- Alias entries (`syn:*` IDs) are thin references. The `aliasFor` value maps to the `hugging_face_id` field from the Synthetic API (prefixed with `hf:`). All other fields are inherited from the target at build time
+- Models are fetched dynamically from `https://api.synthetic.new/openai/v1/models` via Pi 0.80.8's `ProviderConfig.refreshModels` and cached in `context.store` with a 4-hour TTL
+- The hardcoded catalog in `extensions/provider/models.ts` is kept as an offline fallback and as the override source for model-specific compatibility settings (`thinkingLevelMap`, `compat`) that the API does not expose
 - All user-facing model selection still uses the Pi provider name `synthetic`
 - Web search tool and quotas command are always registered; they fail at call time if credentials/subscription are missing unless an unauthenticated utility API proxy is configured
 - Error messages guide users to add credentials to `~/.pi/agent/auth.json`, set `SYNTHETIC_API_KEY`, or configure an unauthenticated utility API proxy when relevant
@@ -78,27 +76,14 @@ src/
 
 ## Model Configuration
 
-Entries in `extensions/provider/models.ts` are a union of concrete models and thin aliases.
+`SYNTHETIC_MODELS` in `extensions/provider/models.ts` is the static fallback catalog. It is also used to apply overrides (`thinkingLevelMap`, `compat`) to models discovered from the Synthetic API in `buildSyntheticProviderModelsFromApi`.
 
-### Alias entry (at top of array)
-
-```typescript
-{
-  id: "syn:large:text",
-  name: "syn:large:text",
-  aliasFor: "hf:zai-org/GLM-5.1",  // resolves to concrete model at build time
-}
-```
-
-Alias entries have no `provider`, `cost`, `contextWindow`, `compat`, or `thinkingLevelMap` — these are inherited from the target at build time in `buildSyntheticProviderModels`. Aliases always resolve with `provider: "synthetic"`, so they are always visible regardless of the `proxiedModels` setting.
-
-### Concrete entry
+### Model entry
 
 ```typescript
 {
   id: "hf:vendor/model-name",
   name: "vendor/model-name",
-  provider: "synthetic" | "fireworks" | "together" | string,
   reasoning: true/false,
   input: ["text"] or ["text", "image"],
   cost: {
@@ -120,23 +105,23 @@ Alias entries have no `provider`, `cost`, `contextWindow`, `compat`, or `thinkin
 }
 ```
 
-Get pricing and upstream backend/provider from `https://api.synthetic.new/openai/v1/models`.
-Get maxTokens from `https://models.dev/api.json` (synthetic provider).
+Get pricing, input/output modalities, context length, and max output length from `https://api.synthetic.new/openai/v1/models`.
+Get `maxTokens` from `https://models.dev/api.json` (synthetic provider) when the API omits it.
 
 ## Adding Models
 
-### Adding a concrete model
+### Adding a model
 
-Append to `SYNTHETIC_MODELS` following the concrete entry shape above.
-
-### Adding an alias model
-
-Add a thin `{ id, name, aliasFor }` entry **at the top of the array**.
+Append to `SYNTHETIC_MODELS` following the model entry shape above.
 
 - Set `id` and `name` from the Synthetic API
-- Set `aliasFor` to `"hf:" + hugging_face_id` from the Synthetic API
-- The resolved alias inherits all fields from the target at build time
-- When Synthetic changes which model an alias routes to, update only the `aliasFor` field
+- Set `reasoning` based on whether `supported_features` includes `"reasoning"`
+- Set `input` from `input_modalities` (`"text"` / `"image"`)
+- Convert per-token API prices to per-million rates for `cost`
+- Set `contextWindow` from `context_length` and `maxTokens` from `max_output_length`
+- Add `thinkingLevelMap` and `compat` overrides only when the API does not expose enough information for Pi to use the model correctly
+
+The dynamic refresh will discover the new model automatically on the next refresh; the static entry is only needed for offline fallback and for the overrides above.
 
 ## Versioning
 
@@ -148,7 +133,7 @@ Uses changesets. Run `pnpm changeset` before committing user-facing changes.
 
 ## Key Features
 
-1. **Provider**: OpenAI-compatible chat completions with hardcoded Synthetic model metadata; filters proxied models based on `proxiedModels` setting
+1. **Provider**: OpenAI-compatible chat completions with dynamic Synthetic model discovery via `ProviderConfig.refreshModels` and a hardcoded fallback catalog
 2. **Web Search Tool**: Zero-data-retention web search via `synthetic_web_search`; can use the utility API proxy
 3. **Quotas Command**: Interactive TUI for viewing API usage limits; can use the utility API proxy
 4. **Usage Status**: Footer status bar showing live quota percentages, colored by severity (event-driven)
