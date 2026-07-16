@@ -1,5 +1,16 @@
 # @aliou/pi-synthetic
 
+## 0.23.0
+
+### Minor Changes
+
+- a86f124: Expose Pi's native `max` thinking level on `hf:zai-org/GLM-5.2` (and its `syn:large:text` alias). GLM-5.2 now maps `max -> "max"` (literal, accepted by Synthetic's OpenAI shim) instead of the previous `xhigh -> "medium"` fallthrough. `xhigh` is hidden; the two effective tiers remain off / high / max. Bump pi peer/dev deps to 0.80.7.
+
+### Patch Changes
+
+- 748e774: Apply subscription cache-read discount to Synthetic provider usage costs.
+- c18b9a2: Hide Synthetic web search for accounts without a subscription.
+
 ## 0.22.0
 
 ### Minor Changes
