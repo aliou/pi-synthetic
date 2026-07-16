@@ -5,7 +5,6 @@ import {
   type SyntheticUtilityApiConfig,
 } from "../../src/client";
 import { configLoader } from "../../src/config";
-import { getSyntheticApiKey } from "../../src/lib/env";
 import { QuotasComponent } from "./components/quotas-display";
 
 const MISSING_AUTH_MESSAGE =
@@ -13,11 +12,9 @@ const MISSING_AUTH_MESSAGE =
 
 async function buildQuotasClient(
   config: SyntheticUtilityApiConfig,
-  authStorage: NonNullable<Parameters<typeof getSyntheticApiKey>[0]>,
+  getApiKey: () => Promise<string | undefined>,
 ): Promise<SyntheticClient | undefined> {
-  const options = await resolveSyntheticClientOptions(config, () =>
-    getSyntheticApiKey(authStorage),
-  );
+  const options = await resolveSyntheticClientOptions(config, getApiKey);
   if (!options) return undefined;
 
   return new SyntheticClient(options);
@@ -36,9 +33,8 @@ export function registerQuotasCommand(pi: ExtensionAPI): void {
         return;
       }
 
-      const client = await buildQuotasClient(
-        config,
-        ctx.modelRegistry.authStorage,
+      const client = await buildQuotasClient(config, () =>
+        ctx.modelRegistry.getApiKeyForProvider("synthetic"),
       );
       if (!client) {
         ctx.ui.notify(MISSING_AUTH_MESSAGE, "warning");

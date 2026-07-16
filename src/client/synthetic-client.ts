@@ -132,24 +132,36 @@ export class SyntheticClient {
   async models(
     options: SyntheticClientRequestOptions = {},
   ): Promise<SyntheticModelsResponse> {
-    const response = await fetch(
-      syntheticUtilityApiUrl(
-        DEFAULT_SYNTHETIC_API_BASE_URL,
-        "/openai/v1/models",
-      ),
-      {
-        headers: authHeaders(this.apiKey),
-        signal: options.signal,
-      },
-    );
+    const signal = combineWithTimeout(options.signal);
 
-    if (!response.ok) {
-      throw new Error(
-        `Synthetic models API error: ${response.status} ${await response.text()}`,
+    try {
+      const response = await fetch(
+        syntheticUtilityApiUrl(
+          DEFAULT_SYNTHETIC_API_BASE_URL,
+          "/openai/v1/models",
+        ),
+        {
+          headers: authHeaders(this.apiKey),
+          signal,
+        },
       );
-    }
 
-    const data = await response.json();
-    return data as SyntheticModelsResponse;
+      if (!response.ok) {
+        throw new Error(
+          `Synthetic models API error: ${response.status} ${await response.text()}`,
+        );
+      }
+
+      const data = await response.json();
+      return data as SyntheticModelsResponse;
+    } catch (err: unknown) {
+      const isAbort =
+        signal.aborted ||
+        (err instanceof DOMException && err.name === "AbortError");
+      if (isAbort && isTimeoutReason(signal.reason)) {
+        throw new Error("Synthetic models API request timed out");
+      }
+      throw err;
+    }
   }
 }

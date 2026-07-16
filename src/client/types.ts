@@ -26,8 +26,28 @@ export interface SyntheticSearchResponse {
   results: SyntheticSearchResult[];
 }
 
+export interface SyntheticApiModelPricing {
+  prompt: string;
+  completion: string;
+  input_cache_reads: string;
+  input_cache_writes: string;
+}
+
+export interface SyntheticApiModel {
+  id: string;
+  name: string;
+  provider: string | null;
+  hugging_face_id?: string;
+  input_modalities: string[];
+  output_modalities: string[];
+  context_length: number;
+  max_output_length: number;
+  pricing: SyntheticApiModelPricing;
+  supported_features?: string[];
+}
+
 export interface SyntheticModelsResponse {
-  data?: unknown[];
+  data?: SyntheticApiModel[];
   [key: string]: unknown;
 }
 

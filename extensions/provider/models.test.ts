@@ -1,26 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isAlias, SYNTHETIC_MODELS } from "./models";
-
-interface ApiModel {
-  id: string;
-  name: string;
-  provider: string | null;
-  input_modalities: string[];
-  output_modalities: string[];
-  context_length: number;
-  max_output_length: number;
-  pricing: {
-    prompt: string;
-    completion: string;
-    input_cache_reads: string;
-    input_cache_writes: string;
-  };
-  supported_features?: string[];
-}
-
-interface ApiResponse {
-  data: ApiModel[];
-}
+import type { SyntheticApiModel } from "../../src/client/types";
+import {
+  buildSyntheticProviderModels,
+  buildSyntheticProviderModelsFromApi,
+  SYNTHETIC_MODELS,
+} from "./models";
 
 interface Discrepancy {
   model: string;
@@ -29,8 +13,7 @@ interface Discrepancy {
   api: unknown;
 }
 
-async function fetchApiModels(): Promise<ApiModel[]> {
-  // Making ourselves known
+async function fetchApiModels(): Promise<SyntheticApiModel[]> {
   const response = await fetch("https://api.synthetic.new/openai/v1/models", {
     headers: {
       Referer: "https://github.com/aliou/pi-synthetic",
@@ -43,21 +26,19 @@ async function fetchApiModels(): Promise<ApiModel[]> {
     );
   }
 
-  const data: ApiResponse = await response.json();
-  return data.data;
+  const data: { data?: SyntheticApiModel[] } = await response.json();
+  return data.data ?? [];
 }
 
 function parsePrice(priceStr: string): number {
-  // Convert "$0.0000006" to 0.6 (dollars per million tokens)
   const match = priceStr.match(/\$?(\d+\.?\d*)/);
   if (!match) return 0;
   const pricePerToken = Number.parseFloat(match[1]);
-  // API prices are per token, hardcoded prices are per million tokens
   return pricePerToken * 1_000_000;
 }
 
 function compareModels(
-  apiModels: ApiModel[],
+  apiModels: SyntheticApiModel[],
   hardcodedModels: typeof SYNTHETIC_MODELS,
 ): Discrepancy[] {
   const discrepancies: Discrepancy[] = [];
@@ -75,11 +56,7 @@ function compareModels(
       continue;
     }
 
-    // Skip field-by-field comparison for aliases — they inherit from their target
-    if (isAlias(hardcoded)) continue;
-
-    // Check input modalities (text vs image support)
-    const apiInputs = apiModel.input_modalities.sort();
+    const apiInputs = [...apiModel.input_modalities].sort();
     const hardcodedInputs = [...hardcoded.input].sort();
     if (JSON.stringify(apiInputs) !== JSON.stringify(hardcodedInputs)) {
       discrepancies.push({
@@ -90,7 +67,6 @@ function compareModels(
       });
     }
 
-    // Check context window
     if (apiModel.context_length !== hardcoded.contextWindow) {
       discrepancies.push({
         model: hardcoded.id,
@@ -100,11 +76,7 @@ function compareModels(
       });
     }
 
-    // Check max output tokens (skip if API doesn't provide it)
-    if (
-      apiModel.max_output_length !== undefined &&
-      apiModel.max_output_length !== hardcoded.maxTokens
-    ) {
+    if (apiModel.max_output_length !== hardcoded.maxTokens) {
       discrepancies.push({
         model: hardcoded.id,
         field: "maxTokens",
@@ -113,9 +85,8 @@ function compareModels(
       });
     }
 
-    // Check input cost (convert API price to per-million rate)
     const apiInputCost = parsePrice(apiModel.pricing.prompt);
-    const epsilon = 0.001; // Small tolerance for floating point
+    const epsilon = 0.001;
     if (Math.abs(apiInputCost - hardcoded.cost.input) > epsilon) {
       discrepancies.push({
         model: hardcoded.id,
@@ -125,7 +96,6 @@ function compareModels(
       });
     }
 
-    // Check output cost
     const apiOutputCost = parsePrice(apiModel.pricing.completion);
     if (Math.abs(apiOutputCost - hardcoded.cost.output) > epsilon) {
       discrepancies.push({
@@ -136,7 +106,6 @@ function compareModels(
       });
     }
 
-    // Check cache read cost
     const apiCacheReadCost = parsePrice(apiModel.pricing.input_cache_reads);
     if (Math.abs(apiCacheReadCost - hardcoded.cost.cacheRead) > epsilon) {
       discrepancies.push({
@@ -147,7 +116,6 @@ function compareModels(
       });
     }
 
-    // Check reasoning capability from supported_features (skip if API doesn't provide it)
     if (apiModel.supported_features !== undefined) {
       const apiSupportsReasoning =
         apiModel.supported_features.includes("reasoning");
@@ -160,22 +128,8 @@ function compareModels(
         });
       }
     }
-
-    // Check provider
-    if (
-      apiModel.provider !== null &&
-      apiModel.provider !== hardcoded.provider
-    ) {
-      discrepancies.push({
-        model: hardcoded.id,
-        field: "provider",
-        hardcoded: hardcoded.provider,
-        api: apiModel.provider,
-      });
-    }
   }
 
-  // New API models not yet in hardcoded list are still flagged (including new syn:* aliases)
   for (const apiModel of apiModels) {
     const hardcoded = hardcodedModels.find((m) => m.id === apiModel.id);
     if (!hardcoded) {
@@ -218,19 +172,77 @@ describe("Synthetic models", () => {
     expect(discrepancies).toHaveLength(0);
   });
 
-  it("alias entries reference valid concrete models", () => {
-    const concreteById = new Map(
-      SYNTHETIC_MODELS.filter((m) => !isAlias(m)).map((m) => [m.id, m]),
-    );
-
-    const aliases = SYNTHETIC_MODELS.filter((m) => isAlias(m));
-    expect(aliases.length).toBeGreaterThan(0);
-
-    for (const alias of aliases) {
-      expect(
-        concreteById.has(alias.aliasFor),
-        `Alias "${alias.id}" references missing concrete model "${alias.aliasFor}"`,
-      ).toBe(true);
+  it("buildSyntheticProviderModels returns the static catalog with defaults", () => {
+    const models = buildSyntheticProviderModels();
+    expect(models.length).toBe(SYNTHETIC_MODELS.length);
+    for (const model of models) {
+      const compat = model.compat as Record<string, unknown> | undefined;
+      expect(compat?.supportsDeveloperRole).toBe(false);
+      if (model.id === "hf:MiniMaxAI/MiniMax-M3") {
+        expect(compat?.maxTokensField).toBe("max_completion_tokens");
+      } else {
+        expect(compat?.maxTokensField).toBe("max_tokens");
+      }
+      if (model.reasoning) {
+        expect(compat?.supportsReasoningEffort).toBe(true);
+      }
     }
+  });
+
+  it("buildSyntheticProviderModelsFromApi merges API data with static overrides", () => {
+    const apiModels: SyntheticApiModel[] = [
+      {
+        id: "hf:MiniMaxAI/MiniMax-M3",
+        name: "MiniMaxAI/MiniMax-M3",
+        provider: "synthetic",
+        input_modalities: ["text", "image"],
+        output_modalities: ["text"],
+        context_length: 262144,
+        max_output_length: 65536,
+        pricing: {
+          prompt: "$0.0000006",
+          completion: "$0.0000012",
+          input_cache_reads: "$0.0000006",
+          input_cache_writes: "0",
+        },
+        supported_features: ["reasoning"],
+      },
+    ];
+
+    const models = buildSyntheticProviderModelsFromApi(apiModels);
+    expect(models).toHaveLength(1);
+
+    const model = models[0];
+    expect(model.id).toBe("hf:MiniMaxAI/MiniMax-M3");
+    expect(model.cost.input).toBe(0.6);
+    const compat = model.compat as Record<string, unknown> | undefined;
+    expect(compat?.maxTokensField).toBe("max_completion_tokens");
+  });
+
+  it("buildSyntheticProviderModelsFromApi preserves unknown API models", () => {
+    const apiModels: SyntheticApiModel[] = [
+      {
+        id: "hf:new/model",
+        name: "new/model",
+        provider: "synthetic",
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+        context_length: 128000,
+        max_output_length: 32768,
+        pricing: {
+          prompt: "$0.000001",
+          completion: "$0.000002",
+          input_cache_reads: "$0.000001",
+          input_cache_writes: "0",
+        },
+        supported_features: ["reasoning"],
+      },
+    ];
+
+    const models = buildSyntheticProviderModelsFromApi(apiModels);
+    expect(models).toHaveLength(1);
+    expect(models[0]?.id).toBe("hf:new/model");
+    const compat = models[0]?.compat as Record<string, unknown> | undefined;
+    expect(compat?.supportsReasoningEffort).toBe(true);
   });
 });

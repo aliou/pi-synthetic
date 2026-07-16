@@ -74,7 +74,7 @@ export default async function (pi: ExtensionAPI) {
     enabled = (data as SyntheticConfigUpdatedPayload).config.quotaWarnings;
 
     // Only reset alert state when the feature itself is toggled, so unrelated
-    // config changes (e.g. proxiedModels) do not re-trigger one-time warnings.
+    // config changes do not re-trigger one-time warnings.
     if (wasEnabled !== enabled) {
       notifier.clearAlertState();
     }
