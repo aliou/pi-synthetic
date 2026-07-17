@@ -96,11 +96,9 @@ When a Synthetic model is active, the footer status bar shows live quota usage (
 
 ### Quota Warnings
 
-The extension automatically notifies you when you approach or exceed your Synthetic API quotas. Notifications fire on severity transitions only (no repeated alerts for the same level) and use correct terminology (regen/tick/resets) with precise time formatting.
+The extension automatically notifies you when you approach or exceed your Synthetic API quotas. Notifications fire on severity transitions and escalations, not as repeated reminders for the same level. Recovered quotas can notify again if they later become risky.
 
-- Escalation always notifies
-- `high` and `critical` levels have no cooldown
-- `warning` level has a 60-minute cooldown
+When quota warnings are enabled, the extension keeps bounded local history to account for rolling refills and avoid extrapolating short usage bursts across weekly quotas. History is retained for 14 days, capped at 5 MiB, and stored under `$XDG_STATE_HOME/pi-synthetic/quota-history` or Pi's agent state directory. No history directory is created while quota warnings are disabled.
 
 ## Disabling Features
 

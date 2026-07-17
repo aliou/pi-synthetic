@@ -81,8 +81,9 @@ export function toWindows(quotas: QuotasResponse): QuotaWindow[] {
       usedValue: limitValue - remainingValue,
       limitValue,
       isCurrency: true,
-      showPace: true,
-      paceScale: 1 / 7,
+      // nextRegenAt is the next daily credit refill, not the start/end of the
+      // weekly window. History-based projections handle weekly pace.
+      showPace: false,
       nextAmount: `+${weeklyTokenLimit.nextRegenCredits}`,
       nextLabel: "Next regen",
     });
@@ -167,7 +168,7 @@ export function assessWindow(
   projection?: ProjectionHint,
 ): RiskAssessment {
   // Respect showPace/paceScale: only compute pace when the window opts in,
-  // and apply paceScale to normalize (e.g. weekly windows scale daily pace by 1/7).
+  // then apply any provider-specific normalization.
   const rawPace = window.showPace ? getPacePercent(window) : null;
   const pacePercent =
     rawPace !== null ? rawPace * (window.paceScale ?? 1) : null;

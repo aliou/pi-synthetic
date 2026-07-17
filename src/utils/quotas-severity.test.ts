@@ -16,6 +16,7 @@ import {
   parseCurrency,
   type QuotaWindow,
   safePercent,
+  toWindows,
 } from "./quotas-severity";
 
 // Helper to create a QuotaWindow with sensible defaults
@@ -194,10 +195,7 @@ describe("assessWindow", () => {
       expect(result.severity).toBe("warning");
     });
 
-    it("uses paceScale to normalize pace", () => {
-      // Weekly window with daily pace: paceScale = 1/7
-      // At 50% through the day (12h), raw pace = 50%, scaled = 50/7 ≈ 7.14%
-      // So progress ≈ 0.0714, projected = 95 / max(5, 7.14) * 100 ≈ 1330%
+    it("uses paceScale when a fixed window opts into pace", () => {
       const w = makeWindow({
         usedPercent: 95,
         showPace: true,
@@ -211,6 +209,27 @@ describe("assessWindow", () => {
       expect(result.pacePercent).toBeLessThan(15); // scaled down
       expect(result.projectedPercent).toBeGreaterThan(500);
       expect(result.severity).toBe("critical");
+    });
+
+    it("does not treat the next weekly regen as weekly elapsed time", () => {
+      const windows = toWindows({
+        weeklyTokenLimit: {
+          nextRegenAt: new Date(
+            Date.now() + (2 * 60 + 36) * 60 * 1000,
+          ).toISOString(),
+          percentRemaining: 19,
+          maxCredits: "$15.12",
+          remainingCredits: "$2.87",
+          nextRegenCredits: "$2.16",
+        },
+      });
+      const weekly = windows.find((window) => window.id === "weeklyTokenLimit");
+      assert(weekly, "weekly window should exist");
+
+      const result = assessWindow(weekly);
+      expect(result.pacePercent).toBeNull();
+      expect(result.projectedPercent).toBe(81);
+      expect(result.severity).toBe("warning");
     });
 
     it("does not use pace when showPace is false", () => {

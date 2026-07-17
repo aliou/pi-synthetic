@@ -52,118 +52,77 @@ describe("QuotaWarningNotifier", () => {
   describe("shouldNotify", () => {
     it("notifies on first time seeing a window at risk", () => {
       const notifier = new QuotaWarningNotifier();
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(true);
-      expect(notifier.shouldNotify("Requests / 5h", "high")).toBe(true);
-      expect(notifier.shouldNotify("Search / hour", "critical")).toBe(true);
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(true);
+      expect(notifier.shouldNotify("rollingFiveHourLimit", "high")).toBe(true);
+      expect(notifier.shouldNotify("search.hourly", "critical")).toBe(true);
     });
 
     it("notifies on severity escalation", () => {
       const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "warning");
-      expect(notifier.shouldNotify("Credits / week", "high")).toBe(true);
+      notifier.markObserved("weeklyTokenLimit", "warning");
+      expect(notifier.shouldNotify("weeklyTokenLimit", "high")).toBe(true);
 
-      notifier.markNotified("Requests / 5h", "high");
-      expect(notifier.shouldNotify("Requests / 5h", "critical")).toBe(true);
+      notifier.markObserved("rollingFiveHourLimit", "high");
+      expect(notifier.shouldNotify("rollingFiveHourLimit", "critical")).toBe(
+        true,
+      );
     });
 
-    it("notifies on skip from none to any risk level", () => {
+    it("notifies when a recovered window becomes risky again", () => {
       const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Test", "none");
+      notifier.markObserved("Test", "none");
       expect(notifier.shouldNotify("Test", "warning")).toBe(true);
     });
 
-    it("does not notify on same severity for warning within cooldown", () => {
+    it("does not notify for a none severity", () => {
       const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "warning");
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(false);
+      expect(notifier.shouldNotify("Test", "none")).toBe(false);
     });
 
-    it("does notify on warning after cooldown elapsed", () => {
+    it("does not repeat the same severity", () => {
       const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "warning");
-
-      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
-
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(true);
+      notifier.markObserved("weeklyTokenLimit", "warning");
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(false);
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000);
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(false);
     });
 
-    it("does not notify on downgrade to warning", () => {
+    it("does not notify on downgrade", () => {
       const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "high");
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(false);
-    });
-
-    it("does not notify on downgrade to high within cooldown", () => {
-      const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Requests / 5h", "critical");
-      expect(notifier.shouldNotify("Requests / 5h", "high")).toBe(false);
-    });
-
-    it("suppresses repeated high severity within cooldown", () => {
-      const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "high");
-      expect(notifier.shouldNotify("Credits / week", "high")).toBe(false);
-    });
-
-    it("re-notifies high severity after cooldown elapsed", () => {
-      const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "high");
-
-      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
-
-      expect(notifier.shouldNotify("Credits / week", "high")).toBe(true);
-    });
-
-    it("suppresses repeated critical severity within cooldown", () => {
-      const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "critical");
-      expect(notifier.shouldNotify("Credits / week", "critical")).toBe(false);
-    });
-
-    it("re-notifies critical severity after cooldown elapsed", () => {
-      const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "critical");
-
-      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
-
-      expect(notifier.shouldNotify("Credits / week", "critical")).toBe(true);
+      notifier.markObserved("weeklyTokenLimit", "critical");
+      expect(notifier.shouldNotify("weeklyTokenLimit", "high")).toBe(false);
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(false);
     });
   });
 
-  describe("markNotified", () => {
+  describe("markObserved", () => {
     it("tracks severity per window key", () => {
       const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "warning");
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(false);
+      notifier.markObserved("weeklyTokenLimit", "warning");
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(false);
 
-      // Different key is independent
-      expect(notifier.shouldNotify("Requests / 5h", "warning")).toBe(true);
+      expect(notifier.shouldNotify("rollingFiveHourLimit", "warning")).toBe(
+        true,
+      );
     });
 
-    it("suppresses repeat high after downgrade-and-re-escalation within cooldown", () => {
-      // Scenario: high → warning (downgrade, suppressed) → high again.
-      // Because the state was never re-notified at warning, a same-severity
-      // high check is still within cooldown and should not re-fire.
+    it("records recovery so the next risk is a new transition", () => {
       const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Test", "high");
-      expect(notifier.shouldNotify("Test", "warning")).toBe(false);
-      expect(notifier.shouldNotify("Test", "high")).toBe(false);
-
-      // After cooldown, repeating the same severity re-notifies.
-      vi.advanceTimersByTime(60 * 60 * 1000 + 1);
-      expect(notifier.shouldNotify("Test", "high")).toBe(true);
+      notifier.markObserved("Test", "high");
+      notifier.markObserved("Test", "none");
+      expect(notifier.shouldNotify("Test", "warning")).toBe(true);
     });
   });
 
   describe("clearAlertState", () => {
     it("resets all alert state so windows notify again", () => {
       const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "warning");
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(false);
+      notifier.markObserved("weeklyTokenLimit", "warning");
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(false);
 
       notifier.clearAlertState();
 
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(true);
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(true);
     });
   });
 
@@ -299,11 +258,11 @@ describe("QuotaWarningNotifier", () => {
       const calls: Array<[string, string]> = [];
       const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
 
-      notifier.evaluate(baseQuotas, false, notify);
+      notifier.evaluate(baseQuotas, notify);
       expect(calls).toHaveLength(0);
     });
 
-    it("notifies for high-usage quotas with skipAlreadyWarned=false", () => {
+    it("notifies for high-usage quotas", () => {
       const notifier = new QuotaWarningNotifier();
       const calls: Array<[string, string]> = [];
       const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
@@ -319,17 +278,17 @@ describe("QuotaWarningNotifier", () => {
         },
       };
 
-      notifier.evaluate(highUsageQuotas, false, notify);
+      notifier.evaluate(highUsageQuotas, notify);
       expect(calls).toHaveLength(1);
       expect(calls[0][0]).toContain("Synthetic quota warning");
     });
 
-    it("does not re-notify on same severity with skipAlreadyWarned=true", () => {
+    it("does not re-notify the same severity", () => {
       const notifier = new QuotaWarningNotifier();
       const calls: Array<[string, string]> = [];
       const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
 
-      // 85% used (no pace) → warning severity, which has cooldown
+      // 85% used (no pace) → warning severity.
       const warningQuotas: QuotasResponse = {
         ...baseQuotas,
         rollingFiveHourLimit: {
@@ -341,15 +300,16 @@ describe("QuotaWarningNotifier", () => {
         },
       };
 
-      notifier.evaluate(warningQuotas, true, notify);
+      notifier.evaluate(warningQuotas, notify);
       expect(calls).toHaveLength(1);
 
-      // Same severity, same data — should not re-notify (warning has cooldown)
-      notifier.evaluate(warningQuotas, true, notify);
+      notifier.evaluate(warningQuotas, notify);
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000);
+      notifier.evaluate(warningQuotas, notify);
       expect(calls).toHaveLength(1);
     });
 
-    it("notifies on severity escalation even with skipAlreadyWarned=true", () => {
+    it("notifies on severity escalation", () => {
       const notifier = new QuotaWarningNotifier();
       const calls: Array<[string, string]> = [];
       const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
@@ -366,14 +326,13 @@ describe("QuotaWarningNotifier", () => {
         },
       };
 
-      notifier.evaluate(highQuotas, true, notify);
+      notifier.evaluate(highQuotas, notify);
       expect(calls).toHaveLength(1);
 
-      // Same severity re-evaluated within cooldown: suppressed (over-firing bug).
-      notifier.evaluate(highQuotas, true, notify);
+      notifier.evaluate(highQuotas, notify);
       expect(calls).toHaveLength(1);
 
-      // Escalate to critical (limited): bypasses cooldown, fires again.
+      // Escalate to critical (limited): fires again.
       const criticalQuotas: QuotasResponse = {
         ...baseQuotas,
         rollingFiveHourLimit: {
@@ -385,9 +344,30 @@ describe("QuotaWarningNotifier", () => {
         },
       };
 
-      notifier.evaluate(criticalQuotas, true, notify);
+      notifier.evaluate(criticalQuotas, notify);
       expect(calls).toHaveLength(2);
       expect(calls[1][1]).toBe("error");
+    });
+
+    it("notifies again after recovery", () => {
+      const notifier = new QuotaWarningNotifier();
+      const calls: Array<[string, string]> = [];
+      const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
+      const atUsage = (remaining: number): QuotasResponse => ({
+        rollingFiveHourLimit: {
+          nextTickAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          tickPercent: 0.05,
+          remaining,
+          max: 100,
+          limited: false,
+        },
+      });
+
+      notifier.evaluate(atUsage(15), notify);
+      notifier.evaluate(atUsage(50), notify);
+      notifier.evaluate(atUsage(15), notify);
+
+      expect(calls).toHaveLength(2);
     });
   });
 
@@ -419,7 +399,7 @@ describe("QuotaWarningNotifier", () => {
         [FIVE_HOUR_ID, { kind: "stable" }],
       ]);
 
-      notifier.evaluate(quotasAt(92), false, notify, projections);
+      notifier.evaluate(quotasAt(92), notify, projections);
       expect(calls).toHaveLength(0);
     });
 
@@ -435,7 +415,7 @@ describe("QuotaWarningNotifier", () => {
         ],
       ]);
 
-      notifier.evaluate(quotasAt(82), false, notify, projections);
+      notifier.evaluate(quotasAt(82), notify, projections);
       expect(calls).toHaveLength(0);
     });
 
@@ -450,7 +430,7 @@ describe("QuotaWarningNotifier", () => {
         ],
       ]);
 
-      notifier.evaluate(quotasAt(82), false, notify, projections);
+      notifier.evaluate(quotasAt(82), notify, projections);
       expect(calls).toHaveLength(1);
       expect(calls[0][0]).toContain("Requests / 5h");
     });
@@ -466,7 +446,7 @@ describe("QuotaWarningNotifier", () => {
         ],
       ]);
 
-      notifier.evaluate(quotasAt(82), false, notify, projections);
+      notifier.evaluate(quotasAt(82), notify, projections);
       expect(calls).toHaveLength(1);
       expect(calls[0][1]).toBe("error");
     });
@@ -477,42 +457,41 @@ describe("QuotaWarningNotifier", () => {
       const notify: NotifyFn = (msg, lvl) => calls.push([msg, lvl]);
 
       // No projections map -> raw 92% -> high -> notified.
-      notifier.evaluate(quotasAt(92), false, notify);
+      notifier.evaluate(quotasAt(92), notify);
       expect(calls).toHaveLength(1);
     });
   });
 
-  describe("notification flow (shouldNotify + markNotified integration)", () => {
+  describe("notification flow", () => {
     it("notifies once on first warning, blocks repeat, notifies on escalation", () => {
       const notifier = new QuotaWarningNotifier();
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(true);
-      notifier.markNotified("Credits / week", "warning");
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(true);
+      notifier.markObserved("weeklyTokenLimit", "warning");
 
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(false);
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(false);
 
-      expect(notifier.shouldNotify("Credits / week", "high")).toBe(true);
-      notifier.markNotified("Credits / week", "high");
+      expect(notifier.shouldNotify("weeklyTokenLimit", "high")).toBe(true);
+      notifier.markObserved("weeklyTokenLimit", "high");
 
-      // Same severity within cooldown is suppressed (the over-firing bug).
-      expect(notifier.shouldNotify("Credits / week", "high")).toBe(false);
+      expect(notifier.shouldNotify("weeklyTokenLimit", "high")).toBe(false);
     });
 
     it("allows re-notification after clear", () => {
       const notifier = new QuotaWarningNotifier();
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(true);
-      notifier.markNotified("Credits / week", "warning");
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(false);
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(true);
+      notifier.markObserved("weeklyTokenLimit", "warning");
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(false);
 
       notifier.clearAlertState();
 
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(true);
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(true);
     });
 
     it("tracks windows independently", () => {
       const notifier = new QuotaWarningNotifier();
-      notifier.markNotified("Credits / week", "warning");
-      expect(notifier.shouldNotify("Credits / week", "warning")).toBe(false);
-      expect(notifier.shouldNotify("Search / hour", "warning")).toBe(true);
+      notifier.markObserved("weeklyTokenLimit", "warning");
+      expect(notifier.shouldNotify("weeklyTokenLimit", "warning")).toBe(false);
+      expect(notifier.shouldNotify("search.hourly", "warning")).toBe(true);
     });
   });
 });

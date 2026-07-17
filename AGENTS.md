@@ -47,9 +47,11 @@ src/
   client/
     index.ts                    # Synthetic client for quotas, web search, and model-list endpoints
   services/
+    quota-history.ts            # Feature-gated bounded JSONL history for warning projections
+    quota-history.test.ts       # Tests
     quota-store.ts              # In-memory quota store (header throttling, deduped refresh)
     quota-store.test.ts         # Tests
-    quota-warnings.ts           # Pi-agnostic warning evaluator (severity, cooldown)
+    quota-warnings.ts           # Pi-agnostic transition-based warning evaluator
     quota-warnings.test.ts      # Tests
   config.ts                     # Feature settings and config migrations
   lib/
@@ -59,7 +61,7 @@ src/
   utils/
     quotas.ts                   # Quota formatting helpers
     quotas-severity.ts          # Quota severity calculations
-    quotas-projection.ts        # Refill-aware quota projections
+    quotas-projection.ts        # Refill-aware 5-hour and weekly quota projections
 ```
 
 ## Conventions
@@ -73,6 +75,7 @@ src/
 - Web search tool and quotas command are always registered; they fail at call time if credentials/subscription are missing unless an unauthenticated utility API proxy is configured
 - Error messages guide users to add credentials to `~/.pi/agent/auth.json`, set `SYNTHETIC_API_KEY`, or configure an unauthenticated utility API proxy when relevant
 - Quota data flows event-driven: provider ingests `x-synthetic-quotas` header from `after_provider_response` into `QuotaStore`, which broadcasts via `synthetic:quotas:updated`; consumers (usage-status, quota-warnings, sub-bar-integration) listen and request refreshes via `synthetic:quotas:request` — no polling
+- Persistent quota history is owned by the quota-warnings extension. It initializes and writes only while `quotaWarnings` is enabled; users who leave warnings disabled get no history directory or files
 
 ## Model Configuration
 

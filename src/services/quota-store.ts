@@ -8,10 +8,6 @@ export interface QuotaSnapshot {
 
 type Listener = (snapshot: QuotaSnapshot) => void;
 
-/** Max in-memory samples kept for refill-aware projection. Bounded to cap memory;
- * cleared on session boundaries together with the current snapshot. */
-const MAX_HISTORY = 1000;
-
 /**
  * Pi-agnostic in-memory quota store.
  *
@@ -26,7 +22,6 @@ const MAX_HISTORY = 1000;
  */
 export class QuotaStore {
   private snapshot: QuotaSnapshot | undefined;
-  private history: QuotaSnapshot[] = [];
   private listeners = new Set<Listener>();
   private lastHeaderIngestAt = 0;
   private inFlightRefresh: Promise<QuotaSnapshot | undefined> | undefined;
@@ -38,12 +33,6 @@ export class QuotaStore {
   /** Current snapshot (may be undefined if no data has been ingested yet). */
   getSnapshot(): QuotaSnapshot | undefined {
     return this.snapshot;
-  }
-
-  /** Recent snapshots (oldest first) for refill-aware projection.
-   * Bounded by MAX_HISTORY and cleared together with the current snapshot. */
-  getRecentSnapshots(): QuotaSnapshot[] {
-    return this.history;
   }
 
   /** Subscribe to snapshot updates. Returns unsubscribe function. */
@@ -75,8 +64,6 @@ export class QuotaStore {
     }
 
     this.snapshot = { quotas, source, updatedAt: now };
-    this.history.push(this.snapshot);
-    if (this.history.length > MAX_HISTORY) this.history.shift();
     this.emit(this.snapshot);
     return true;
   }
@@ -119,7 +106,6 @@ export class QuotaStore {
   clear(): void {
     this.inFlightId++; // Invalidates in-flight refresh
     this.snapshot = undefined;
-    this.history = [];
     this.lastHeaderIngestAt = 0;
     this.inFlightRefresh = undefined;
   }

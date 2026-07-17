@@ -8,11 +8,8 @@ import {
   toWindows,
 } from "../utils/quotas-severity";
 
-const COOLDOWN_MS = 60 * 60 * 1000; // 60 minutes
-
 export interface WindowAlertState {
   lastSeverity: RiskSeverity;
-  lastNotifiedAt: number; // epoch ms
 }
 
 interface WindowRisk {
@@ -25,12 +22,12 @@ export type NotifyFn = (message: string, level: "warning" | "error") => void;
 /**
  * Pi-agnostic quota warning evaluator.
  *
- * Call `evaluate()` with a QuotasResponse and it decides whether
- * to fire a notification based on severity, escalation, and cooldown rules.
+ * Call `evaluate()` with a QuotasResponse and it decides whether to notify on
+ * a new risk or severity escalation.
  *
  * Usage:
  *   const notifier = new QuotaWarningNotifier();
- *   notifier.evaluate(quotas, true, (msg, lvl) => ctx.ui.notify(msg, lvl));
+ *   notifier.evaluate(quotas, (msg, lvl) => ctx.ui.notify(msg, lvl));
  */
 export class QuotaWarningNotifier {
   private windowAlerts = new Map<string, WindowAlertState>();
@@ -51,20 +48,19 @@ export class QuotaWarningNotifier {
   }
 
   /**
-   * Determines if we should notify for this window based on cooldown
-   * and severity rules.
+   * Determines whether this observation is a new risk or an escalation.
    *
    * Rules:
    * - First time seeing this window at risk: notify.
-   * - Severity escalation (warning → high → critical): notify immediately,
-   *   bypassing cooldown, so the user learns of a worsening situation.
-   * - Same or lower severity within the cooldown (60 min): suppress. This
-   *   keeps a persistent high/critical window from re-firing on every turn.
-   * - Cooldown elapsed: notify again, to remind the user the risk persists.
+   * - Severity escalation (warning → high → critical): notify.
+   * - Same severity or downgrade: suppress.
+   * - A recovered window is observed as `none`, so a later warning is a new
+   *   transition and notifies again.
    */
   shouldNotify(windowKey: string, severity: RiskSeverity): boolean {
     const state = this.windowAlerts.get(windowKey);
 
+    if (severity === "none") return false;
     if (!state) return true;
 
     // Escalation always notifies immediately (none → warning → high → critical).
@@ -76,20 +72,12 @@ export class QuotaWarningNotifier {
     ];
     const currentIndex = severityOrder.indexOf(severity);
     const lastIndex = severityOrder.indexOf(state.lastSeverity);
-    if (currentIndex > lastIndex) return true;
-
-    // Same severity or downgrade: respect the cooldown so a window sitting at
-    // high/critical does not re-fire on every evaluation cycle (agent_end,
-    // turn_end, model_select, ...). Escalation above still bypasses this.
-    return Date.now() - state.lastNotifiedAt >= COOLDOWN_MS;
+    return currentIndex > lastIndex;
   }
 
-  /** Updates alert state after notifying. */
-  markNotified(windowKey: string, severity: RiskSeverity): void {
-    this.windowAlerts.set(windowKey, {
-      lastSeverity: severity,
-      lastNotifiedAt: Date.now(),
-    });
+  /** Records the latest observed severity, including recovery to `none`. */
+  markObserved(windowKey: string, severity: RiskSeverity): void {
+    this.windowAlerts.set(windowKey, { lastSeverity: severity });
   }
 
   /** Formats the warning message for the notification. */
@@ -108,7 +96,7 @@ export class QuotaWarningNotifier {
     return `Synthetic quota warning:\n${lines.join("\n")}`;
   }
 
-  /** Clear all alert state. Call on session start, model change, or shutdown. */
+  /** Clear all observed severity state. */
   clearAlertState(): void {
     this.windowAlerts.clear();
   }
@@ -117,8 +105,6 @@ export class QuotaWarningNotifier {
    * Evaluate a QuotasResponse and notify if thresholds are exceeded.
    *
    * @param quotas - The quota data to evaluate
-   * @param skipAlreadyWarned - If true, only warn for windows not yet warned.
-   *                            If false, warn for all high-usage windows.
    * @param notify - Callback to display the notification
    * @param projections - Optional refill-aware projections keyed by window id,
    *   used to suppress imminent-tick threshold bounces and to surface on-pace
@@ -126,24 +112,24 @@ export class QuotaWarningNotifier {
    */
   evaluate(
     quotas: QuotasResponse,
-    skipAlreadyWarned: boolean,
     notify: NotifyFn,
     projections?: Map<string, ProjectionHint>,
   ): void {
-    const highRiskWindows = this.findHighRiskWindows(quotas, projections);
-    if (highRiskWindows.length === 0) return;
+    const assessedWindows = toWindows(quotas).map((window) => ({
+      window,
+      assessment: assessWindow(window, projections?.get(window.id)),
+    }));
+    const windowsToNotify = assessedWindows.filter(
+      ({ window, assessment }) =>
+        assessment.severity !== "none" &&
+        this.shouldNotify(window.id, assessment.severity),
+    );
 
-    const windowsToNotify = skipAlreadyWarned
-      ? highRiskWindows.filter(({ window, assessment }) =>
-          this.shouldNotify(window.label, assessment.severity),
-        )
-      : highRiskWindows;
+    for (const { window, assessment } of assessedWindows) {
+      this.markObserved(window.id, assessment.severity);
+    }
 
     if (windowsToNotify.length === 0) return;
-
-    for (const { window, assessment } of windowsToNotify) {
-      this.markNotified(window.label, assessment.severity);
-    }
 
     const message = this.formatWarningMessage(windowsToNotify);
 
