@@ -4,6 +4,7 @@ import {
   buildProjectionHints,
   type ProjectionSnapshot,
   ROLLING_FIVE_HOUR_ID,
+  WEEKLY_TOKEN_LIMIT_ID,
 } from "./quotas-projection";
 
 // Realistic Synthetic values (confirmed against the live API):
@@ -15,6 +16,7 @@ const MAX = 2250;
 const TICK_PERCENT = 0.05;
 const FIVE_HOUR_MS = 5 * 60 * 60 * 1000;
 const MINUTE = 60_000;
+const DAY = 24 * 60 * MINUTE;
 
 function quotas(remaining: number): QuotasResponse {
   return {
@@ -30,6 +32,22 @@ function quotas(remaining: number): QuotasResponse {
 
 function snap(remaining: number, atMs: number): ProjectionSnapshot {
   return { quotas: quotas(remaining), updatedAt: atMs };
+}
+
+function weeklySnap(remaining: number, atMs: number): ProjectionSnapshot {
+  const capacity = 15.12;
+  return {
+    quotas: {
+      weeklyTokenLimit: {
+        nextRegenAt: new Date(atMs + DAY).toISOString(),
+        percentRemaining: (remaining / capacity) * 100,
+        maxCredits: `$${capacity.toFixed(2)}`,
+        remainingCredits: `$${remaining.toFixed(4)}`,
+        nextRegenCredits: "$2.16",
+      },
+    },
+    updatedAt: atMs,
+  };
 }
 
 describe("buildProjectionHints", () => {
@@ -152,5 +170,58 @@ describe("buildProjectionHints", () => {
     ];
     // currentAt - MAX_HISTORY_AGE_MS excludes the only candidate baseline.
     expect(buildProjectionHints(snapshots).size).toBe(0);
+  });
+
+  describe("weekly credits", () => {
+    it("requires at least one day of history", () => {
+      const hints = buildProjectionHints([
+        weeklySnap(4.536, 0),
+        weeklySnap(2.8728, 6 * 60 * MINUTE),
+      ]);
+      expect(hints.has(WEEKLY_TOKEN_LIMIT_ID)).toBe(false);
+    });
+
+    it("reports stable when daily regen covers daily usage", () => {
+      const hints = buildProjectionHints([
+        weeklySnap(2.8728, 0),
+        weeklySnap(2.8728, DAY),
+      ]);
+      expect(hints.get(WEEKLY_TOKEN_LIMIT_ID)).toEqual({ kind: "stable" });
+    });
+
+    it("projects one day ahead from the net daily drain", () => {
+      // Remaining falls from 30% to 19% across a full regen cycle. Continuing
+      // that net drain for another day leaves 8% remaining (92% used).
+      const hints = buildProjectionHints([
+        weeklySnap(4.536, 0),
+        weeklySnap(2.8728, DAY),
+      ]);
+      expect(hints.get(WEEKLY_TOKEN_LIMIT_ID)).toEqual({
+        kind: "projected",
+        usedPercent: 92,
+        horizonMs: DAY,
+      });
+    });
+
+    it("uses an older retained sample when daily samples are unavailable", () => {
+      const hints = buildProjectionHints([
+        weeklySnap(6, 0),
+        weeklySnap(3, 7 * DAY),
+      ]);
+      const hint = hints.get(WEEKLY_TOKEN_LIMIT_ID);
+      expect(hint?.kind).toBe("projected");
+      if (hint?.kind === "projected") {
+        expect(hint.usedPercent).toBeGreaterThan(80);
+        expect(hint.usedPercent).toBeLessThan(90);
+      }
+    });
+
+    it("rejects weekly samples older than the retained 14-day window", () => {
+      const hints = buildProjectionHints([
+        weeklySnap(6, 0),
+        weeklySnap(3, 14 * DAY + 1),
+      ]);
+      expect(hints.has(WEEKLY_TOKEN_LIMIT_ID)).toBe(false);
+    });
   });
 });

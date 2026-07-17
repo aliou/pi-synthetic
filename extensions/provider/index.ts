@@ -31,7 +31,6 @@ import {
   type SyntheticQuotasRequestPayload,
   type SyntheticQuotasSnapshotPayload,
 } from "../../src/types/quotas";
-import { buildProjectionHints } from "../../src/utils/quotas-projection";
 import { SYNTHETIC_OVERFLOW_PATTERN } from "./context-overflow";
 import {
   buildSyntheticProviderModels,
@@ -135,9 +134,7 @@ export default async function (pi: ExtensionAPI) {
     });
   });
 
-  // Attach refill-aware projections to read/request responses. Computed from
-  // the in-memory snapshot buffer; absent when there is insufficient history.
-  function snapshotWithProjections(
+  function toSnapshotPayload(
     snapshot: QuotaSnapshot | undefined,
   ): SyntheticQuotasSnapshotPayload | undefined {
     if (!snapshot) return undefined;
@@ -145,7 +142,6 @@ export default async function (pi: ExtensionAPI) {
       quotas: snapshot.quotas,
       source: snapshot.source,
       updatedAt: snapshot.updatedAt,
-      projections: buildProjectionHints(quotaStore.getRecentSnapshots()),
     };
   }
 
@@ -177,13 +173,13 @@ export default async function (pi: ExtensionAPI) {
     const payload = data as SyntheticQuotasRequestPayload | undefined;
     const snapshot = await quotaStore.refreshFromApi(fetchQuotasFromAuth);
     if (payload?.respond) {
-      payload.respond(snapshotWithProjections(snapshot));
+      payload.respond(toSnapshotPayload(snapshot));
     }
   });
 
   pi.events.on(SYNTHETIC_QUOTAS_READ_EVENT, (data: unknown) => {
     const { respond } = data as SyntheticQuotasReadPayload;
-    respond(snapshotWithProjections(quotaStore.getSnapshot()));
+    respond(toSnapshotPayload(quotaStore.getSnapshot()));
   });
 
   pi.on("session_before_switch", () => {

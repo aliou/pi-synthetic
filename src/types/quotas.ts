@@ -62,9 +62,6 @@ export interface SyntheticQuotasSnapshotPayload {
   quotas: QuotasResponse;
   source: QuotaSource;
   updatedAt: number; // epoch ms
-  /** Refill-aware projections keyed by quota window id (e.g. "rollingFiveHourLimit").
-   * Only present when the store has enough history to compute one. */
-  projections?: Map<string, ProjectionHint>;
 }
 
 export interface SyntheticQuotasUpdatedPayload

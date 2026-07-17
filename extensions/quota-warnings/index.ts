@@ -9,14 +9,18 @@ import {
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
 } from "../../src/config";
+import { QuotaHistory } from "../../src/services/quota-history";
 import { QuotaWarningNotifier } from "../../src/services/quota-warnings";
 import {
   SYNTHETIC_QUOTAS_READ_EVENT,
   SYNTHETIC_QUOTAS_REQUEST_EVENT,
+  SYNTHETIC_QUOTAS_UPDATED_EVENT,
   type SyntheticQuotasReadPayload,
   type SyntheticQuotasRequestPayload,
   type SyntheticQuotasSnapshotPayload,
+  type SyntheticQuotasUpdatedPayload,
 } from "../../src/types/quotas";
+import { buildProjectionHints } from "../../src/utils/quotas-projection";
 
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
@@ -24,6 +28,12 @@ export default async function (pi: ExtensionAPI) {
   let enabled = configLoader.getConfig().quotaWarnings;
 
   const notifier = new QuotaWarningNotifier();
+  const history = new QuotaHistory();
+  let historyReady = Promise.resolve();
+  if (enabled) {
+    historyReady = history.initialize();
+    await historyReady;
+  }
 
   function requestQuotas(
     respond?: (snapshot: SyntheticQuotasSnapshotPayload | undefined) => void,
@@ -41,33 +51,47 @@ export default async function (pi: ExtensionAPI) {
     } satisfies SyntheticQuotasReadPayload);
   }
 
+  async function evaluateSnapshot(
+    snapshot: SyntheticQuotasSnapshotPayload,
+    ctx: ExtensionContext,
+  ): Promise<void> {
+    await historyReady;
+    if (!enabled || ctx.model?.provider !== "synthetic") return;
+
+    history.record(snapshot);
+    const projections = buildProjectionHints(history.getSnapshots());
+    notifier.evaluate(
+      snapshot.quotas,
+      (message, level) => {
+        ctx.ui.notify(message, level);
+      },
+      projections,
+    );
+  }
+
   function evaluateFromStoreOrRefresh(ctx: ExtensionContext): void {
     if (!enabled || ctx.model?.provider !== "synthetic") return;
     readQuotas((snapshot) => {
       if (snapshot) {
-        notifier.evaluate(
-          snapshot.quotas,
-          snapshot.source === "header",
-          (message, level) => {
-            ctx.ui.notify(message, level);
-          },
-          snapshot.projections,
-        );
+        evaluateSnapshot(snapshot, ctx).catch(() => undefined);
       } else {
         requestQuotas((refreshed) => {
           if (!refreshed) return;
-          notifier.evaluate(
-            refreshed.quotas,
-            refreshed.source === "header",
-            (message, level) => {
-              ctx.ui.notify(message, level);
-            },
-            refreshed.projections,
-          );
+          evaluateSnapshot(refreshed, ctx).catch(() => undefined);
         });
       }
     });
   }
+
+  pi.events.on(SYNTHETIC_QUOTAS_UPDATED_EVENT, (data: unknown) => {
+    if (!enabled) return;
+    const snapshot = data as SyntheticQuotasUpdatedPayload;
+    historyReady
+      .then(() => {
+        if (enabled) history.record(snapshot);
+      })
+      .catch(() => undefined);
+  });
 
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
     const wasEnabled = enabled;
@@ -77,15 +101,12 @@ export default async function (pi: ExtensionAPI) {
     // config changes do not re-trigger one-time warnings.
     if (wasEnabled !== enabled) {
       notifier.clearAlertState();
+      if (enabled) historyReady = history.initialize();
     }
   });
 
-  // Note: we intentionally do NOT clearAlertState() on session_start or
-  // model_select. Quota state is account-wide and persists across sessions;
-  // clearing right before evaluate() would hit the first-time-seen path on
-  // every switch and bypass the cooldown. Clearing is reserved for genuine
-  // identity resets: session_before_switch, session_shutdown, or a config
-  // toggle (handled above).
+  // Alert transitions and quota history are account-wide, so neither is reset
+  // on session/model changes. The user can toggle warnings to reset alerts.
   pi.on("session_start", (_event, ctx) => {
     evaluateFromStoreOrRefresh(ctx);
   });
@@ -102,12 +123,12 @@ export default async function (pi: ExtensionAPI) {
     evaluateFromStoreOrRefresh(ctx);
   });
 
-  pi.on("session_before_switch", () => {
-    notifier.clearAlertState();
+  pi.on("session_before_switch", async () => {
+    await history.flush();
   });
 
-  pi.on("session_shutdown", () => {
-    notifier.clearAlertState();
+  pi.on("session_shutdown", async () => {
+    await history.flush();
   });
 
   pi.events.on(SYNTHETIC_EXTENSIONS_REQUEST_EVENT, () => {

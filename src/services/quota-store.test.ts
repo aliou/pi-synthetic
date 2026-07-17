@@ -95,37 +95,6 @@ describe("QuotaStore", () => {
     });
   });
 
-  describe("getRecentSnapshots", () => {
-    it("is empty before any ingest", () => {
-      const store = new QuotaStore();
-      expect(store.getRecentSnapshots()).toHaveLength(0);
-    });
-
-    it("accumulates one entry per successful ingest", () => {
-      const store = new QuotaStore();
-      store.ingest(sampleQuotas, "api");
-      vi.advanceTimersByTime(store.headerThrottleMs + 1);
-      store.ingest(sampleQuotas, "header");
-      store.ingest(sampleQuotas, "header"); // throttled, not appended
-
-      const history = store.getRecentSnapshots();
-      expect(history).toHaveLength(2);
-      expect(history[0].source).toBe("api");
-      expect(history[1].source).toBe("header");
-    });
-
-    it("is reset by clear", () => {
-      const store = new QuotaStore();
-      store.ingest(sampleQuotas, "api");
-      store.ingest(sampleQuotas, "api");
-      expect(store.getRecentSnapshots()).toHaveLength(2);
-
-      store.clear();
-
-      expect(store.getRecentSnapshots()).toHaveLength(0);
-    });
-  });
-
   describe("subscribe", () => {
     it("notifies subscribers on ingest", () => {
       const store = new QuotaStore();
