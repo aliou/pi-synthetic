@@ -34,8 +34,11 @@ function snap(remaining: number, atMs: number): ProjectionSnapshot {
   return { quotas: quotas(remaining), updatedAt: atMs };
 }
 
-function weeklySnap(remaining: number, atMs: number): ProjectionSnapshot {
-  const capacity = 15.12;
+function weeklySnap(
+  remaining: number,
+  atMs: number,
+  capacity = 15.12,
+): ProjectionSnapshot {
   return {
     quotas: {
       weeklyTokenLimit: {
@@ -196,24 +199,86 @@ describe("buildProjectionHints", () => {
         weeklySnap(4.536, 0),
         weeklySnap(2.8728, DAY),
       ]);
-      expect(hints.get(WEEKLY_TOKEN_LIMIT_ID)).toEqual({
+      const hint = hints.get(WEEKLY_TOKEN_LIMIT_ID);
+      expect(hint).toMatchObject({
+        kind: "projected",
+        usedPercent: 92,
+        horizonMs: DAY,
+      });
+      if (hint?.kind === "projected") {
+        expect(hint.timeToEmptyMs).toBeGreaterThan(DAY);
+      }
+    });
+
+    it("skips a sparse interval whose refill may have hit capacity", () => {
+      const hints = buildProjectionHints([
+        weeklySnap(6, 0),
+        weeklySnap(3, 7 * DAY),
+      ]);
+      expect(hints.has(WEEKLY_TOKEN_LIMIT_ID)).toBe(false);
+    });
+
+    it("uses a daily median so one noisy reading does not dominate", () => {
+      const hour = 60 * MINUTE;
+      const hints = buildProjectionHints([
+        weeklySnap(6, 0),
+        weeklySnap(6, hour),
+        weeklySnap(0, DAY),
+        weeklySnap(4.5, DAY + hour),
+        weeklySnap(4.5, DAY + 2 * hour),
+      ]);
+      expect(hints.get(WEEKLY_TOKEN_LIMIT_ID)).toMatchObject({
+        kind: "projected",
+        usedPercent: 80,
+        horizonMs: DAY,
+      });
+    });
+
+    it("does not extrapolate a sample less than one day old", () => {
+      const currentAt = 2 * DAY;
+      const hints = buildProjectionHints([
+        weeklySnap(4.5, currentAt - DAY),
+        weeklySnap(15, currentAt - 23 * 60 * MINUTE),
+        weeklySnap(3, currentAt),
+      ]);
+      expect(hints.get(WEEKLY_TOKEN_LIMIT_ID)).toMatchObject({
+        kind: "projected",
+        usedPercent: 90,
+        horizonMs: DAY,
+      });
+    });
+
+    it("uses older-capacity burn with the current capacity refill rate", () => {
+      const oldCapacity = 10;
+      const oldRemainingAfterOneDay = 8 + oldCapacity / 7 - 4;
+      const hints = buildProjectionHints([
+        weeklySnap(8, 0, oldCapacity),
+        weeklySnap(oldRemainingAfterOneDay, DAY, oldCapacity),
+        weeklySnap(3, DAY + DAY / 2),
+      ]);
+      expect(hints.get(WEEKLY_TOKEN_LIMIT_ID)).toMatchObject({
         kind: "projected",
         usedPercent: 92,
         horizonMs: DAY,
       });
     });
 
-    it("uses an older retained sample when daily samples are unavailable", () => {
+    it("does not treat a capacity transition as credit burn", () => {
+      const currentAt = 2 * DAY;
       const hints = buildProjectionHints([
-        weeklySnap(6, 0),
-        weeklySnap(3, 7 * DAY),
+        weeklySnap(6, 0, 10),
+        weeklySnap(3, currentAt),
       ]);
-      const hint = hints.get(WEEKLY_TOKEN_LIMIT_ID);
-      expect(hint?.kind).toBe("projected");
-      if (hint?.kind === "projected") {
-        expect(hint.usedPercent).toBeGreaterThan(80);
-        expect(hint.usedPercent).toBeLessThan(90);
-      }
+      expect(hints.has(WEEKLY_TOKEN_LIMIT_ID)).toBe(false);
+    });
+
+    it("does not infer burn from refill hidden by a full quota", () => {
+      const hints = buildProjectionHints([
+        weeklySnap(100, 0, 100),
+        weeklySnap(100, DAY, 100),
+        weeklySnap(10, DAY + DAY / 2, 50),
+      ]);
+      expect(hints.has(WEEKLY_TOKEN_LIMIT_ID)).toBe(false);
     });
 
     it("rejects weekly samples older than the retained 14-day window", () => {

@@ -250,6 +250,29 @@ describe("QuotaWarningNotifier", () => {
       ]);
       expect(msg).toMatch(/\(high\)/);
     });
+
+    it("states the horizon for refill-aware projections", () => {
+      const notifier = new QuotaWarningNotifier();
+      const window: QuotaWindow = {
+        id: "weeklyTokenLimit",
+        label: "Credits / week",
+        usedPercent: 88,
+        resetsAt: new Date(Date.now() + 60 * 60 * 1000),
+        windowSeconds: 7 * 24 * 3600,
+        usedValue: 88,
+        limitValue: 100,
+        showPace: false,
+      };
+      const assessment = assessWindow(window, {
+        kind: "projected",
+        usedPercent: 100,
+        horizonMs: 24 * 60 * 60 * 1000,
+        timeToEmptyMs: 20 * 60 * 60 * 1000,
+      });
+
+      const message = notifier.formatWarningMessage([{ window, assessment }]);
+      expect(message).toContain("projected to reach 100% in 20h (critical)");
+    });
   });
 
   describe("evaluate", () => {
@@ -433,6 +456,7 @@ describe("QuotaWarningNotifier", () => {
       notifier.evaluate(quotasAt(82), notify, projections);
       expect(calls).toHaveLength(1);
       expect(calls[0][0]).toContain("Requests / 5h");
+      expect(calls[0][0]).toContain("projected 86% in 1h");
     });
 
     it("escalates to critical when projected usage saturates", () => {

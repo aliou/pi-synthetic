@@ -86,12 +86,17 @@ export class QuotaWarningNotifier {
       const status = assessment.severity;
       const statusLabel = status !== "none" ? ` (${status})` : "";
       const projected = Math.round(assessment.projectedPercent);
+      const projectionText = formatProjectionText(
+        projected,
+        assessment.projectionHorizonMs,
+        assessment.timeToEmptyMs,
+      );
       const used = Math.round(window.usedPercent);
       const timeStr = formatTimeRemaining(window.resetsAt);
       const eventStr = window.nextAmount
         ? `${window.nextAmount} in ${timeStr}`
         : `${window.nextLabel ?? "Resets"} in ${timeStr}`;
-      return `- ${window.label}: ${used}% used, projected ${projected}%${statusLabel}, ${eventStr}`;
+      return `- ${window.label}: ${used}% used, ${projectionText}${statusLabel}, ${eventStr}`;
     });
     return `Synthetic quota warning:\n${lines.join("\n")}`;
   }
@@ -143,4 +148,35 @@ export class QuotaWarningNotifier {
 
     notify(message, notifyLevel);
   }
+}
+
+function formatProjectionText(
+  projectedPercent: number,
+  horizonMs: number | null,
+  timeToEmptyMs: number | null,
+): string {
+  if (!horizonMs) return `projected ${projectedPercent}%`;
+  if (timeToEmptyMs !== null && timeToEmptyMs <= horizonMs) {
+    return `projected to reach 100% in ${formatProjectionDuration(timeToEmptyMs)}`;
+  }
+
+  const horizon = formatProjectionDuration(horizonMs);
+  const exhaustion =
+    timeToEmptyMs === null
+      ? ""
+      : `; 100% in ${formatProjectionDuration(timeToEmptyMs)}`;
+  return `projected ${projectedPercent}% in ${horizon}${exhaustion}`;
+}
+
+function formatProjectionDuration(durationMs: number): string {
+  if (durationMs <= 0) return "now";
+  const totalMinutes = Math.max(1, Math.round(durationMs / 60_000));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const remainingAfterDays = totalMinutes % (24 * 60);
+  const hours = Math.floor(remainingAfterDays / 60);
+  const minutes = remainingAfterDays % 60;
+  if (days >= 2) return hours > 0 ? `${days}d${hours}h` : `${days}d`;
+  const totalHours = Math.floor(totalMinutes / 60);
+  if (totalHours === 0) return `${minutes}m`;
+  return minutes === 0 ? `${totalHours}h` : `${totalHours}h${minutes}m`;
 }
