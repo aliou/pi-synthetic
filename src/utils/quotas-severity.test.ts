@@ -333,6 +333,7 @@ describe("assessWindow", () => {
       const result = assessWindow(w, projected(86));
       expect(result.severity).toBe("warning");
       expect(result.projectedPercent).toBe(86);
+      expect(result.projectionHorizonMs).toBe(60 * 60 * 1000);
     });
 
     it("maps projected >= 90 to high", () => {

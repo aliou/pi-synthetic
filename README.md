@@ -98,7 +98,9 @@ When a Synthetic model is active, the footer status bar shows live quota usage (
 
 The extension automatically notifies you when you approach or exceed your Synthetic API quotas. Notifications fire on severity transitions and escalations, not as repeated reminders for the same level. Recovered quotas can notify again if they later become risky.
 
-When quota warnings are enabled, the extension keeps bounded local history to account for rolling refills and avoid extrapolating short usage bursts across weekly quotas. History is retained for 14 days, capped at 5 MiB, and stored under `$XDG_STATE_HOME/pi-synthetic/quota-history` or Pi's agent state directory. No history directory is created while quota warnings are disabled.
+When quota warnings are enabled, the extension keeps bounded local history to account for rolling refills and avoid extrapolating short usage bursts across weekly quotas. Weekly projections estimate recent credit burn from daily trends across capacity tiers without treating capacity changes as usage, then apply the current tier's refill rate. Warning messages state the projection horizon. History is retained for 14 days, capped at 5 MiB, and stored under `$XDG_STATE_HOME/pi-synthetic/quota-history` or Pi's agent state directory. No history directory is created while quota warnings are disabled.
+
+For weekly credits and rolling five-hour requests, projections warn at 80%, become high at 90%, and critical when exhaustion is projected within the 24-hour or one-hour horizon respectively. Warnings also show the estimated time to 100% when usage is draining faster than it refills. Without enough history, these windows fall back to the same thresholds using current usage.
 
 ## Disabling Features
 

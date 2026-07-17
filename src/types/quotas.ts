@@ -44,11 +44,17 @@ export type QuotasResponse = Static<typeof QuotasResponseSchema>;
  * - `stable`: net drain <= 0; the quota is refilling at least as fast as it is
  *   being consumed, so no forward-looking warning is warranted.
  * - `projected`: net drain > 0; `usedPercent` is where usage is expected to be
- *   after `horizonMs`, accounting for both burn and refill.
+ *   after `horizonMs`, accounting for both burn and refill. `timeToEmptyMs`
+ *   estimates when remaining quota reaches zero at the same net drain rate.
  */
 export type ProjectionHint =
   | { kind: "stable" }
-  | { kind: "projected"; usedPercent: number; horizonMs: number };
+  | {
+      kind: "projected";
+      usedPercent: number;
+      horizonMs: number;
+      timeToEmptyMs?: number;
+    };
 
 export const SYNTHETIC_QUOTAS_UPDATED_EVENT =
   "synthetic:quotas:updated" as const;

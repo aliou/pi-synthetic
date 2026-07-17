@@ -23,6 +23,8 @@ export interface WindowProjection {
   pacePercent: number | null;
   progress: number | null; // 0..1
   projectedPercent: number; // 0..+
+  projectionHorizonMs: number | null;
+  timeToEmptyMs: number | null;
   usedPercent: number;
 }
 
@@ -184,6 +186,8 @@ export function assessWindow(
     pacePercent,
     progress,
     projectedPercent,
+    projectionHorizonMs: null,
+    timeToEmptyMs: null,
     usedPercent: window.usedPercent,
   };
 
@@ -196,6 +200,8 @@ export function assessWindow(
   if (progress === null) {
     let severity: RiskSeverity = "none";
     let effectiveProjected = projectedPercent;
+    let projectionHorizonMs: number | null = null;
+    let timeToEmptyMs: number | null = null;
 
     if (window.limited) {
       severity = "critical";
@@ -205,6 +211,8 @@ export function assessWindow(
         severity = "none";
       } else {
         effectiveProjected = projection.usedPercent;
+        projectionHorizonMs = projection.horizonMs;
+        timeToEmptyMs = projection.timeToEmptyMs ?? null;
         if (effectiveProjected >= 100) severity = "critical";
         else if (effectiveProjected >= 90) severity = "high";
         else if (effectiveProjected >= 80) severity = "warning";
@@ -220,6 +228,8 @@ export function assessWindow(
     return {
       ...base,
       projectedPercent: effectiveProjected,
+      projectionHorizonMs,
+      timeToEmptyMs,
       usedFloorPercent: null,
       warnProjectedPercent: 80,
       highProjectedPercent: 90,

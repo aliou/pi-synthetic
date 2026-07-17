@@ -10,6 +10,7 @@ const FIVE_HOUR_MIN_SAMPLE_MS = 5 * 60 * 1000;
 const FIVE_HOUR_MAX_HISTORY_MS = 72 * HOUR_MS;
 const WEEKLY_MIN_SAMPLE_MS = DAY_MS;
 const WEEKLY_MAX_HISTORY_MS = 14 * DAY_MS;
+const WEEKLY_BURN_HALF_LIFE_MS = 3 * DAY_MS;
 
 export const ROLLING_FIVE_HOUR_ID = "rollingFiveHourLimit" as const;
 export const WEEKLY_TOKEN_LIMIT_ID = "weeklyTokenLimit" as const;
@@ -32,14 +33,19 @@ interface Sample {
   projectionHorizonMs: number;
 }
 
+interface DailyBurnRates {
+  latestAt: number;
+  rates: number[];
+}
+
 /**
  * Build refill-aware hints for rolling requests and weekly credits.
  *
  * The 5-hour window uses samples at least five minutes apart and projects one
- * hour ahead. Weekly credits require at least a full day between samples so a
- * short burst is not extrapolated across the week; they project one day ahead.
- * If only older weekly samples are available, the most recent sample within
- * the retained 14-day history is used.
+ * hour ahead. Weekly credits estimate absolute credit burn from daily trends,
+ * including trends from older capacity tiers, then apply the current tier's
+ * refill rate and project one day ahead. Capacity transitions themselves are
+ * never treated as usage.
  */
 export function buildProjectionHints(
   snapshots: readonly ProjectionSnapshot[],
@@ -102,18 +108,27 @@ function weeklySample(snapshot: ProjectionSnapshot): Sample | undefined {
   if (!quota) return undefined;
   const capacity = parseCurrency(quota.maxCredits);
   const remaining = parseCurrency(quota.remainingCredits);
-  if (capacity <= 0 || remaining < 0) return undefined;
+  const refillAmount = parseCurrency(quota.nextRegenCredits);
+  if (
+    capacity <= 0 ||
+    remaining < 0 ||
+    refillAmount <= 0 ||
+    refillAmount > capacity
+  ) {
+    return undefined;
+  }
 
-  // Weekly credits replenish by one full capacity over seven days. Requiring
-  // a one-day observation interval includes a complete daily regen cycle and
-  // prevents a single request burst from driving the weekly projection.
+  // All weekly regen ticks replenish one full capacity over seven days. Infer
+  // this tier's tick interval from its API-provided amount rather than assuming
+  // a particular subscription capacity or regen amount.
+  const refillIntervalMs = (refillAmount / capacity) * WEEK_MS;
   return {
     id: WEEKLY_TOKEN_LIMIT_ID,
     at: snapshot.updatedAt,
     remaining,
     capacity,
-    refillAmount: capacity,
-    refillIntervalMs: WEEK_MS,
+    refillAmount,
+    refillIntervalMs,
     minSampleSeparationMs: WEEKLY_MIN_SAMPLE_MS,
     maxHistoryAgeMs: WEEKLY_MAX_HISTORY_MS,
     projectionHorizonMs: DAY_MS,
@@ -124,31 +139,22 @@ function projectionForSample(
   current: Sample,
   samples: readonly Sample[],
 ): ProjectionHint | null {
-  const minAt = current.at - current.maxHistoryAgeMs;
-  let previous: Sample | undefined;
-  for (let index = samples.length - 1; index >= 0; index--) {
-    const sample = samples[index];
-    if (sample.id !== current.id || sample.capacity !== current.capacity) {
-      continue;
-    }
-    if (
-      sample.at <= current.at - current.minSampleSeparationMs &&
-      sample.at >= minAt
-    ) {
-      previous = sample;
-      break;
-    }
+  if (current.id === WEEKLY_TOKEN_LIMIT_ID) {
+    return weeklyProjectionForSample(current, samples);
   }
-  if (!previous) return null;
 
-  const elapsedMs = current.at - previous.at;
-  if (elapsedMs <= 0) return null;
+  const minAt = current.at - current.maxHistoryAgeMs;
+  const previousSamples = samples.filter(
+    (sample) =>
+      sample.id === current.id &&
+      sample.capacity === current.capacity &&
+      sample.at <= current.at - current.minSampleSeparationMs &&
+      sample.at >= minAt,
+  );
+  if (previousSamples.length === 0) return null;
 
-  const refillRate = current.refillAmount / current.refillIntervalMs;
-  const expectedRefill = refillRate * elapsedMs;
-  const remainingDelta = current.remaining - previous.remaining;
-  const grossBurn = Math.max(0, expectedRefill - remainingDelta);
-  const netDrainRate = grossBurn / elapsedMs - refillRate;
+  const previous = previousSamples[previousSamples.length - 1];
+  const netDrainRate = netDrainRateBetween(previous, current);
   if (netDrainRate <= 0) return { kind: "stable" };
 
   const projectedRemaining = clamp(
@@ -160,7 +166,116 @@ function projectionForSample(
     kind: "projected",
     usedPercent: Math.round((1 - projectedRemaining / current.capacity) * 100),
     horizonMs: current.projectionHorizonMs,
+    timeToEmptyMs: current.remaining / netDrainRate,
   };
+}
+
+function weeklyProjectionForSample(
+  current: Sample,
+  samples: readonly Sample[],
+): ProjectionHint | null {
+  const minAt = current.at - current.maxHistoryAgeMs;
+  const weeklySamples = samples.filter(
+    (sample) =>
+      sample.id === WEEKLY_TOKEN_LIMIT_ID &&
+      sample.at >= minAt &&
+      sample.at <= current.at,
+  );
+  const ratesByDay = new Map<string, DailyBurnRates>();
+
+  let runStart = 0;
+  let baselineIndex = 0;
+  for (let index = 0; index < weeklySamples.length; index++) {
+    const endpoint = weeklySamples[index];
+    if (index > 0 && weeklySamples[index - 1].capacity !== endpoint.capacity) {
+      runStart = index;
+      baselineIndex = index;
+    }
+
+    const latestBaselineAt = endpoint.at - WEEKLY_MIN_SAMPLE_MS;
+    while (
+      baselineIndex + 1 < index &&
+      weeklySamples[baselineIndex + 1].at <= latestBaselineAt
+    ) {
+      baselineIndex++;
+    }
+    if (
+      baselineIndex < runStart ||
+      baselineIndex >= index ||
+      weeklySamples[baselineIndex].at > latestBaselineAt
+    ) {
+      continue;
+    }
+
+    const rate = grossBurnRateBetween(weeklySamples[baselineIndex], endpoint);
+    if (rate === undefined) continue;
+    const day = new Date(endpoint.at).toISOString().slice(0, 10);
+    const bucket = ratesByDay.get(day) ?? { latestAt: endpoint.at, rates: [] };
+    bucket.latestAt = Math.max(bucket.latestAt, endpoint.at);
+    bucket.rates.push(rate);
+    ratesByDay.set(day, bucket);
+  }
+
+  if (ratesByDay.size === 0) return null;
+
+  let weightedBurnRate = 0;
+  let totalWeight = 0;
+  for (const bucket of ratesByDay.values()) {
+    const ageMs = Math.max(0, current.at - bucket.latestAt);
+    const weight = 2 ** (-ageMs / WEEKLY_BURN_HALF_LIFE_MS);
+    weightedBurnRate += median(bucket.rates) * weight;
+    totalWeight += weight;
+  }
+  if (totalWeight <= 0) return null;
+
+  const grossBurnRate = weightedBurnRate / totalWeight;
+  const currentRefillRate = current.refillAmount / current.refillIntervalMs;
+  const netDrainRate = grossBurnRate - currentRefillRate;
+  if (netDrainRate <= 0) return { kind: "stable" };
+
+  const projectedRemaining = clamp(
+    current.remaining - netDrainRate * current.projectionHorizonMs,
+    0,
+    current.capacity,
+  );
+  return {
+    kind: "projected",
+    usedPercent: Math.round((1 - projectedRemaining / current.capacity) * 100),
+    horizonMs: current.projectionHorizonMs,
+    timeToEmptyMs: current.remaining / netDrainRate,
+  };
+}
+
+function netDrainRateBetween(previous: Sample, current: Sample): number {
+  const elapsedMs = current.at - previous.at;
+  const refillRate = current.refillAmount / current.refillIntervalMs;
+  const expectedRefill = refillRate * elapsedMs;
+  const remainingDelta = current.remaining - previous.remaining;
+  const grossBurn = Math.max(0, expectedRefill - remainingDelta);
+  return grossBurn / elapsedMs - refillRate;
+}
+
+function grossBurnRateBetween(
+  previous: Sample,
+  current: Sample,
+): number | undefined {
+  const elapsedMs = current.at - previous.at;
+  const refillRate = current.refillAmount / current.refillIntervalMs;
+  const expectedRefill = refillRate * elapsedMs;
+  const refillHeadroom = Math.max(0, current.capacity - previous.remaining);
+  // Once expected refill exceeds the starting headroom, some refill may have
+  // been hidden by the capacity ceiling. Skip the ambiguous interval instead
+  // of inventing burn from refill that may never have landed.
+  if (expectedRefill > refillHeadroom) return undefined;
+  const remainingDelta = current.remaining - previous.remaining;
+  return Math.max(0, expectedRefill - remainingDelta) / elapsedMs;
+}
+
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[middle];
+  return (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 function clamp(value: number, min: number, max: number): number {
