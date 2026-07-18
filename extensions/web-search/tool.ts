@@ -16,12 +16,16 @@ import {
   resolveSyntheticClientOptions,
   SyntheticClient,
   type SyntheticSearchResponse,
+  type SyntheticSearchResult,
 } from "../../src/client";
 import { configLoader } from "../../src/config";
 
 export const SYNTHETIC_WEB_SEARCH_TOOL = "synthetic_web_search" as const;
+const MAX_INLINE_SEARCH_BYTES = 20_000;
+const MAX_INLINE_SEARCH_RESULT_BYTES = 4_000;
+const MAX_INLINE_SEARCH_RESULT_LINES = 1_000;
 
-interface WebSearchResultDetails {
+export interface WebSearchResultDetails {
   title: string;
   url: string;
   published: string;
@@ -29,6 +33,7 @@ interface WebSearchResultDetails {
   tempFilePath?: string;
   totalLines: number;
   totalBytes: number;
+  excerptBytes: number;
 }
 
 interface WebSearchDetails {
@@ -44,10 +49,115 @@ const SearchParams = Type.Object({
 
 type SearchParamsType = Static<typeof SearchParams>;
 
+type WriteSearchResultFile = (
+  path: string,
+  content: string,
+  encoding: "utf8",
+) => Promise<void>;
+
+interface FormatWebSearchResultsOptions {
+  maxInlineBytes?: number;
+  maxInlineBytesPerResult?: number;
+  writeResultFile?: WriteSearchResultFile;
+}
+
+function truncateUtf8(value: string, maxBytes: number): string {
+  let content = "";
+  let bytes = 0;
+
+  for (const character of value) {
+    const characterBytes = Buffer.byteLength(character);
+    if (bytes + characterBytes > maxBytes) {
+      break;
+    }
+    content += character;
+    bytes += characterBytes;
+  }
+
+  return content;
+}
+
+export async function formatWebSearchResults(
+  results: SyntheticSearchResult[],
+  {
+    maxInlineBytes = MAX_INLINE_SEARCH_BYTES,
+    maxInlineBytesPerResult = MAX_INLINE_SEARCH_RESULT_BYTES,
+    writeResultFile = writeFile,
+  }: FormatWebSearchResultsOptions = {},
+): Promise<{
+  content: string;
+  resultDetails: WebSearchResultDetails[];
+  maxBytesPerResult: number;
+}> {
+  const maxBytesPerResult =
+    results.length === 0
+      ? 0
+      : Math.min(
+          maxInlineBytesPerResult,
+          Math.floor(maxInlineBytes / results.length),
+        );
+  let content = `Found ${results.length} result(s):\n\n`;
+  const resultDetails: WebSearchResultDetails[] = [];
+
+  for (const result of results) {
+    const slug = result.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 40);
+    const truncation = truncateHead(result.text, {
+      maxLines: MAX_INLINE_SEARCH_RESULT_LINES,
+      maxBytes: maxBytesPerResult,
+    });
+
+    let inline = truncation.content;
+    let tempFilePath: string | undefined;
+    let excerptBytes = Buffer.byteLength(inline);
+
+    if (truncation.truncated) {
+      // truncateHead preserves complete lines. Fall back to a byte-safe prefix
+      // when a single line is larger than the shared result budget.
+      if (!inline) {
+        inline = truncateUtf8(result.text, maxBytesPerResult);
+      }
+      excerptBytes = Buffer.byteLength(inline);
+
+      // Keep an equally sized excerpt for every result, while preserving the
+      // complete response outside the model context for targeted follow-up.
+      tempFilePath = join(
+        tmpdir(),
+        `pi-synthetic-search-${slug}-${randomBytes(4).toString("hex")}.md`,
+      );
+      await writeResultFile(tempFilePath, result.text, "utf8");
+      const separator = inline ? "\n\n" : "";
+      inline += `${separator}[Content truncated to ${formatSize(excerptBytes)}. Full result saved to: ${tempFilePath}. Use the read tool to inspect it.]`;
+    }
+
+    content += `## ${result.title}\n`;
+    content += `URL: ${result.url}\n`;
+    content += `Published: ${result.published}\n`;
+    content += `\n${inline}\n`;
+    content += "\n---\n\n";
+
+    resultDetails.push({
+      title: result.title,
+      url: result.url,
+      published: result.published,
+      truncated: truncation.truncated,
+      tempFilePath,
+      totalLines: truncation.totalLines,
+      totalBytes: truncation.totalBytes,
+      excerptBytes,
+    });
+  }
+
+  return { content, resultDetails, maxBytesPerResult };
+}
+
 export const syntheticWebSearchTool = defineTool({
   name: SYNTHETIC_WEB_SEARCH_TOOL,
   label: "Synthetic: Web Search",
-  description: `Search the web using Synthetic's zero-data-retention API. Returns search results with titles, URLs, content snippets, and publication dates. Use for finding documentation, articles, recent information, or any web content. Results are fresh and not cached by Synthetic. Results exceeding 1000 lines or 25KB are saved to temp files and referenced inline (use the read tool to inspect). Shorter results are included inline.`,
+  description: `Search the web using Synthetic's zero-data-retention API. Returns search results with titles, URLs, content snippets, and publication dates. Use for finding documentation, articles, recent information, or any web content. Results are fresh and not cached by Synthetic. Body excerpts share a 20KB budget, with an equal 4KB maximum per result. Larger results include a bounded excerpt and are saved to temp files for full inspection with the read tool.`,
   promptSnippet: "Search the web using Synthetic's zero-data-retention API",
   promptGuidelines: [
     "Use synthetic_web_search for finding documentation, articles, recent information, or any web content.",
@@ -87,54 +197,9 @@ export const syntheticWebSearchTool = defineTool({
       throw new Error(`Synthetic web search: ${message}`);
     }
 
-    let content = `Found ${data.results.length} result(s):\n\n`;
-    const resultDetails: WebSearchResultDetails[] = [];
-
-    for (let i = 0; i < data.results.length; i++) {
-      const result = data.results[i];
-      const slug = result.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "")
-        .slice(0, 40);
-      const truncation = truncateHead(result.text, {
-        maxLines: 1000,
-        maxBytes: 25_000,
-      });
-
-      let inline: string;
-      let tempFilePath: string | undefined;
-
-      if (truncation.truncated) {
-        // Result exceeds limits — write full content to a temp file
-        // and only reference it inline to avoid eating LLM context
-        tempFilePath = join(
-          tmpdir(),
-          `pi-synthetic-search-${slug}-${randomBytes(4).toString("hex")}.md`,
-        );
-        await writeFile(tempFilePath, result.text, "utf8");
-        inline = `[Result too large: ${truncation.totalLines} lines, ${formatSize(truncation.totalBytes)}. Full result saved to: ${tempFilePath}. Use the read tool to inspect it.]`;
-      } else {
-        // Result fits within limits — include inline
-        inline = truncation.content;
-      }
-
-      content += `## ${result.title}\n`;
-      content += `URL: ${result.url}\n`;
-      content += `Published: ${result.published}\n`;
-      content += `\n${inline}\n`;
-      content += "\n---\n\n";
-
-      resultDetails.push({
-        title: result.title,
-        url: result.url,
-        published: result.published,
-        truncated: truncation.truncated,
-        tempFilePath,
-        totalLines: truncation.totalLines,
-        totalBytes: truncation.totalBytes,
-      });
-    }
+    const { content, resultDetails } = await formatWebSearchResults(
+      data.results,
+    );
 
     return {
       content: [{ type: "text", text: content }],
@@ -192,7 +257,7 @@ export const syntheticWebSearchTool = defineTool({
       // Collapsed: show result count + first result title
       let text = theme.fg("success", `Found ${results.length} result(s)`);
       if (hasTruncation) {
-        text += theme.fg("warning", " (offloaded)");
+        text += theme.fg("warning", " (excerpted)");
       }
       const first = results[0];
       if (first) {
@@ -236,7 +301,7 @@ export const syntheticWebSearchTool = defineTool({
         if (r.truncated) {
           container.addChild(
             new Text(
-              `  ${theme.fg("warning", `Offloaded: ${r.totalLines} lines, ${formatSize(r.totalBytes)}. Full result: ${r.tempFilePath}`)}`,
+              `  ${theme.fg("warning", `Excerpted: ${formatSize(r.excerptBytes)} of ${formatSize(r.totalBytes)}. Full result: ${r.tempFilePath}`)}`,
               0,
               0,
             ),
@@ -253,7 +318,7 @@ export const syntheticWebSearchTool = defineTool({
     if (hasTruncation) {
       const truncatedCount = results.filter((r) => r.truncated).length;
       footerItems.push({
-        label: "offloaded",
+        label: "excerpted",
         value: `${truncatedCount}`,
       });
     }
