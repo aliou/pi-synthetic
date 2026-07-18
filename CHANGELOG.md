@@ -1,5 +1,12 @@
 # @aliou/pi-synthetic
 
+## 0.23.1
+
+### Patch Changes
+
+- 09c258b: Bound web search excerpts with equal per-result limits and preserve full results in temp files.
+- ae4d2e0: Use bounded refill-aware history for quota warnings and notify only on risk transitions.
+
 ## 0.23.0
 
 ### Minor Changes
