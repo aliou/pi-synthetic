@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.24.1
+
+### Patch Changes
+
+- a1fc227: Remove MiniMax M3 from the fallback model catalog after its removal from the Synthetic API.
+
 ## 0.24.0
 
 ### Minor Changes
