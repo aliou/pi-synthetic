@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.24.2
+
+### Patch Changes
+
+- d54331b: Update Synthetic model pricing for syn:small:vision and hf:Qwen/Qwen3.6-27B.
+
 ## 0.24.1
 
 ### Patch Changes
