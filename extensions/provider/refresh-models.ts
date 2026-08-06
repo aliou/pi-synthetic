@@ -4,6 +4,7 @@ import type {
   buildSyntheticProviderModelsFromApi,
   buildSyntheticProviderModelsFromStore,
 } from "./models";
+import { persistModels, readStoredModels } from "./refresh-store-compat";
 
 type StaticModels = ReturnType<typeof buildSyntheticProviderModels>;
 type BuiltModels = ReturnType<typeof buildSyntheticProviderModelsFromApi>;
@@ -24,7 +25,7 @@ async function readCachedModels(
   context: RefreshModelsContext,
 ): Promise<CachedModels | undefined> {
   try {
-    const entry = await context.store.read();
+    const entry = await readStoredModels(context);
     if (!entry || entry.models.length === 0) return undefined;
     return {
       models: entry.models as unknown[],
@@ -68,8 +69,10 @@ export function createSyntheticRefreshModels(
 
       const models = buildFromApi(apiModels);
 
+      context.signal?.throwIfAborted();
+
       try {
-        await context.store.write({
+        await persistModels(context, {
           models: models as unknown as Model<Api>[],
           checkedAt: Date.now(),
         });

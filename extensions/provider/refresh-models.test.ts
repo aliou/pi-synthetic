@@ -21,11 +21,28 @@ function createContext(
 ): RefreshModelsContext {
   const written: Array<{ models: unknown[]; checkedAt: number }> = [];
 
+  // Provide both the 0.84 (stored/publish) and legacy (store) refresh-context
+  // shapes so the tests exercise the runtime shape-detection shim.
   return {
     credential: options.credential,
     allowNetwork: options.allowNetwork ?? true,
     force: options.force ?? false,
     signal: new AbortController().signal,
+    stored: options.store
+      ? {
+          models: options.store.models ?? [],
+          checkedAt: options.store.checkedAt,
+        }
+      : undefined,
+    publish: vi.fn(async (publication) => {
+      if (publication.persist) {
+        written.push({
+          models: publication.persist.models as unknown[],
+          checkedAt: publication.persist.checkedAt ?? 0,
+        });
+      }
+      return true;
+    }),
     store: {
       read: vi.fn(async () =>
         options.store
