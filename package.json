@@ -31,6 +31,7 @@
   "files": [
     "src",
     "extensions",
+    "schema.json",
     "README.md",
     "!src/**/*.test.ts",
     "!extensions/**/*.test.ts"
@@ -47,6 +48,8 @@
     "format": "biome check --write",
     "test": "vitest run",
     "test:watch": "vitest",
+    "gen:schema": "pi-settings-schema -p src/config.ts -t SyntheticConfig -o schema.json --version $(node -p 'require(\"./package.json\").version')",
+    "check:schema": "pnpm gen:schema --check",
     "check:lockfile": "pnpm install --frozen-lockfile --ignore-scripts",
     "prepare": "[ -d .git ] && husky || true",
     "changeset": "changeset",
@@ -54,7 +57,7 @@
     "release": "pnpm changeset publish"
   },
   "dependencies": {
-    "@aliou/pi-utils-settings": "^0.15.0",
+    "@aliou/pi-utils-settings": "^0.19.1",
     "@aliou/pi-utils-ui": "^0.4.0"
   },
   "devDependencies": {
@@ -66,6 +69,7 @@
     "@earendil-works/pi-tui": "0.84.0",
     "@types/node": "^25.0.10",
     "husky": "^9.1.7",
+    "ts-json-schema-generator": "^2.9.0",
     "tsx": "^4.19.0",
     "typebox": "^1.1.37",
     "typescript": "^5.9.3",
@@ -75,7 +79,12 @@
     "overrides": {
       "@earendil-works/pi-ai": "$@earendil-works/pi-coding-agent",
       "@earendil-works/pi-tui": "$@earendil-works/pi-coding-agent"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "@google/genai",
+      "esbuild",
+      "protobufjs"
+    ]
   },
   "peerDependenciesMeta": {
     "@earendil-works/pi-ai": {

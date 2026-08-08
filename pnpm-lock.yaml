@@ -13,8 +13,8 @@ importers:
   .:
     dependencies:
       '@aliou/pi-utils-settings':
-        specifier: ^0.15.0
-        version: 0.15.1(@earendil-works/pi-coding-agent@0.84.0(ws@8.19.0)(zod@3.25.76))(@earendil-works/pi-tui@0.84.0)
+        specifier: ^0.19.1
+        version: 0.19.1(@earendil-works/pi-coding-agent@0.84.0(ws@8.19.0)(zod@3.25.76))(@earendil-works/pi-tui@0.84.0)(ts-json-schema-generator@2.9.0)
       '@aliou/pi-utils-ui':
         specifier: ^0.4.0
         version: 0.4.1(@earendil-works/pi-coding-agent@0.84.0(ws@8.19.0)(zod@3.25.76))(@earendil-works/pi-tui@0.84.0)
@@ -43,6 +43,9 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      ts-json-schema-generator:
+        specifier: ^2.9.0
+        version: 2.9.0
       tsx:
         specifier: ^4.19.0
         version: 4.23.1
@@ -63,12 +66,16 @@ packages:
     peerDependencies:
       '@biomejs/biome': '>=2.4.0'
 
-  '@aliou/pi-utils-settings@0.15.1':
-    resolution: {integrity: sha512-oECJ4c/BaYQvzMKHVuNg2HJOd9Fh4+mWglKOqeDfu8mu28VYpJqMrAOqgOh3XWPTb2cPWzlavPEjFZ2FzUBBQg==}
+  '@aliou/pi-utils-settings@0.19.1':
+    resolution: {integrity: sha512-bAx2v1GSiqhj+Z9eU+Ixn1NJDVRp6e/h8bBFcWrKl6CnfbD1AfFgT/I4nNOzwZy0VgxnZLAqPFHbV184Ii9vaw==}
+    hasBin: true
     peerDependencies:
       '@earendil-works/pi-coding-agent': '>=0.74.0 <1'
+      ts-json-schema-generator: '>=2.4.0 <3'
     peerDependenciesMeta:
       '@earendil-works/pi-coding-agent':
+        optional: true
+      ts-json-schema-generator:
         optional: true
 
   '@aliou/pi-utils-ui@0.4.1':
@@ -985,6 +992,9 @@ packages:
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
+  '@types/json-schema@7.0.15':
+    resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
+
   '@types/node@12.20.55':
     resolution: {integrity: sha512-J8xLz7q2OFulZ2cyGTLE1TbbZcjpno7FaN6zdJNrgAdrJ+DZzh/uFR6YrTb4C+nXakvud8Q4+rbhoIWlYQbUFQ==}
 
@@ -1116,6 +1126,10 @@ packages:
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
+
+  commander@14.0.3:
+    resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
+    engines: {node: '>=20'}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -1382,6 +1396,11 @@ packages:
     resolution: {integrity: sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g==}
     engines: {node: '>=16'}
 
+  json5@2.2.3:
+    resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
+    engines: {node: '>=6'}
+    hasBin: true
+
   jsonfile@4.0.0:
     resolution: {integrity: sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg==}
 
@@ -1456,6 +1475,10 @@ packages:
   node-fetch@3.3.2:
     resolution: {integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  normalize-path@3.0.0:
+    resolution: {integrity: sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==}
+    engines: {node: '>=0.10.0'}
 
   obug@2.1.1:
     resolution: {integrity: sha512-uTqF9MuPraAQ+IsnPf366RG4cP9RtUi7MLO1N3KEc+wb0a6yKpeL0lmk2IB1jY5KHPAlTc6T/JRdC/YqxHNwkQ==}
@@ -1607,6 +1630,10 @@ packages:
   safe-buffer@5.2.1:
     resolution: {integrity: sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==}
 
+  safe-stable-stringify@2.5.0:
+    resolution: {integrity: sha512-b3rppTKm9T+PsVCBEOUR46GWI7fdOs00VKZ1+9c1EWDaDMvjQc6tUwuFyIprgGgTcWoVHSKrU8H31ZHA2e0RHA==}
+    engines: {node: '>=10'}
+
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
@@ -1706,6 +1733,11 @@ packages:
 
   ts-algebra@2.0.0:
     resolution: {integrity: sha512-FPAhNPFMrkwz76P7cdjdmiShwMynZYN6SgOujD1urY4oNm80Ou9oMdmbR45LotcKOXoy7wSmHkRFE6Mxbrhefw==}
+
+  ts-json-schema-generator@2.9.0:
+    resolution: {integrity: sha512-NR5ZE108uiPtBHBJNGnhwoUaUx5vWTDJzDFG9YlRoqxPU76n+5FClRh92dcGgysbe1smRmYalM9Saj97GW1J4Q==}
+    engines: {node: '>=22.0.0'}
+    hasBin: true
 
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
@@ -1868,11 +1900,12 @@ snapshots:
     dependencies:
       '@biomejs/biome': 2.5.2
 
-  '@aliou/pi-utils-settings@0.15.1(@earendil-works/pi-coding-agent@0.84.0(ws@8.19.0)(zod@3.25.76))(@earendil-works/pi-tui@0.84.0)':
+  '@aliou/pi-utils-settings@0.19.1(@earendil-works/pi-coding-agent@0.84.0(ws@8.19.0)(zod@3.25.76))(@earendil-works/pi-tui@0.84.0)(ts-json-schema-generator@2.9.0)':
     dependencies:
       '@aliou/pi-utils-ui': 0.4.1(@earendil-works/pi-coding-agent@0.84.0(ws@8.19.0)(zod@3.25.76))(@earendil-works/pi-tui@0.84.0)
     optionalDependencies:
       '@earendil-works/pi-coding-agent': 0.84.0(ws@8.19.0)(zod@3.25.76)
+      ts-json-schema-generator: 2.9.0
     transitivePeerDependencies:
       - '@earendil-works/pi-tui'
 
@@ -2820,6 +2853,8 @@ snapshots:
 
   '@types/estree@1.0.8': {}
 
+  '@types/json-schema@7.0.15': {}
+
   '@types/node@12.20.55': {}
 
   '@types/node@25.1.0':
@@ -2932,6 +2967,8 @@ snapshots:
       color-name: 1.1.4
 
   color-name@1.1.4: {}
+
+  commander@14.0.3: {}
 
   cross-spawn@7.0.6:
     dependencies:
@@ -3254,6 +3291,8 @@ snapshots:
       '@babel/runtime': 7.28.6
       ts-algebra: 2.0.0
 
+  json5@2.2.3: {}
+
   jsonfile@4.0.0:
     optionalDependencies:
       graceful-fs: 4.2.11
@@ -3317,6 +3356,8 @@ snapshots:
       data-uri-to-buffer: 4.0.1
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
+
+  normalize-path@3.0.0: {}
 
   obug@2.1.1: {}
 
@@ -3473,6 +3514,8 @@ snapshots:
 
   safe-buffer@5.2.1: {}
 
+  safe-stable-stringify@2.5.0: {}
+
   safer-buffer@2.1.2: {}
 
   semver@7.7.3: {}
@@ -3548,6 +3591,17 @@ snapshots:
       is-number: 7.0.0
 
   ts-algebra@2.0.0: {}
+
+  ts-json-schema-generator@2.9.0:
+    dependencies:
+      '@types/json-schema': 7.0.15
+      commander: 14.0.3
+      glob: 13.0.6
+      json5: 2.2.3
+      normalize-path: 3.0.0
+      safe-stable-stringify: 2.5.0
+      tslib: 2.8.1
+      typescript: 5.9.3
 
   tslib@2.8.1: {}
 

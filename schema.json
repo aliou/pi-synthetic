@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/SyntheticConfig",
+  "definitions": {
+    "SyntheticConfig": {
+      "type": "object",
+      "properties": {
+        "configVersion": {
+          "type": "string"
+        },
+        "webSearch": {
+          "type": "boolean"
+        },
+        "quotasCommand": {
+          "type": "boolean"
+        },
+        "usageStatus": {
+          "type": "boolean"
+        },
+        "quotaWarnings": {
+          "type": "boolean"
+        },
+        "subBarIntegration": {
+          "type": "boolean"
+        },
+        "proxyUrl": {
+          "type": "string"
+        },
+        "proxyRequiresAuth": {
+          "type": "boolean"
+        },
+        "$schema": {
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "pattern": "^\\d{1,15}(\\.\\d{1,15})?(\\.\\d{1,15})?$"
+            }
+          ],
+          "description": "Config schema version, stamped by migrations. Current version: 0.24.3."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
