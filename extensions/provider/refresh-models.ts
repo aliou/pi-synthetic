@@ -1,98 +1,80 @@
-import type { Api, Model, RefreshModelsContext } from "@earendil-works/pi-ai";
+// refreshModels implementation for the Synthetic model catalog.
+// Restores from a stored snapshot, refreshes from the Synthetic models API on
+// a 4-hour TTL, and persists fetched catalogs through context.publish().
+// Falls back to the static catalog when offline or the fetch fails.
+
+import type {
+  ModelsStoreEntry,
+  RefreshModelsContext,
+} from "@earendil-works/pi-ai";
+import type { SyntheticApiModel } from "../../src/client/types";
 import type {
   buildSyntheticProviderModels,
   buildSyntheticProviderModelsFromApi,
   buildSyntheticProviderModelsFromStore,
 } from "./models";
-import { persistModels, readStoredModels } from "./refresh-store-compat";
 
-type StaticModels = ReturnType<typeof buildSyntheticProviderModels>;
-type BuiltModels = ReturnType<typeof buildSyntheticProviderModelsFromApi>;
+export const MODEL_STORE_TTL_MS = 4 * 60 * 60 * 1000;
 
 export type FetchSyntheticApiModels = (
   apiKey: string | undefined,
   signal?: AbortSignal,
-) => Promise<readonly unknown[]>;
+) => Promise<readonly SyntheticApiModel[]>;
 
-const MODEL_STORE_TTL_MS = 4 * 60 * 60 * 1000;
-
-interface CachedModels {
-  models: unknown[];
-  checkedAt: number;
-}
-
-async function readCachedModels(
-  context: RefreshModelsContext,
-): Promise<CachedModels | undefined> {
-  try {
-    const entry = await readStoredModels(context);
-    if (!entry || entry.models.length === 0) return undefined;
-    return {
-      models: entry.models as unknown[],
-      checkedAt: entry.checkedAt ?? 0,
-    };
-  } catch {
-    return undefined;
-  }
+function isFreshStoreEntry(
+  entry: Readonly<ModelsStoreEntry> | undefined,
+): entry is ModelsStoreEntry {
+  if (!entry) return false;
+  const checkedAt = entry.checkedAt ?? Date.now();
+  return Date.now() - checkedAt < MODEL_STORE_TTL_MS;
 }
 
 export function createSyntheticRefreshModels(
-  staticModels: StaticModels,
+  staticModels: ReturnType<typeof buildSyntheticProviderModels>,
   fetchApiModels: FetchSyntheticApiModels,
   buildFromApi: typeof buildSyntheticProviderModelsFromApi,
   buildFromStore: typeof buildSyntheticProviderModelsFromStore,
-): (context: RefreshModelsContext) => Promise<BuiltModels> {
-  return async (context) => {
-    const cached = await readCachedModels(context);
-
+) {
+  return async (
+    context: RefreshModelsContext,
+  ): Promise<ReturnType<typeof buildSyntheticProviderModels>> => {
+    context.signal.throwIfAborted();
+    const fallback = buildFromStore(staticModels);
     try {
       if (!context.allowNetwork) {
-        return cached ? buildFromStore(cached.models) : staticModels;
+        return context.stored
+          ? buildFromStore(context.stored.models)
+          : fallback;
       }
-
-      if (
-        cached &&
-        !context.force &&
-        Date.now() - cached.checkedAt < MODEL_STORE_TTL_MS
-      ) {
-        return buildFromStore(cached.models);
+      if (!context.force && isFreshStoreEntry(context.stored)) {
+        return buildFromStore(context.stored.models);
       }
-
       const apiKey =
         context.credential?.type === "api_key"
           ? context.credential.key
           : undefined;
       const apiModels = await fetchApiModels(apiKey, context.signal);
-      if (apiModels.length === 0) {
-        throw new Error("Synthetic models API returned an empty model list");
-      }
-
+      context.signal.throwIfAborted();
       const models = buildFromApi(apiModels);
-
-      context.signal?.throwIfAborted();
-
-      try {
-        await persistModels(context, {
-          models: models as unknown as Model<Api>[],
-          checkedAt: Date.now(),
-        });
-      } catch {
-        void 0; // Persistence is best-effort.
-      }
-
+      // Cache persistence is best-effort.
+      await context
+        .publish({
+          persist: {
+            models: models as unknown as ModelsStoreEntry["models"],
+            checkedAt: Date.now(),
+          },
+        })
+        .catch(() => undefined);
+      context.signal.throwIfAborted();
       return models;
     } catch (error) {
       if (
-        context.signal?.aborted ||
-        (error instanceof DOMException && error.name === "AbortError")
+        context.signal.aborted ||
+        (error instanceof Error && error.name === "AbortError")
       ) {
         throw error;
       }
-      try {
-        return cached ? buildFromStore(cached.models) : staticModels;
-      } catch {
-        return staticModels;
-      }
+      return fallback;
     }
   };
 }

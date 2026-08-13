@@ -26,6 +26,8 @@ pnpm changeset    # Create changeset for versioning
 extensions/
   provider/
     index.ts                    # Provider extension entry point; ingests quota headers
+    provider.ts                 # pi-ai Provider assembly: auth resolution, model stamping, stream delegation
+    provider.test.ts            # Provider tests (auth resolution, catalog swap)
     models.ts                   # Static fallback model catalog + API/store builders
     models.test.ts              # Model config tests
     refresh-models.ts           # refreshModels impl: API fetch with 4h store cache, fallback to static
@@ -80,7 +82,8 @@ src/
 - Credentials come from Pi's provider auth resolution: `~/.pi/agent/auth.json` (recommended), `SYNTHETIC_API_KEY` environment variable, or the `apiKey: "$SYNTHETIC_API_KEY"` configured on the provider
 - Provider uses OpenAI-compatible API at `https://api.synthetic.new/openai/v1`
 - Non-provider Synthetic endpoints (`/v2/quotas`, `/v2/search`, `/openai/v1/models`) go through `src/client/synthetic-client.ts`
-- Models are fetched dynamically from `https://api.synthetic.new/openai/v1/models` via `ProviderConfig.refreshModels` (Pi 0.80.8+) and cached in `context.store` with a 4-hour TTL; see `extensions/provider/refresh-models.ts`
+- Models are fetched dynamically from `https://api.synthetic.new/openai/v1/models` and cached in the pi models store with a 4-hour TTL; see `extensions/provider/refresh-models.ts`
+- The provider registers itself to pi as a pi-ai `Provider` object; auth `resolve` never fails and falls back to an anonymous empty-key credential so the public model catalog stays refreshable without a key, while `check` keeps the provider unconfigured (models hidden from `/model`) until a key exists
 - The hardcoded catalog in `extensions/provider/models.ts` is kept as an offline fallback and as the override source for model-specific compatibility settings (`thinkingLevelMap`, `compat`) that the API does not expose
 - All user-facing model selection still uses the Pi provider name `synthetic`
 - Web search tool and quotas command are always registered; they fail at call time if credentials/subscription are missing unless an unauthenticated utility API proxy is configured
@@ -150,7 +153,7 @@ Uses changesets. Run `pnpm changeset` before committing user-facing changes.
 
 ## Key Features
 
-1. **Provider**: OpenAI-compatible chat completions with dynamic Synthetic model discovery via `ProviderConfig.refreshModels` and a hardcoded fallback catalog
+1. **Provider**: OpenAI-compatible chat completions with dynamic Synthetic model discovery and a hardcoded fallback catalog
 2. **Web Search Tool**: Zero-data-retention web search via `synthetic_web_search`; subscription-gated at session start; can use the utility API proxy
 3. **Quotas Command**: Interactive TUI for viewing API usage limits; can use the utility API proxy
 4. **Usage Status**: Footer status bar showing live quota percentages, colored by severity (event-driven)
