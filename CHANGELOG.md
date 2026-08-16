@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.25.0
+
+### Minor Changes
+
+- 2e34cf8: Register the Synthetic provider as a complete pi-ai `Provider` via `pi.registerProvider(provider)` instead of the name-plus-config form, with auth resolution that falls back to an anonymous credential when no key exists.
+
 ## 0.24.4
 
 ### Patch Changes
