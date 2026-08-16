@@ -33,7 +33,7 @@ export interface SyntheticExtensionsRegisterPayload {
 }
 
 /** Config schema version. Stamped on disk when config is seeded or migrated. */
-export const SYNTHETIC_CONFIG_VERSION: string = pkg.version;
+export const SYNTHETIC_CONFIG_VERSION = pkg.version;
 
 export interface SyntheticConfig {
   configVersion?: string;

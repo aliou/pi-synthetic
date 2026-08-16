@@ -48,7 +48,7 @@
     "format": "biome check --write",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:schema": "pi-settings-schema -p src/config.ts -t SyntheticConfig -o schema.json --version $(node -p 'require(\"./package.json\").version')",
+    "gen:schema": "pi-settings-schema -p src/config.ts -t SyntheticConfig -o schema.json --version 0.25.0",
     "check:schema": "pnpm gen:schema --check",
     "check:lockfile": "pnpm install --frozen-lockfile --ignore-scripts",
     "prepare": "[ -d .git ] && husky || true",
