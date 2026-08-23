@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.26.0
+
+### Minor Changes
+
+- 02d0e5d: Add Qwen3.8-27B to the Synthetic model fallback catalog.
+
 ## 0.25.1
 
 ### Patch Changes
