@@ -92,6 +92,8 @@ Synthetic reasoning models are mostly binary on/off (a single `medium` toggle in
 
 Other Pi levels (`minimal`, `low`, `medium`, `xhigh`) are hidden for GLM-5.2. The `max` level is opt-in and was added in Pi 0.80.6.
 
+`hf:Qwen/Qwen3.8-27B` exposes off / medium / xhigh. Upstream metadata declares `["low", "medium", "xhigh"]`, but live probes show `low` returns no reasoning content (even on hard prompts), so it stays hidden; `high`/`max` are not model-native and fall through to the default.
+
 ### Quotas Command
 
 Check your API usage:

@@ -277,7 +277,8 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
       low: null,
       medium: "medium",
       high: null,
-      xhigh: null,
+      xhigh: "xhigh",
+      max: null,
     },
     compat: {
       supportsReasoningEffort: true,
