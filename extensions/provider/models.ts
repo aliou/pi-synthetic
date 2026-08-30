@@ -34,11 +34,11 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     compat: {
       supportsReasoningEffort: true,
     },
-    input: ["text"],
+    input: ["text", "image"],
     cost: {
-      input: 1,
-      output: 3,
-      cacheRead: 0.16,
+      input: 0.15,
+      output: 0.5,
+      cacheRead: 0.04,
       cacheWrite: 0,
     },
     contextWindow: 524288,
@@ -157,6 +157,35 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     contextWindow: 131072,
     maxTokens: 65536,
   },
+  // API: hf:zai-org/GLM-5.3-Flash → ctx=524288, out=65536
+  // The API advertises reasoning efforts ["low", "high", "max"]; map them by
+  // identity. `none` is not advertised, so `off` stays disabled.
+  {
+    id: "hf:zai-org/GLM-5.3-Flash",
+    name: "zai-org/GLM-5.3-Flash",
+    reasoning: true,
+    thinkingLevelMap: {
+      off: null,
+      minimal: null,
+      low: "low",
+      medium: null,
+      high: "high",
+      xhigh: null,
+      max: "max",
+    },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 0.15,
+      output: 0.5,
+      cacheRead: 0.04,
+      cacheWrite: 0,
+    },
+    contextWindow: 524288,
+    maxTokens: 65536,
+  },
   // API: hf:zai-org/GLM-5.2 → ctx=524288, out=65536
   {
     id: "hf:zai-org/GLM-5.2",
@@ -238,32 +267,6 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
       cacheWrite: 0,
     },
     contextWindow: 524288,
-    maxTokens: 65536,
-  },
-  // API: hf:Qwen/Qwen3.6-27B → ctx=262144, out=65536
-  {
-    id: "hf:Qwen/Qwen3.6-27B",
-    name: "Qwen/Qwen3.6-27B",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: "medium",
-      high: null,
-      xhigh: null,
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text", "image"],
-    cost: {
-      input: 0.45,
-      output: 2.2,
-      cacheRead: 0.09,
-      cacheWrite: 0,
-    },
-    contextWindow: 262144,
     maxTokens: 65536,
   },
   // API: hf:Qwen/Qwen3.8-27B → ctx=262144, out=65536
