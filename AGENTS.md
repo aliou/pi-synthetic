@@ -147,8 +147,8 @@ The `syn:large:text`, `syn:small:text`, `syn:large:vision`, and `syn:small:visio
 
 Uses changesets. Run `pnpm changeset` before committing user-facing changes.
 
-- `patch`: bug fixes, model updates
-- `minor`: new models, features
+- `patch`: bug fixes, model catalog syncs (additions, removals, price/metadata updates)
+- `minor`: features
 - `major`: breaking changes
 
 ## Key Features
