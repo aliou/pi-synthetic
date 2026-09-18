@@ -1,10 +1,15 @@
-import type {
-  Api,
-  Model,
-  Provider,
-  ProviderStreamOptions,
-} from "@earendil-works/pi-ai";
-import { stream, streamSimple } from "@earendil-works/pi-ai/compat";
+import type { Provider } from "@earendil-works/pi-ai";
+import type { SyntheticApi } from "../../src/config";
+import { createAnthropicMessagesApi } from "./api/anthropic-messages";
+import { createOpenAiCompletionsApi } from "./api/openai-completions";
+import type { SyntheticApiHandler } from "./api/types";
+import {
+  SYNTHETIC_ANTHROPIC_BASE_URL,
+  SYNTHETIC_API_KEY_ENV,
+  SYNTHETIC_BASE_URL,
+  SYNTHETIC_PROVIDER_ID,
+  SYNTHETIC_REQUEST_HEADERS,
+} from "./constants";
 import type {
   buildSyntheticProviderModelsFromApi,
   buildSyntheticProviderModelsFromStore,
@@ -15,23 +20,33 @@ import {
   type FetchSyntheticApiModels,
 } from "./refresh-models";
 
-export const SYNTHETIC_PROVIDER_ID = "synthetic";
-export const SYNTHETIC_BASE_URL = "https://api.synthetic.new/openai/v1";
-export const SYNTHETIC_API_KEY_ENV = "SYNTHETIC_API_KEY";
-
-const SYNTHETIC_REQUEST_HEADERS = {
-  Referer: "https://pi.dev",
-  "X-Title": "npm:@aliou/pi-synthetic",
+export {
+  SYNTHETIC_ANTHROPIC_BASE_URL,
+  SYNTHETIC_API_KEY_ENV,
+  SYNTHETIC_BASE_URL,
+  SYNTHETIC_PROVIDER_ID,
+  SYNTHETIC_REQUEST_HEADERS,
 };
 
-function toProviderModels(models: SyntheticModel[]): Model<Api>[] {
-  return models.map((model) => ({
-    ...model,
-    api: "openai-completions",
-    provider: SYNTHETIC_PROVIDER_ID,
-    baseUrl: SYNTHETIC_BASE_URL,
-    headers: SYNTHETIC_REQUEST_HEADERS,
-  }));
+export interface SyntheticProviderOptions {
+  /** Active API surface; resolved once. Changes need a `/reload`. */
+  api?: SyntheticApi;
+  openAiStreamSimple?: SyntheticApiHandler["streamSimple"];
+  messagesStreamSimple?: SyntheticApiHandler["streamSimple"];
+}
+
+function createApiHandler(
+  api: SyntheticApi,
+  options?: SyntheticProviderOptions,
+): SyntheticApiHandler {
+  if (api === "anthropic-messages") {
+    return createAnthropicMessagesApi({
+      streamSimple: options?.messagesStreamSimple,
+    });
+  }
+  return createOpenAiCompletionsApi({
+    streamSimple: options?.openAiStreamSimple,
+  });
 }
 
 export function createSyntheticProvider(
@@ -39,8 +54,13 @@ export function createSyntheticProvider(
   fetchApiModels: FetchSyntheticApiModels,
   buildFromApi: typeof buildSyntheticProviderModelsFromApi,
   buildFromStore: typeof buildSyntheticProviderModelsFromStore,
+  options?: SyntheticProviderOptions,
 ): Provider {
-  let liveModels = toProviderModels(staticModels);
+  const handler = createApiHandler(
+    options?.api ?? "openai-completions",
+    options,
+  );
+  let canonicalModels = staticModels;
   const refreshCatalog = createSyntheticRefreshModels(
     staticModels,
     fetchApiModels,
@@ -94,7 +114,7 @@ export function createSyntheticProvider(
         },
       },
     },
-    getModels: () => liveModels,
+    getModels: () => handler.stampModels(canonicalModels),
     refreshModels: async (context) => {
       const refreshed = await refreshCatalog(context);
       // Fresh store: the refresh intentionally skipped the network; adopt the
@@ -107,12 +127,13 @@ export function createSyntheticProvider(
       if (!next) return;
       await context.publish({
         update: () => {
-          liveModels = toProviderModels(next);
+          canonicalModels = next;
         },
       });
     },
     stream: (model, context, options) =>
-      stream(model, context, options as ProviderStreamOptions | undefined),
-    streamSimple,
+      handler.stream(model, context, options as never),
+    streamSimple: (model, context, options) =>
+      handler.streamSimple(model, context, options),
   };
 }

@@ -47,6 +47,11 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
       },
       buildSyntheticProviderModelsFromApi,
       buildSyntheticProviderModelsFromStore,
+      {
+        // The API surface only changes via /synthetic:settings + /reload,
+        // so reading it once at load is safe. New sessions re-run load.
+        api: configLoader.getConfig().api,
+      },
     ),
   );
 }
