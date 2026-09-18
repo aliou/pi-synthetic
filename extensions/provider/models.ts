@@ -124,10 +124,13 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     maxTokens: 65536,
   },
   // API: hf:openai/gpt-oss-120b → ctx=131072, out=65536
-  // Backend accepts reasoning_effort in ['none','minimal','low','medium','high',
-  // 'xhigh'] and rejects 'max' (400) and 'off' (not a schema value). The model
-  // reasons at every accepted effort including 'none', so reasoning cannot be
-  // disabled — hide 'off'. Expose minimal/low/medium/high/xhigh; hide 'max'.
+  // OpenAI surface: the backend accepts reasoning_effort in
+  // ['none','minimal','low','medium','high','xhigh'] and rejects 'max' (400)
+  // and 'off' (not a schema value). The model reasons at every accepted
+  // effort including 'none', so reasoning cannot be disabled on this surface
+  // — hide 'off'. Expose minimal/low/medium/high/xhigh; hide 'max'.
+  // (The Anthropic surface genuinely disables via thinking:{type:"disabled"};
+  // see extensions/provider/api/anthropic-messages.ts.)
   {
     id: "hf:openai/gpt-oss-120b",
     name: "openai/gpt-oss-120b",

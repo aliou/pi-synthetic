@@ -22,6 +22,13 @@ export type SyntheticFeatureId =
   | "usageStatus"
   | "quotaWarnings";
 
+/**
+ * Synthetic serves every chat model twice: on an OpenAI-compatible
+ * `/openai/v1` endpoint and on an Anthropic-compatible `/anthropic` endpoint.
+ * Exactly one serves the provider at a time.
+ */
+export type SyntheticApi = "openai-completions" | "anthropic-messages";
+
 export const SYNTHETIC_EXTENSIONS_REQUEST_EVENT =
   "synthetic:extensions:request" as const;
 
@@ -37,6 +44,8 @@ export const SYNTHETIC_CONFIG_VERSION = pkg.version;
 
 export interface SyntheticConfig {
   configVersion?: string;
+  /** Which API serves model requests. Changes require a reload. */
+  api?: SyntheticApi;
   webSearch?: boolean;
   quotasCommand?: boolean;
   usageStatus?: boolean;
@@ -48,6 +57,7 @@ export interface SyntheticConfig {
 
 export interface ResolvedSyntheticConfig {
   configVersion: string;
+  api: SyntheticApi;
   webSearch: boolean;
   quotasCommand: boolean;
   usageStatus: boolean;
@@ -59,6 +69,7 @@ export interface ResolvedSyntheticConfig {
 
 const DEFAULT_CONFIG: ResolvedSyntheticConfig = {
   configVersion: SYNTHETIC_CONFIG_VERSION,
+  api: "openai-completions",
   webSearch: true,
   quotasCommand: true,
   usageStatus: false,
@@ -145,6 +156,9 @@ export function registerSyntheticSettings(
   options: RegisterSyntheticSettingsOptions,
 ): void {
   const { getLoadedFeatures } = options;
+  // The provider stamps its API surface at extension load; a saved change
+  // only reaches it after `/reload`.
+  let pendingApi: SyntheticApi | undefined;
 
   registerSettingsCommand<SyntheticConfig, ResolvedSyntheticConfig>(pi, {
     commandName: "synthetic:settings",
@@ -166,6 +180,19 @@ export function registerSyntheticSettings(
       const sections: SettingsSection[] = [];
 
       sections.push(
+        {
+          label: "Provider",
+          items: [
+            {
+              id: "api",
+              label: "API",
+              description:
+                "Serve models via the OpenAI-compatible /openai/v1 endpoint or the Anthropic-compatible /anthropic endpoint",
+              currentValue: tabConfig?.api ?? resolved.api,
+              values: ["openai-completions", "anthropic-messages"],
+            },
+          ],
+        },
         {
           label: "Connection",
           items: [
@@ -308,6 +335,17 @@ export function registerSyntheticSettings(
       return sections;
     },
     onSettingChange: (id, newValue, config) => {
+      if (id === "api") {
+        if (
+          newValue !== "openai-completions" &&
+          newValue !== "anthropic-messages"
+        ) {
+          return null;
+        }
+        pendingApi = newValue;
+        return { ...config, api: newValue };
+      }
+
       const featureIds = new Set<string>([
         "webSearch",
         "quotasCommand",
@@ -339,8 +377,11 @@ export function registerSyntheticSettings(
           return null;
       }
     },
-    onSave: async () => {
+    onSave: async (ctx) => {
       emitSyntheticConfigUpdated(pi);
+      if (pendingApi === undefined) return;
+      pendingApi = undefined;
+      ctx.ui.notify("Run /reload to apply the new API", "info");
     },
   });
 }
