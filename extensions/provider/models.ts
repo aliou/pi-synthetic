@@ -13,19 +13,19 @@ export type SyntheticModel = ProviderModelConfig;
 
 export const SYNTHETIC_MODELS: SyntheticModel[] = [
   // API: syn:large:text → ctx=524288, out=65536
-  // Reasoning: GLM-5.2 has two effective tiers — `max` (default, highest) and `high`
-  // (lower). Per the GLM-5.2 chat template: unset -> max; "high" -> high; every other value
-  // falls through to max. So `max > high`.
-  // Verified against Synthetic's OpenAI shim: `reasoning_effort: "max"` and `"none"` are
-  // accepted. Map the two tiers plus off; hide unsupported intermediate tiers.
+  // Now routes to GLM-5.3-Flash (GLM-5.2 was removed upstream). The API
+  // advertises reasoning efforts ["low", "high", "max"]; `none` is not
+  // advertised, so `off` stays disabled — verified on both surfaces: the
+  // OpenAI shim rejects out-of-enum efforts with 400, and the Anthropic shim
+  // ignores thinking:{type:"disabled"} for this model.
   {
     id: "syn:large:text",
     name: "syn:large:text",
     reasoning: true,
     thinkingLevelMap: {
-      off: "none",
+      off: null,
       minimal: null,
-      low: null,
+      low: "low",
       medium: null,
       high: "high",
       xhigh: null,
@@ -186,33 +186,6 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     contextWindow: 524288,
     maxTokens: 65536,
   },
-  // API: hf:zai-org/GLM-5.2 → ctx=524288, out=65536
-  {
-    id: "hf:zai-org/GLM-5.2",
-    name: "zai-org/GLM-5.2",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: null,
-      high: "high",
-      xhigh: null,
-      max: "max",
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text"],
-    cost: {
-      input: 1,
-      output: 3,
-      cacheRead: 0.16,
-      cacheWrite: 0,
-    },
-    contextWindow: 524288,
-    maxTokens: 65536,
-  },
   // API: hf:zai-org/GLM-4.7-Flash → ctx=196608, out=65536
   {
     id: "hf:zai-org/GLM-4.7-Flash",
@@ -237,6 +210,35 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
       cacheWrite: 0,
     },
     contextWindow: 196608,
+    maxTokens: 65536,
+  },
+  // API: hf:deepseek-ai/DeepSeek-V4.1-Flash → ctx=524288, out=65536
+  // The API advertises reasoning efforts ["none", "low", "high", "xhigh",
+  // "max"]; map them by identity.
+  {
+    id: "hf:deepseek-ai/DeepSeek-V4.1-Flash",
+    name: "deepseek-ai/DeepSeek-V4.1-Flash",
+    reasoning: true,
+    thinkingLevelMap: {
+      off: "none",
+      minimal: null,
+      low: "low",
+      medium: null,
+      high: "high",
+      xhigh: "xhigh",
+      max: "max",
+    },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 0.6,
+      output: 1.2,
+      cacheRead: 0.03,
+      cacheWrite: 0,
+    },
+    contextWindow: 524288,
     maxTokens: 65536,
   },
   // API: hf:moonshotai/Kimi-K3 → ctx=524288, out=65536
