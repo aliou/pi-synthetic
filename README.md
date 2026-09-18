@@ -92,6 +92,14 @@ Synthetic reasoning models are mostly binary on/off (a single `medium` toggle in
 
 Other Pi levels (`minimal`, `low`, `medium`, `xhigh`) are hidden for GLM-5.2. The `max` level is opt-in and was added in Pi 0.80.6.
 
+### Provider API
+
+Synthetic serves every chat model twice: on an OpenAI-compatible `POST /openai/v1` endpoint and on an Anthropic-compatible `POST /anthropic/v1/messages` endpoint. The full catalog (`hf:` models and `syn:` aliases alike) is valid on both surfaces; quotas, pricing, and the web search tool are surface-agnostic.
+
+Pick the surface with `/synthetic:settings` under **Provider > API** (default `openai-completions`). Changes apply after `/reload`.
+
+The Anthropic surface is the better fit for Pi where supported: real thinking blocks stream natively, tool use is first-party Anthropic `tool_use`/`tool_result`, and the cache token split (`cache_read_input_tokens`/`cache_creation_input_tokens`) is reported directly. Reasoning is binary there today: thinking is genuinely disabled via `thinking:{type:"disabled"}`, but positive effort levels are not gradated (`output_config.effort` is accepted but not acted on), and `hf:zai-org/GLM-5.3-Flash` / `syn:large:text` cannot disable reasoning at all. The `syn:large:text` alias stays on the best-effort disable list per surface; the OpenAI surface keeps full effort gradation where the model's effort enum allows it.
+
 ### Quotas Command
 
 Check your API usage:

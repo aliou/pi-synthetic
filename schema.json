@@ -8,6 +8,10 @@
         "configVersion": {
           "type": "string"
         },
+        "api": {
+          "$ref": "#/definitions/SyntheticApi",
+          "description": "Which API serves model requests. Changes require a reload."
+        },
         "webSearch": {
           "type": "boolean"
         },
@@ -47,6 +51,14 @@
         }
       },
       "additionalProperties": false
+    },
+    "SyntheticApi": {
+      "type": "string",
+      "enum": [
+        "openai-completions",
+        "anthropic-messages"
+      ],
+      "description": "Synthetic serves every chat model twice: on an OpenAI-compatible `/openai/v1` endpoint and on an Anthropic-compatible `/anthropic` endpoint. Exactly one serves the provider at a time."
     }
   }
 }

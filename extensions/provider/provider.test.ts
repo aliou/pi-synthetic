@@ -3,14 +3,18 @@ import type {
   ProviderAuthInteraction,
   RefreshModelsContext,
 } from "@earendil-works/pi-ai";
+import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import { describe, expect, it, vi } from "vitest";
 import type { SyntheticApiModel } from "../../src/client/types";
+import type { AnyStreamSimple } from "./api/types";
 import type { SyntheticModel } from "./models";
 import {
   createSyntheticProvider,
+  SYNTHETIC_ANTHROPIC_BASE_URL,
   SYNTHETIC_API_KEY_ENV,
   SYNTHETIC_BASE_URL,
   SYNTHETIC_PROVIDER_ID,
+  type SyntheticProviderOptions,
 } from "./provider";
 import type { FetchSyntheticApiModels } from "./refresh-models";
 
@@ -35,7 +39,10 @@ const fetchedModel = {
 } as unknown as SyntheticApiModel;
 
 function createProvider(
-  options: { fetchApiModels?: FetchSyntheticApiModels } = {},
+  options: {
+    fetchApiModels?: FetchSyntheticApiModels;
+    providerOptions?: SyntheticProviderOptions;
+  } = {},
 ) {
   const fetchApiModels = vi.fn<FetchSyntheticApiModels>(
     options.fetchApiModels ?? (async () => [fetchedModel]),
@@ -45,6 +52,7 @@ function createProvider(
     fetchApiModels,
     identityBuild,
     identityBuild,
+    options.providerOptions,
   );
   return { provider, fetchApiModels };
 }
@@ -98,6 +106,78 @@ describe("createSyntheticProvider", () => {
         "X-Title": "npm:@aliou/pi-synthetic",
       });
     }
+  });
+
+  it("delegates to the anthropic handler when options.api is anthropic-messages", () => {
+    const { provider } = createProvider({
+      providerOptions: { api: "anthropic-messages" },
+    });
+    const models = provider.getModels();
+    expect(models.length).toBeGreaterThan(0);
+    for (const model of models) {
+      expect(model.api).toBe("anthropic-messages");
+      expect(model.baseUrl).toBe(SYNTHETIC_ANTHROPIC_BASE_URL);
+    }
+  });
+
+  it("stamps refreshed models through the active handler", async () => {
+    const { provider } = createProvider({
+      providerOptions: { api: "anthropic-messages" },
+    });
+
+    await provider.refreshModels?.(
+      createContext({ credential: { type: "api_key", key: "" } }),
+    );
+
+    expect(provider.getModels().map((m) => m.api)).toEqual([
+      "anthropic-messages",
+    ]);
+    expect(provider.getModels().map((m) => m.id)).toContain("syn:fetched");
+  });
+});
+
+describe("api delegation", () => {
+  function fakeStreamSimple() {
+    return vi.fn<AnyStreamSimple>(() => createAssistantMessageEventStream());
+  }
+
+  it("passes caller options through on the openai api", () => {
+    const openaiStream = fakeStreamSimple();
+    const messagesStream = fakeStreamSimple();
+    const onPayload = vi.fn();
+    const { provider } = createProvider({
+      providerOptions: {
+        openAiStreamSimple: openaiStream,
+        messagesStreamSimple: messagesStream,
+      },
+    });
+
+    provider.streamSimple(
+      provider.getModels()[0],
+      { messages: [] } as never,
+      { onPayload } as never,
+    );
+
+    expect(openaiStream).toHaveBeenCalledOnce();
+    expect(messagesStream).not.toHaveBeenCalled();
+    expect(openaiStream.mock.calls[0]?.[2]?.onPayload).toBe(onPayload);
+  });
+
+  it("delegates to the messages streamSimple on the anthropic api", () => {
+    const openaiStream = fakeStreamSimple();
+    const messagesStream = fakeStreamSimple();
+    const { provider } = createProvider({
+      providerOptions: {
+        api: "anthropic-messages",
+        openAiStreamSimple: openaiStream,
+        messagesStreamSimple: messagesStream,
+      },
+    });
+
+    provider.streamSimple(provider.getModels()[0], { messages: [] } as never);
+
+    expect(messagesStream).toHaveBeenCalledOnce();
+    expect(openaiStream).not.toHaveBeenCalled();
   });
 });
 
