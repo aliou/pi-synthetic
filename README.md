@@ -84,13 +84,14 @@ Cross-session reuse is not guaranteed; reuse within a single session or a short 
 
 ### Reasoning Levels
 
-Synthetic reasoning models are mostly binary on/off (a single `medium` toggle in Pi's UI). The exception is `hf:zai-org/GLM-5.2`, which exposes two tiers plus off:
+Reasoning effort support is model-specific, not a uniform set. Synthetic's models API reports the accepted effort values per model in `reasoning_parameters.efforts`, and the extension maps them to Pi levels through each model's `thinkingLevelMap`, so Pi's level picker only offers what the selected model accepts. Across the catalog the accepted values range from `none` up to `max`:
 
-- off → `none` (disable reasoning)
-- high → `high` (GLM High tier, lower)
-- max → `max` (GLM Max tier, highest — native `max` thinking level, accepted by Synthetic's OpenAI shim)
+- `none`/`low`/`medium`/`high` (off plus Pi's base range): `syn:small:text`, `hf:openai/gpt-oss-120b`, `hf:zai-org/GLM-4.7-Flash`, `hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4`
+- `low`/`high`/`max`, with no `none` (reasoning always on): `syn:large:vision`, `hf:zai-org/GLM-5.3-Flash`, `hf:moonshotai/Kimi-K3`
+- `low`/`medium`/`xhigh`, with no `none` and no `high`: `syn:small:vision`, `hf:Qwen/Qwen3.8-27B`
+- `none`/`low`/`high`/`xhigh`/`max`, with no `medium`: `syn:large:text`, `hf:deepseek-ai/DeepSeek-V4.1-Flash`
 
-Other Pi levels (`minimal`, `low`, `medium`, `xhigh`) are hidden for GLM-5.2. The `max` level is opt-in and was added in Pi 0.80.6.
+The `max` level is opt-in and was added in Pi 0.80.6.
 
 ### Quotas Command
 
