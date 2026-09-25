@@ -13,22 +13,19 @@ export type SyntheticModel = ProviderModelConfig;
 
 export const SYNTHETIC_MODELS: SyntheticModel[] = [
   // API: syn:large:text → ctx=524288, out=65536
-  // Now routes to GLM-5.3-Flash (GLM-5.2 was removed upstream). The API
-  // advertises reasoning efforts ["low", "high", "max"]; `none` is not
-  // advertised, so `off` stays disabled — verified on both surfaces: the
-  // OpenAI shim rejects out-of-enum efforts with 400, and the Anthropic shim
-  // ignores thinking:{type:"disabled"} for this model.
+  // Routes to DeepSeek-V4.1-Flash. The API advertises reasoning efforts
+  // ["none", "low", "high", "xhigh", "max"]; map them by identity.
   {
     id: "syn:large:text",
     name: "syn:large:text",
     reasoning: true,
     thinkingLevelMap: {
-      off: null,
+      off: "none",
       minimal: null,
       low: "low",
       medium: null,
       high: "high",
-      xhigh: null,
+      xhigh: "xhigh",
       max: "max",
     },
     compat: {
@@ -36,9 +33,9 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     },
     input: ["text", "image"],
     cost: {
-      input: 0.15,
-      output: 0.5,
-      cacheRead: 0.04,
+      input: 0.6,
+      output: 1.2,
+      cacheRead: 0.03,
       cacheWrite: 0,
     },
     contextWindow: 524288,
