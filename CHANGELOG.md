@@ -1,5 +1,15 @@
 # @aliou/pi-synthetic
 
+## 0.27.0
+
+### Minor Changes
+
+- d903145: Add Synthetic's Anthropic-compatible `/anthropic/v1/messages` surface as a second provider API. Pick it with `/synthetic:settings` under Provider > API (reload required). The Anthropic surface streams real thinking blocks, uses native `tool_use`/`tool_result`, and reports the full cache read/write token split; reasoning is binary there (on/off) and `GLM-5.3-Flash` cannot disable reasoning.
+
+### Patch Changes
+
+- f651dac: Sync the static model catalog with the Synthetic API: `syn:large:text` now routes to DeepSeek-V4.1-Flash — pricing updated to 0.6/1.2/0.03 per M (input/output/cache read) and reasoning efforts none/low/high/xhigh/max map by identity.
+
 ## 0.26.3
 
 ### Patch Changes
