@@ -9,7 +9,7 @@
 import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 import type { SyntheticApiModel } from "../../src/client/types";
 
-export type SyntheticModel = ProviderModelConfig;
+export type SyntheticModel = Extract<ProviderModelConfig, { type?: "chat" }>;
 
 export const SYNTHETIC_MODELS: SyntheticModel[] = [
   // API: syn:large:text → ctx=524288, out=65536
@@ -453,6 +453,7 @@ function applyDefaultCompat(model: SyntheticModel): SyntheticModel {
       supportsDeveloperRole: false,
       maxTokensField: "max_tokens" as const,
       ...(model.reasoning ? { supportsReasoningEffort: true } : {}),
+      supportsStrictMode: true,
       ...model.compat,
     },
   };
