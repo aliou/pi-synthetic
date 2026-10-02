@@ -3,6 +3,7 @@ import type { SyntheticApiModel } from "../../src/client/types";
 import {
   buildSyntheticProviderModels,
   buildSyntheticProviderModelsFromApi,
+  buildSyntheticProviderModelsFromStore,
   parseApiPrice,
   SYNTHETIC_MODELS,
 } from "./models";
@@ -177,6 +178,51 @@ describe("Synthetic models", () => {
         expect(compat?.supportsReasoningEffort).toBe(true);
       }
     }
+  });
+
+  it("enables strict tool mode by default while letting per-model overrides win", () => {
+    for (const model of buildSyntheticProviderModels()) {
+      const compat = model.compat as Record<string, unknown> | undefined;
+      expect(compat?.supportsStrictMode).toBe(true);
+    }
+
+    const apiModels: SyntheticApiModel[] = [
+      {
+        id: "hf:new/model",
+        name: "new/model",
+        provider: "synthetic",
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+        context_length: 128000,
+        max_output_length: 32768,
+        pricing: {
+          prompt: "$0.000001",
+          completion: "$0.000002",
+          input_cache_reads: "$0.000001",
+          input_cache_writes: "0",
+        },
+        supported_features: ["reasoning"],
+      },
+    ];
+    const apiCompat = buildSyntheticProviderModelsFromApi(apiModels)[0]
+      ?.compat as Record<string, unknown> | undefined;
+    expect(apiCompat?.supportsStrictMode).toBe(true);
+
+    const stored = [
+      {
+        id: "hf:strict-off/model",
+        name: "strict-off/model",
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0.1, output: 0.4, cacheRead: 0.02, cacheWrite: 0 },
+        contextWindow: 128000,
+        maxTokens: 32768,
+        compat: { supportsStrictMode: false },
+      },
+    ];
+    const storeCompat = buildSyntheticProviderModelsFromStore(stored)[0]
+      ?.compat as Record<string, unknown> | undefined;
+    expect(storeCompat?.supportsStrictMode).toBe(false);
   });
 
   it("buildSyntheticProviderModelsFromApi merges API data with static overrides", () => {

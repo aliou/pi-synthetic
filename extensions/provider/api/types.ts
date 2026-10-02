@@ -1,16 +1,16 @@
 import type {
   Api,
   AssistantMessageEventStream,
-  Context,
   Model,
   SimpleStreamOptions,
   StreamOptions,
+  TranscriptContext,
 } from "@earendil-works/pi-ai";
 import type { SyntheticModel } from "../models";
 
 export type AnyStreamSimple = (
   model: Model<string>,
-  context: Context,
+  context: TranscriptContext,
   options?: SimpleStreamOptions,
 ) => AssistantMessageEventStream;
 
@@ -19,7 +19,7 @@ export interface SyntheticApiHandler {
   stampModels(models: SyntheticModel[]): Model<Api>[];
   stream(
     model: Model<Api>,
-    context: Context,
+    context: TranscriptContext,
     options?: StreamOptions,
   ): AssistantMessageEventStream;
   streamSimple: AnyStreamSimple;

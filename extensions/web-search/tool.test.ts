@@ -1,5 +1,11 @@
+import { Value } from "typebox/value";
 import { describe, expect, it, vi } from "vitest";
-import { formatWebSearchResults } from "./tool";
+import {
+  formatWebSearchResults,
+  MAX_STRUCTURED_SEARCH_BYTES,
+  SearchOutputSchema,
+  syntheticWebSearchTool,
+} from "./tool";
 
 function result(title: string, text: string) {
   return {
@@ -9,6 +15,8 @@ function result(title: string, text: string) {
     published: "2026-04-03",
   };
 }
+
+const kilobyte = "x".repeat(1024);
 
 describe("formatWebSearchResults", () => {
   it("shares the total inline budget equally between every result", async () => {
@@ -84,7 +92,9 @@ describe("formatWebSearchResults", () => {
     expect(formatted).toMatchObject({
       content: "Found 0 result(s):\n\n",
       resultDetails: [],
+      structuredResults: [],
       maxBytesPerResult: 0,
+      maxStructuredBytesPerResult: 0,
     });
     expect(writeResultFile).not.toHaveBeenCalled();
   });
@@ -115,5 +125,95 @@ describe("formatWebSearchResults", () => {
       text,
       "utf8",
     );
+  });
+
+  it("carries full result bodies in the structured output beyond the inline budget", async () => {
+    // 16KB body over the 4KB default inline per-result budget.
+    const body = `${kilobyte.repeat(16)}\n`;
+    const formatted = await formatWebSearchResults([result("large", body)], {
+      writeResultFile: vi.fn(async () => {}),
+    });
+
+    expect(formatted.maxStructuredBytesPerResult).toBe(
+      MAX_STRUCTURED_SEARCH_BYTES,
+    );
+    expect(formatted.resultDetails[0]?.truncated).toBe(true);
+    expect(formatted.structuredResults).toHaveLength(1);
+    const structured = formatted.structuredResults[0];
+    expect(structured.text).toBe(body);
+    expect(structured.truncated).toBe(false);
+    expect(structured.tempFilePath).toBe(
+      formatted.resultDetails[0]?.tempFilePath,
+    );
+  });
+
+  it("validates the structured output against SearchOutputSchema", async () => {
+    const formatted = await formatWebSearchResults(
+      [result("one", kilobyte.repeat(2)), result("two", "short body")],
+      { writeResultFile: vi.fn(async () => {}) },
+    );
+
+    const payload = {
+      query: "pi 1.0.0 structured output",
+      results: formatted.structuredResults,
+    };
+
+    expect([...Value.Errors(SearchOutputSchema, payload)]).toEqual([]);
+    expect(Value.Check(SearchOutputSchema, payload)).toBe(true);
+    // No undefined-valued keys smuggled into the JSON payload.
+    expect(JSON.stringify(payload)).not.toContain("undefined");
+  });
+
+  it("caps structured text at the shared budget and marks truncation", async () => {
+    const body = kilobyte.repeat(8);
+    const formatted = await formatWebSearchResults(
+      [result("a", body), result("b", body)],
+      {
+        maxInlineBytes: 200,
+        maxInlineBytesPerResult: 100,
+        maxStructuredBytes: 4096,
+        writeResultFile: vi.fn(async () => {}),
+      },
+    );
+
+    expect(formatted.maxStructuredBytesPerResult).toBe(2048);
+    for (const structured of formatted.structuredResults) {
+      expect(Buffer.byteLength(structured.text)).toBe(2048);
+      expect(structured.truncated).toBe(true);
+      expect(structured.tempFilePath).toBeTruthy();
+    }
+  });
+
+  it("keeps the structured text UTF-8 safe at multi-byte boundaries", async () => {
+    const emoji = "\u{1f600}"; // 4 bytes per emoji
+    const text = emoji.repeat(4096); // 16KB
+    const formatted = await formatWebSearchResults([result("emoji", text)], {
+      maxInlineBytes: 100,
+      maxInlineBytesPerResult: 100,
+      // 8194 does not end at an emoji boundary; the cut must land at 8192.
+      maxStructuredBytes: 8194,
+      writeResultFile: vi.fn(async () => {}),
+    });
+
+    const structured = formatted.structuredResults[0];
+    expect(structured.text).toBe(emoji.repeat(2048));
+    expect(structured.truncated).toBe(true);
+    expect(Buffer.from(structured.text, "utf8").toString("utf8")).toBe(
+      structured.text,
+    );
+  });
+});
+
+describe("syntheticWebSearchTool contract", () => {
+  it("declares the structured output schema for codemode callers", () => {
+    expect(syntheticWebSearchTool.name).toBe("synthetic_web_search");
+    expect(syntheticWebSearchTool.outputSchema).toBe(SearchOutputSchema);
+  });
+
+  it("annotates the tool as read-only and open-world", () => {
+    expect(syntheticWebSearchTool.annotations).toEqual({
+      readOnlyHint: true,
+      openWorldHint: true,
+    });
   });
 });

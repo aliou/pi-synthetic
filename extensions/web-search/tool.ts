@@ -25,7 +25,10 @@ const MAX_INLINE_SEARCH_BYTES = 20_000;
 const MAX_INLINE_SEARCH_RESULT_BYTES = 4_000;
 const MAX_INLINE_SEARCH_RESULT_LINES = 1_000;
 
-export interface WebSearchResultDetails {
+// Byte budget for structuredContent, split evenly across results.
+export const MAX_STRUCTURED_SEARCH_BYTES = 1_048_576;
+
+export type WebSearchResultDetails = {
   title: string;
   url: string;
   published: string;
@@ -34,7 +37,7 @@ export interface WebSearchResultDetails {
   totalLines: number;
   totalBytes: number;
   excerptBytes: number;
-}
+};
 
 interface WebSearchDetails {
   results?: WebSearchResultDetails[];
@@ -49,6 +52,27 @@ const SearchParams = Type.Object({
 
 type SearchParamsType = Static<typeof SearchParams>;
 
+export const SearchOutputSchema = Type.Object({
+  query: Type.String(),
+  results: Type.Array(
+    Type.Object({
+      title: Type.String(),
+      url: Type.String(),
+      published: Type.String(),
+      text: Type.String({
+        description: `Full result body, cut only at ${formatSize(MAX_STRUCTURED_SEARCH_BYTES)} total shared evenly across results. Longer bodies are truncated; the full body is in tempFilePath.`,
+      }),
+      truncated: Type.Boolean({
+        description:
+          "True when the text was cut at the structured-output budget. The full body is in tempFilePath.",
+      }),
+      tempFilePath: Type.Optional(Type.String()),
+    }),
+  ),
+});
+
+export type SearchOutput = Static<typeof SearchOutputSchema>;
+
 type WriteSearchResultFile = (
   path: string,
   content: string,
@@ -58,6 +82,7 @@ type WriteSearchResultFile = (
 interface FormatWebSearchResultsOptions {
   maxInlineBytes?: number;
   maxInlineBytesPerResult?: number;
+  maxStructuredBytes?: number;
   writeResultFile?: WriteSearchResultFile;
 }
 
@@ -82,12 +107,15 @@ export async function formatWebSearchResults(
   {
     maxInlineBytes = MAX_INLINE_SEARCH_BYTES,
     maxInlineBytesPerResult = MAX_INLINE_SEARCH_RESULT_BYTES,
+    maxStructuredBytes = MAX_STRUCTURED_SEARCH_BYTES,
     writeResultFile = writeFile,
   }: FormatWebSearchResultsOptions = {},
 ): Promise<{
   content: string;
   resultDetails: WebSearchResultDetails[];
+  structuredResults: SearchOutput["results"];
   maxBytesPerResult: number;
+  maxStructuredBytesPerResult: number;
 }> {
   const maxBytesPerResult =
     results.length === 0
@@ -96,8 +124,11 @@ export async function formatWebSearchResults(
           maxInlineBytesPerResult,
           Math.floor(maxInlineBytes / results.length),
         );
+  const maxStructuredBytesPerResult =
+    results.length === 0 ? 0 : Math.floor(maxStructuredBytes / results.length);
   let content = `Found ${results.length} result(s):\n\n`;
   const resultDetails: WebSearchResultDetails[] = [];
+  const structuredResults: SearchOutput["results"] = [];
 
   for (const result of results) {
     const slug = result.title
@@ -139,6 +170,29 @@ export async function formatWebSearchResults(
     content += `\n${inline}\n`;
     content += "\n---\n\n";
 
+    const structuredText =
+      truncation.totalBytes <= maxStructuredBytesPerResult
+        ? result.text
+        : truncateUtf8(result.text, maxStructuredBytesPerResult);
+    const structured: {
+      title: string;
+      url: string;
+      published: string;
+      text: string;
+      truncated: boolean;
+      tempFilePath?: string;
+    } = {
+      title: result.title,
+      url: result.url,
+      published: result.published,
+      text: structuredText,
+      truncated: Buffer.byteLength(structuredText) < truncation.totalBytes,
+    };
+    if (tempFilePath !== undefined) {
+      structured.tempFilePath = tempFilePath;
+    }
+    structuredResults.push(structured);
+
     resultDetails.push({
       title: result.title,
       url: result.url,
@@ -151,7 +205,13 @@ export async function formatWebSearchResults(
     });
   }
 
-  return { content, resultDetails, maxBytesPerResult };
+  return {
+    content,
+    resultDetails,
+    structuredResults,
+    maxBytesPerResult,
+    maxStructuredBytesPerResult,
+  };
 }
 
 export const syntheticWebSearchTool = defineTool({
@@ -165,6 +225,8 @@ export const syntheticWebSearchTool = defineTool({
     "synthetic_web_search results are fresh and not cached by Synthetic.",
   ],
   parameters: SearchParams,
+  outputSchema: SearchOutputSchema,
+  annotations: { readOnlyHint: true, openWorldHint: true },
 
   async execute(_toolCallId, params, signal, onUpdate, ctx) {
     onUpdate?.({
@@ -197,9 +259,12 @@ export const syntheticWebSearchTool = defineTool({
       throw new Error(`Synthetic web search: ${message}`);
     }
 
-    const { content, resultDetails } = await formatWebSearchResults(
-      data.results,
-    );
+    const { content, resultDetails, structuredResults } =
+      await formatWebSearchResults(data.results);
+    const structuredContent: SearchOutput = {
+      query: params.query,
+      results: structuredResults,
+    };
 
     return {
       content: [{ type: "text", text: content }],
@@ -207,6 +272,7 @@ export const syntheticWebSearchTool = defineTool({
         results: resultDetails,
         query: params.query,
       },
+      structuredContent,
     };
   },
 

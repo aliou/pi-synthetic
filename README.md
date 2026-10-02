@@ -224,7 +224,7 @@ This repository uses [Changesets](https://github.com/changesets/changesets) for 
 
 ## Requirements
 
-- Pi coding agent v0.80.8+ (required for `ProviderConfig.refreshModels` dynamic model discovery)
+- Pi coding agent v1.0.0+ (required for `ProviderConfig.refreshModels` dynamic model discovery)
 - Synthetic API key (configured in `~/.pi/agent/auth.json` or via `SYNTHETIC_API_KEY`) for model provider calls and authenticated utility API calls
 
 ## Links

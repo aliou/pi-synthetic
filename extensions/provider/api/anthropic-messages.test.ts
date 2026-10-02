@@ -1,4 +1,4 @@
-import type { Api, Context, Model } from "@earendil-works/pi-ai";
+import type { Api, Model, TranscriptContext } from "@earendil-works/pi-ai";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -116,13 +116,15 @@ describe("streaming", () => {
     return vi.fn<AnyStreamSimple>(() => createAssistantMessageEventStream());
   }
 
+  const transcript = { messages: [] } as unknown as TranscriptContext;
+
   it("delegates streamSimple with caller options untouched", () => {
     const fake = fakeStreamSimple();
     const onPayload = vi.fn();
     const model = { id: "x" } as Model<Api>;
     createAnthropicMessagesApi({ streamSimple: fake }).streamSimple(
       model,
-      { messages: [] } as Context,
+      transcript,
       { onPayload } as never,
     );
 
@@ -135,7 +137,7 @@ describe("streaming", () => {
     const fake = fakeStreamSimple();
     createAnthropicMessagesApi({ streamSimple: fake }).streamSimple(
       { id: "x" } as Model<Api>,
-      { messages: [] } as Context,
+      transcript,
       { apiKey: "syn-key" } as never,
     );
 
@@ -151,7 +153,7 @@ describe("streaming", () => {
     const fake = fakeStreamSimple();
     createAnthropicMessagesApi({ streamSimple: fake }).streamSimple(
       { id: "x" } as Model<Api>,
-      { messages: [] } as Context,
+      transcript,
       { apiKey: "k", headers: { "X-Custom": "v" } } as never,
     );
 
@@ -169,7 +171,7 @@ describe("streaming", () => {
     const anonymous = {} as never;
     createAnthropicMessagesApi({ streamSimple: fake }).streamSimple(
       { id: "x" } as Model<Api>,
-      { messages: [] } as Context,
+      transcript,
       anonymous,
     );
 
