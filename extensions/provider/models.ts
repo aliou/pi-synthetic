@@ -9,7 +9,23 @@
 import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 import type { SyntheticApiModel } from "../../src/client/types";
 
-export type SyntheticModel = Extract<ProviderModelConfig, { type?: "chat" }>;
+export type ChatModelConfig = Extract<ProviderModelConfig, { type?: "chat" }>;
+
+/**
+ * Per-model fixups that make the served chat template replay prior-turn
+ * thinking (field rename and/or chat_template_kwargs render flags). Applied
+ * on the openai-completions surface only; absent knob means no rewrite.
+ */
+export interface ReasoningReplay {
+  /** Wire field the served template renders for replayed thinking. */
+  field?: "reasoning" | "reasoning_content";
+  /** Request kwargs merged into chat_template_kwargs. Knob values win. */
+  templateKwargs?: Record<string, unknown>;
+}
+
+export type SyntheticModel = ChatModelConfig & {
+  reasoningReplay?: ReasoningReplay;
+};
 
 export const SYNTHETIC_MODELS: SyntheticModel[] = [
   // API: syn:large:text → ctx=524288, out=65536
@@ -19,6 +35,9 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     id: "syn:large:text",
     name: "syn:large:text",
     reasoning: true,
+    reasoningReplay: {
+      field: "reasoning_content",
+    },
     thinkingLevelMap: {
       off: "none",
       minimal: null,
@@ -194,10 +213,15 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
   // API: hf:zai-org/GLM-5.3-Flash → ctx=524288, out=65536
   // The API advertises reasoning efforts ["low", "high", "max"]; map them by
   // identity. `none` is not advertised, so `off` stays disabled.
+  // The template drops prior-turn thinking unless clear_thinking is false.
   {
     id: "hf:zai-org/GLM-5.3-Flash",
     name: "zai-org/GLM-5.3-Flash",
     reasoning: true,
+    reasoningReplay: {
+      field: "reasoning_content",
+      templateKwargs: { clear_thinking: false },
+    },
     thinkingLevelMap: {
       off: null,
       minimal: null,
@@ -253,6 +277,9 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     id: "hf:deepseek-ai/DeepSeek-V4.1-Flash",
     name: "deepseek-ai/DeepSeek-V4.1-Flash",
     reasoning: true,
+    reasoningReplay: {
+      field: "reasoning_content",
+    },
     thinkingLevelMap: {
       off: "none",
       minimal: null,
@@ -472,6 +499,7 @@ function mergeWithStaticOverride(
   return {
     ...apiModel,
     thinkingLevelMap: override.thinkingLevelMap ?? apiModel.thinkingLevelMap,
+    reasoningReplay: override.reasoningReplay ?? apiModel.reasoningReplay,
     compat: {
       ...apiModel.compat,
       ...override.compat,

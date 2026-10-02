@@ -94,7 +94,7 @@ src/
 
 ## Model Configuration
 
-`SYNTHETIC_MODELS` in `extensions/provider/models.ts` is the static fallback catalog. It is also used to apply overrides (`thinkingLevelMap`, `compat`) to models discovered from the Synthetic API in `buildSyntheticProviderModelsFromApi` and `buildSyntheticProviderModelsFromStore`. Overrides are matched by `id` and merged on top of API-sourced fields.
+`SYNTHETIC_MODELS` in `extensions/provider/models.ts` is the static fallback catalog. It is also used to apply overrides (`thinkingLevelMap`, `reasoningReplay`, `compat`) to models discovered from the Synthetic API in `buildSyntheticProviderModelsFromApi` and `buildSyntheticProviderModelsFromStore`. Overrides are matched by `id` and merged on top of API-sourced fields.
 
 ### Model entry
 
@@ -119,12 +119,27 @@ src/
     maxTokensField?: "max_completion_tokens" | "max_tokens",
     requiresToolResultName?: boolean,
     requiresMistralToolIds?: boolean
+  },
+  reasoningReplay?: {   // Optional per-model thinking-replay fixups (see below)
+    field?: "reasoning" | "reasoning_content",
+    templateKwargs?: Record<string, unknown>
   }
 }
 ```
 
 Get pricing, input/output modalities, context length, and max output length from `https://api.synthetic.new/openai/v1/models`.
 Get `maxTokens` from `https://models.dev/api.json` (synthetic provider) when the API omits it.
+
+### `reasoningReplay` knobs
+
+Some served templates replay prior-turn thinking from a different wire field than the model streamed it (or hide it behind a `chat_template_kwargs` render flag), which silently destroys reasoning recall across turns. A `reasoningReplay` knob on a catalog entry makes the openai-completions surface chain an `onPayload` injector (`extensions/provider/api/reasoning-replay.ts`) that fixes the outgoing request body:
+
+- `field`: the wire field the served template renders for replayed thinking. The injector renames each assistant message's recorded thinking to `field` — move, not copy: a pre-set non-empty target wins, an empty target is replaced, the duplicate source is dropped.
+- `templateKwargs`: merged into `chat_template_kwargs`; knob values win over request-preset values.
+
+Absent knob = no rewrite, and neither pi options nor the payload is touched (no rebuild, same object reference). The anthropic-messages surface is never rewritten. Never set `compat.requiresReasoningContentOnAssistantMessages` on these models instead of the knob — the empty sentinel poisons the replayed value.
+
+Any change to knob values must update the hard-coded expectations in `extensions/provider/models.test.ts` ("reasoningReplay catalog decisions"), which verifies every catalog entry against the live-probed wire behavior.
 
 ## Adding Models
 
@@ -137,7 +152,8 @@ Append to `SYNTHETIC_MODELS` following the model entry shape above.
 - Set `input` from `input_modalities` (`"text"` / `"image"`)
 - Convert per-token API prices to per-million rates for `cost`
 - Set `contextWindow` from `context_length` and `maxTokens` from `max_output_length`
-- Add `thinkingLevelMap` and `compat` overrides only when the API does not expose enough information for Pi to use the model correctly
+- Add `thinkingLevelMap`, `reasoningReplay`, and `compat` overrides only when the API does not expose enough information for Pi to use the model correctly
+- For reasoning models, run a replay probe (send a thinking turn, then a follow-up that must quote the prior reasoning; compare prompt-token deltas across `reasoning`/`reasoning_content` replay fields and with `chat_template_kwargs` flags) and set a `reasoningReplay` knob when the served template needs it. Record the decision — knob or explicit `undefined` in the expectation table in `models.test.ts` (every catalog entry must appear there)
 
 The dynamic refresh will discover the new model automatically on the next refresh; the static entry is only needed for offline fallback and for the overrides above.
 

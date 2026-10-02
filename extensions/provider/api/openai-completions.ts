@@ -6,6 +6,7 @@ import {
   SYNTHETIC_REQUEST_HEADERS,
 } from "../constants";
 import type { SyntheticModel } from "../models";
+import { withReasoningReplay } from "./reasoning-replay";
 import type { AnyStreamSimple, SyntheticApiHandler } from "./types";
 
 export { SYNTHETIC_BASE_URL };
@@ -28,7 +29,16 @@ export function createOpenAiCompletionsApi(options?: {
   return {
     stampModels: toOpenAiCompletionsModels,
     stream: (model, context, streamOptions) =>
-      stream(model, context, streamOptions as never),
-    streamSimple: options?.streamSimple ?? streamSimple,
+      stream(
+        model,
+        context,
+        withReasoningReplay(model, streamOptions) as never,
+      ),
+    streamSimple: (model, context, simpleOptions) =>
+      (options?.streamSimple ?? streamSimple)(
+        model,
+        context,
+        withReasoningReplay(model, simpleOptions) as never,
+      ),
   };
 }

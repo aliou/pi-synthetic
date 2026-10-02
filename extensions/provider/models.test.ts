@@ -5,6 +5,7 @@ import {
   buildSyntheticProviderModelsFromApi,
   buildSyntheticProviderModelsFromStore,
   parseApiPrice,
+  type ReasoningReplay,
   SYNTHETIC_MODELS,
 } from "./models";
 
@@ -282,5 +283,115 @@ describe("Synthetic models", () => {
     expect(models[0]?.id).toBe("hf:new/model");
     const compat = models[0]?.compat as Record<string, unknown> | undefined;
     expect(compat?.supportsReasoningEffort).toBe(true);
+  });
+});
+
+describe("reasoningReplay catalog decisions", () => {
+  /**
+   * Expected reasoningReplay knob per catalog id (undefined = none).
+   * Exhaustive on purpose: catalog changes must update this table.
+   */
+  const EXPECTED_REASONING_REPLAY: Record<string, ReasoningReplay | undefined> =
+    {
+      "syn:large:text": { field: "reasoning_content" },
+      "syn:small:text": undefined,
+      "syn:large:vision": undefined,
+      "syn:small:vision": undefined,
+      "hf:openai/gpt-oss-120b": undefined,
+      "hf:zai-org/GLM-5.3": undefined,
+      "hf:zai-org/GLM-5.3-Flash": {
+        field: "reasoning_content",
+        templateKwargs: { clear_thinking: false },
+      },
+      "hf:zai-org/GLM-4.7-Flash": undefined,
+      "hf:deepseek-ai/DeepSeek-V4.1-Flash": { field: "reasoning_content" },
+      "hf:moonshotai/Kimi-K3": undefined,
+      "hf:Qwen/Qwen3.8-27B": undefined,
+      "hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4": undefined,
+    };
+
+  it("covers every catalog entry exactly once", () => {
+    expect(Object.keys(EXPECTED_REASONING_REPLAY).sort()).toEqual(
+      SYNTHETIC_MODELS.map((model) => model.id).sort(),
+    );
+    expect(SYNTHETIC_MODELS.length).toBe(12);
+  });
+
+  it("stamps the verified knob shape on every entry", () => {
+    for (const model of SYNTHETIC_MODELS) {
+      expect(model.reasoningReplay).toEqual(
+        EXPECTED_REASONING_REPLAY[model.id],
+      );
+    }
+  });
+
+  it("knob carriers are exactly the three verified broken-template models", () => {
+    expect(
+      SYNTHETIC_MODELS.filter((model) => model.reasoningReplay).map(
+        (model) => model.id,
+      ),
+    ).toEqual([
+      "syn:large:text",
+      "hf:zai-org/GLM-5.3-Flash",
+      "hf:deepseek-ai/DeepSeek-V4.1-Flash",
+    ]);
+  });
+
+  it("never sets requiresReasoningContentOnAssistantMessages", () => {
+    for (const model of SYNTHETIC_MODELS) {
+      const compat = model.compat as Record<string, unknown> | undefined;
+      expect(
+        compat?.requiresReasoningContentOnAssistantMessages,
+        model.id,
+      ).toBeUndefined();
+    }
+  });
+
+  it("API-sourced models inherit the knob from the static override", () => {
+    const apiModels: SyntheticApiModel[] = [
+      {
+        id: "hf:deepseek-ai/DeepSeek-V4.1-Flash",
+        name: "deepseek-ai/DeepSeek-V4.1-Flash",
+        provider: "synthetic",
+        input_modalities: ["text"],
+        output_modalities: ["text"],
+        context_length: 524288,
+        max_output_length: 65536,
+        pricing: {
+          prompt: "$0.000001",
+          completion: "$0.000002",
+          input_cache_reads: "$0.000001",
+          input_cache_writes: "0",
+        },
+        supported_features: ["reasoning"],
+      },
+    ];
+
+    const models = buildSyntheticProviderModelsFromApi(apiModels);
+    expect(models).toHaveLength(1);
+    expect(models[0]?.reasoningReplay).toEqual({
+      field: "reasoning_content",
+    });
+  });
+
+  it("keeps persisted knobs on store-sourced models without a static override", () => {
+    const stored: Array<
+      Parameters<typeof buildSyntheticProviderModelsFromStore>[0][number]
+    > = [
+      {
+        id: "syn:established/model",
+        name: "established/model",
+        reasoning: true,
+        input: ["text"],
+        cost: { input: 0.1, output: 0.4, cacheRead: 0.02, cacheWrite: 0 },
+        contextWindow: 128000,
+        maxTokens: 32768,
+        reasoningReplay: { field: "reasoning_content" },
+      },
+    ];
+
+    const models = buildSyntheticProviderModelsFromStore(stored);
+    expect(models).toHaveLength(1);
+    expect(models[0]?.reasoningReplay).toEqual({ field: "reasoning_content" });
   });
 });
