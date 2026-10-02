@@ -157,6 +157,40 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     contextWindow: 131072,
     maxTokens: 65536,
   },
+  // API: hf:zai-org/GLM-5.3 → ctx=524288, out=65536
+  // The API advertises reasoning efforts ["low", "high", "max"], but "low"
+  // (and unadvertised "none"/"minimal") degenerates into a repetition loop
+  // that burns the full token budget without a final answer; only
+  // medium/high/xhigh/max behave. Expose high/max. "none" does not disable
+  // reasoning, so off stays hidden. Thinking streams as reasoning_content and
+  // replays rendered without chat_template_kwargs — no clear_thinking
+  // workaround needed, unlike GLM-5.3-Flash.
+  {
+    id: "hf:zai-org/GLM-5.3",
+    name: "zai-org/GLM-5.3",
+    reasoning: true,
+    thinkingLevelMap: {
+      off: null,
+      minimal: null,
+      low: null,
+      medium: null,
+      high: "high",
+      xhigh: null,
+      max: "max",
+    },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text"],
+    cost: {
+      input: 1.4,
+      output: 4.4,
+      cacheRead: 0.26,
+      cacheWrite: 0,
+    },
+    contextWindow: 524288,
+    maxTokens: 65536,
+  },
   // API: hf:zai-org/GLM-5.3-Flash → ctx=524288, out=65536
   // The API advertises reasoning efforts ["low", "high", "max"]; map them by
   // identity. `none` is not advertised, so `off` stays disabled.
