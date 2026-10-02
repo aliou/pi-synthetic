@@ -37,9 +37,9 @@
     "!extensions/**/*.test.ts"
   ],
   "peerDependencies": {
-    "@earendil-works/pi-ai": ">=0.84.0",
-    "@earendil-works/pi-coding-agent": ">=0.84.0",
-    "@earendil-works/pi-tui": ">=0.84.0",
+    "@earendil-works/pi-ai": ">=1.0.0",
+    "@earendil-works/pi-coding-agent": ">=1.0.0",
+    "@earendil-works/pi-tui": ">=1.0.0",
     "typebox": "*"
   },
   "scripts": {
@@ -57,16 +57,16 @@
     "release": "pnpm changeset publish"
   },
   "dependencies": {
-    "@aliou/pi-utils-settings": "^0.19.1",
-    "@aliou/pi-utils-ui": "^0.4.0"
+    "@aliou/pi-utils-settings": "^0.21.0",
+    "@aliou/pi-utils-ui": "^0.5.0"
   },
   "devDependencies": {
     "@aliou/biome-plugins": "^0.11.0",
     "@biomejs/biome": "^2.5.2",
     "@changesets/cli": "^2.27.11",
-    "@earendil-works/pi-ai": "0.84.0",
-    "@earendil-works/pi-coding-agent": "0.84.0",
-    "@earendil-works/pi-tui": "0.84.0",
+    "@earendil-works/pi-ai": "1.0.0",
+    "@earendil-works/pi-coding-agent": "1.0.0",
+    "@earendil-works/pi-tui": "1.0.0",
     "@types/node": "^25.0.10",
     "husky": "^9.1.7",
     "ts-json-schema-generator": "^2.9.0",
