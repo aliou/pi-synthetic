@@ -192,8 +192,11 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     maxTokens: 65536,
   },
   // API: hf:zai-org/GLM-5.3-Flash → ctx=524288, out=65536
-  // The API advertises reasoning efforts ["low", "high", "max"]; map them by
-  // identity. `none` is not advertised, so `off` stays disabled.
+  // The API advertises efforts ["low", "high", "max"], but "low" is
+  // unreliable upstream: it either loops until the token cap or writes the
+  // whole answer into reasoning_content with empty content. Only high/max
+  // behave. "none" has the same answer-swallowing problem, so off stays
+  // disabled.
   {
     id: "hf:zai-org/GLM-5.3-Flash",
     name: "zai-org/GLM-5.3-Flash",
@@ -201,7 +204,7 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     thinkingLevelMap: {
       off: null,
       minimal: null,
-      low: "low",
+      low: null,
       medium: null,
       high: "high",
       xhigh: null,
