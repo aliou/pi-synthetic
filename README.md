@@ -129,11 +129,11 @@ For weekly credits and rolling five-hour requests, projections warn at 80%, beco
 
 ## Disabling Features
 
-Each feature (provider, web search, quotas command, sub bar integration, usage status, quota warnings) is a separate Pi extension. Disable individual features either through the `pi config` TUI or by editing `~/.pi/agent/settings.json`.
+Each feature (provider, web search, quotas command, usage status, quota warnings) is a separate Pi extension. Disable individual features either through the `pi config` TUI or by editing `~/.pi/agent/settings.json`.
 
 Run `pi config` to open the resource selector and unselect the extension you want to disable. Press Tab to switch between global and project-local scope.
 
-To disable features directly in `~/.pi/agent/settings.json`, list the extensions you want with `+` (enable) and `-` (disable) prefixes on paths relative to the package root. For example, to disable sub-bar-integration and usage-status while keeping the rest active:
+To disable features directly in `~/.pi/agent/settings.json`, list the extensions you want with `+` (enable) and `-` (disable) prefixes on paths relative to the package root. For example, to disable usage-status and quota-warnings while keeping the rest active:
 
 ```json
 {
@@ -141,10 +141,9 @@ To disable features directly in `~/.pi/agent/settings.json`, list the extensions
     {
       "source": "npm:@aliou/pi-synthetic",
       "extensions": [
-        "-src/extensions/sub-bar-integration/index.ts",
-        "+src/extensions/command-quotas/index.ts",
-        "-src/extensions/usage-status/index.ts",
-        "+src/extensions/quota-warnings/index.ts",
+        "+extensions/command-quotas/index.ts",
+        "-extensions/usage-status/index.ts",
+        "-extensions/quota-warnings/index.ts",
         "+extensions/web-search/index.ts",
         "+extensions/provider/index.ts"
       ]
@@ -153,7 +152,7 @@ To disable features directly in `~/.pi/agent/settings.json`, list the extensions
 }
 ```
 
-The extension paths map to the files under `extensions/` in this repo: `provider`, `web-search`, `command-quotas`, `sub-bar-integration`, `usage-status`, and `quota-warnings`.
+The extension paths map to the files under `extensions/` in this repo: `provider`, `web-search`, `command-quotas`, `usage-status`, and `quota-warnings`.
 
 The **Utility API Proxy** setting is not a loadable extension feature. It is a regular setting controlled through `/synthetic:settings`.
 
