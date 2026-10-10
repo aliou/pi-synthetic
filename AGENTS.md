@@ -45,8 +45,6 @@ extensions/
       quotas-display.ts         # TUI component for quotas display (all states)
   quota-warnings/
     index.ts                    # Quota warning notifications (event-driven)
-  sub-bar-integration/
-    index.ts                    # pi-sub-core usage bar (event-driven)
   usage-status/
     index.ts                    # Footer status bar showing live quota usage
 src/
@@ -65,6 +63,7 @@ src/
     quota-warnings.ts           # Pi-agnostic transition-based warning evaluator
     quota-warnings.test.ts      # Tests
   config.ts                     # Feature settings, /synthetic:settings command, config migrations
+  migrations.ts                 # Versioned config migrations
   types/
     quotas.ts                   # Quotas API types, event constants, parseQuotaHeader
     quotas.test.ts              # Tests
@@ -88,7 +87,7 @@ src/
 - All user-facing model selection still uses the Pi provider name `synthetic`
 - Web search tool and quotas command are always registered; they fail at call time if credentials/subscription are missing unless an unauthenticated utility API proxy is configured
 - Error messages guide users to add credentials to `~/.pi/agent/auth.json`, set `SYNTHETIC_API_KEY`, or configure an unauthenticated utility API proxy when relevant
-- Quota data flows event-driven: provider ingests `x-synthetic-quotas` header from `after_provider_response` into `QuotaStore`, which broadcasts via `synthetic:quotas:updated`; consumers (usage-status, quota-warnings, sub-bar-integration) listen and request refreshes via `synthetic:quotas:request` — no polling
+- Quota data flows event-driven: provider ingests `x-synthetic-quotas` header from `after_provider_response` into `QuotaStore`, which broadcasts via `synthetic:quotas:updated`; consumers (usage-status, quota-warnings) listen and request refreshes via `synthetic:quotas:request` — no polling
 - Persistent quota history is owned by the quota-warnings extension. It initializes and writes only while `quotaWarnings` is enabled; users who leave warnings disabled get no history directory or files
 - There is no `provider` field on the Pi model config and no per-model upstream-host concept. The `provider` field exists only on the raw Synthetic API response (`SyntheticApiModel.provider`) and is not stored on registered models
 
@@ -157,5 +156,4 @@ Uses changesets. Run `pnpm changeset` before committing user-facing changes.
 2. **Web Search Tool**: Zero-data-retention web search via `synthetic_web_search`; subscription-gated at session start; can use the utility API proxy
 3. **Quotas Command**: Interactive TUI for viewing API usage limits; can use the utility API proxy
 4. **Usage Status**: Footer status bar showing live quota percentages, colored by severity (event-driven)
-5. **Sub Integration**: Real-time usage tracking when used with pi-sub-core (event-driven)
-6. **Quota Warnings**: Notifications when quota usage approaches or exceeds thresholds
+5. **Quota Warnings**: Notifications when quota usage approaches or exceeds thresholds

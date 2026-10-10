@@ -14,11 +14,11 @@ import {
   hasSyntheticUtilityApiProxy,
   validateSyntheticUtilityApiProxyUrl,
 } from "./client";
+import { removeSubBarIntegrationMigration } from "./migrations";
 
 export type SyntheticFeatureId =
   | "webSearch"
   | "quotasCommand"
-  | "subBarIntegration"
   | "usageStatus"
   | "quotaWarnings";
 
@@ -50,7 +50,6 @@ export interface SyntheticConfig {
   quotasCommand?: boolean;
   usageStatus?: boolean;
   quotaWarnings?: boolean;
-  subBarIntegration?: boolean;
   proxyUrl?: string;
   proxyRequiresAuth?: boolean;
 }
@@ -62,7 +61,6 @@ export interface ResolvedSyntheticConfig {
   quotasCommand: boolean;
   usageStatus: boolean;
   quotaWarnings: boolean;
-  subBarIntegration: boolean;
   proxyUrl: string;
   proxyRequiresAuth: boolean;
 }
@@ -74,12 +72,12 @@ const DEFAULT_CONFIG: ResolvedSyntheticConfig = {
   quotasCommand: true,
   usageStatus: false,
   quotaWarnings: false,
-  subBarIntegration: true,
   proxyUrl: "",
   proxyRequiresAuth: true,
 };
 
-const migrations: Migration<SyntheticConfig>[] = [];
+// biome-ignore lint/suspicious/noExplicitAny: the migration is typed against its historical pre-removal config shape, which is not assignable to Migration<SyntheticConfig>; the loader applies migrations to the raw on-disk config record
+const migrations: Migration<any>[] = [removeSubBarIntegrationMigration];
 
 const schemaUrl = buildSchemaUrl(pkg.name, pkg.version);
 
@@ -171,8 +169,6 @@ export function registerSyntheticSettings(
       const quotasCommand = tabConfig?.quotasCommand ?? resolved.quotasCommand;
       const usageStatus = tabConfig?.usageStatus ?? resolved.usageStatus;
       const quotaWarnings = tabConfig?.quotaWarnings ?? resolved.quotaWarnings;
-      const subBarIntegration =
-        tabConfig?.subBarIntegration ?? resolved.subBarIntegration;
       const proxyUrl = tabConfig?.proxyUrl ?? resolved.proxyUrl;
       const proxyRequiresAuth =
         tabConfig?.proxyRequiresAuth ?? resolved.proxyRequiresAuth;
@@ -318,18 +314,6 @@ export function registerSyntheticSettings(
             ),
           ],
         },
-        {
-          label: "Integration",
-          items: [
-            featureRow(
-              "subBarIntegration",
-              "pi-sub-bar integration",
-              "Integration with `@marckrenn/pi-sub-bar`",
-              subBarIntegration,
-              loaded.has("subBarIntegration"),
-            ),
-          ],
-        },
       );
 
       return sections;
@@ -351,7 +335,6 @@ export function registerSyntheticSettings(
         "quotasCommand",
         "usageStatus",
         "quotaWarnings",
-        "subBarIntegration",
       ]);
 
       if (
@@ -371,8 +354,6 @@ export function registerSyntheticSettings(
           return { ...config, usageStatus: enabled };
         case "quotaWarnings":
           return { ...config, quotaWarnings: enabled };
-        case "subBarIntegration":
-          return { ...config, subBarIntegration: enabled };
         default:
           return null;
       }

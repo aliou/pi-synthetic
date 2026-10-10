@@ -18,7 +18,6 @@
       "./extensions/provider/index.ts",
       "./extensions/web-search/index.ts",
       "./extensions/command-quotas/index.ts",
-      "./extensions/sub-bar-integration/index.ts",
       "./extensions/quota-warnings/index.ts",
       "./extensions/usage-status/index.ts"
     ],
@@ -48,7 +47,7 @@
     "format": "biome check --write",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:schema": "pi-settings-schema -p src/config.ts -t SyntheticConfig -o schema.json --version 0.25.0",
+    "gen:schema": "pi-settings-schema -p src/config.ts -t SyntheticConfig -o schema.json",
     "check:schema": "pnpm gen:schema --check",
     "check:lockfile": "pnpm install --frozen-lockfile --ignore-scripts",
     "prepare": "[ -d .git ] && husky || true",

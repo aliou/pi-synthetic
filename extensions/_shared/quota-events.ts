@@ -11,7 +11,7 @@ import {
  * Emit a request to refresh quotas from the Synthetic API.
  *
  * `respond` is optional: callers that only want to trigger a refresh
- * (e.g. sub-bar-integration) omit it and pass undefined.
+ * (e.g. usage-status) omit it and pass undefined.
  */
 export function requestQuotas(
   pi: ExtensionAPI,
