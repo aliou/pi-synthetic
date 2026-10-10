@@ -1,5 +1,15 @@
 # @aliou/pi-synthetic
 
+## 0.29.0
+
+### Minor Changes
+
+- fd9d96c: Remove the built-in sub-bar integration from the package. It is now distributed as a standalone one-off pi extension installed with `pi install https://gist.github.com/aliou/7cce00c3be0c4c94e2bb305a215f5d93` (frozen, unmaintained). The `subBarIntegration` config option was removed; a config migration drops it and points remaining users at the gist.
+
+### Patch Changes
+
+- 9dc4a94: Hide the `low` thinking level on GLM-5.3-Flash. It degenerates into a repetition loop that burns the full token budget without producing a final answer (same defect as GLM-5.3's `low`). The model now exposes only `high` and `max`, matching GLM-5.3.
+
 ## 0.28.0
 
 ### Minor Changes
