@@ -97,7 +97,11 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     contextWindow: 524288,
     maxTokens: 65536,
   },
-  // API: syn:small:vision → ctx=262144, out=65536
+  // API: syn:small:vision → ctx=524288, out=65536
+  // Now routes to DeepSeek-V4.1-Flash (previously Qwen3.8-27B): context
+  // doubled to 524288 and pricing moved to the DeepSeek tier. The API
+  // advertises reasoning efforts ["none", "low", "high", "xhigh", "max"];
+  // map them by identity.
   {
     id: "syn:small:vision",
     name: "syn:small:vision",
@@ -105,22 +109,53 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     thinkingLevelMap: {
       off: "none",
       minimal: null,
-      low: null,
-      medium: "medium",
-      high: null,
-      xhigh: null,
+      low: "low",
+      medium: null,
+      high: "high",
+      xhigh: "xhigh",
+      max: "max",
     },
     compat: {
       supportsReasoningEffort: true,
     },
     input: ["text", "image"],
     cost: {
-      input: 0.45,
-      output: 2.2,
-      cacheRead: 0.09,
+      input: 0.6,
+      output: 1.2,
+      cacheRead: 0.03,
       cacheWrite: 0,
     },
-    contextWindow: 262144,
+    contextWindow: 524288,
+    maxTokens: 65536,
+  },
+  // API: infinite:small:vision → ctx=524288, out=65536
+  // Routes to DeepSeek-V4.1-Flash with vision enabled; the API reports zero
+  // per-token pricing for this tier. The API advertises reasoning efforts
+  // ["none", "low", "high", "xhigh", "max"]; map them by identity.
+  {
+    id: "infinite:small:vision",
+    name: "infinite:small:vision",
+    reasoning: true,
+    thinkingLevelMap: {
+      off: "none",
+      minimal: null,
+      low: "low",
+      medium: null,
+      high: "high",
+      xhigh: "xhigh",
+      max: "max",
+    },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    },
+    contextWindow: 524288,
     maxTokens: 65536,
   },
   // API: hf:openai/gpt-oss-120b → ctx=131072, out=65536
