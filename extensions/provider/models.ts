@@ -313,6 +313,37 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     contextWindow: 524288,
     maxTokens: 65536,
   },
+  // API: hf:deepseek-ai/DeepSeek-V4.1-Flash-1017 → ctx=524288, out=65536
+  // Pinned 10/17 snapshot of DeepSeek-V4.1-Flash; runtime behavior matches
+  // the floating model ("none" disables reasoning, vision works, high/max
+  // scale reasoning length). The API advertises reasoning efforts ["none",
+  // "low", "high", "xhigh", "max"]; map them by identity.
+  {
+    id: "hf:deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    name: "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+    reasoning: true,
+    thinkingLevelMap: {
+      off: "none",
+      minimal: null,
+      low: "low",
+      medium: null,
+      high: "high",
+      xhigh: "xhigh",
+      max: "max",
+    },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 0.6,
+      output: 1.2,
+      cacheRead: 0.03,
+      cacheWrite: 0,
+    },
+    contextWindow: 524288,
+    maxTokens: 65536,
+  },
   // API: hf:moonshotai/Kimi-K3 → ctx=524288, out=65536
   // Backend accepts thinking_effort in ['high', 'low', 'max']; 'none' disables
   // reasoning, 'medium' is rejected. 'low' produces no reasoning content, so
