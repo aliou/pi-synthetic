@@ -6,11 +6,63 @@ describe("parseQuotaHeader", () => {
     expect(
       parseQuotaHeader({
         "x-synthetic-quotas": JSON.stringify({
-          subscription: { limit: 100, requests: 5, renewsAt: "later" },
+          planWeeklyLimit: {
+            nextRegenAt: "later",
+            percentRemaining: 51.7,
+            nextRegenPercent: 2,
+          },
+          search: {
+            hourly: { limit: 250, requests: 5, renewsAt: "later" },
+          },
         }),
       }),
     ).toEqual({
-      subscription: { limit: 100, requests: 5, renewsAt: "later" },
+      planWeeklyLimit: {
+        nextRegenAt: "later",
+        percentRemaining: 51.7,
+        nextRegenPercent: 2,
+      },
+      search: {
+        hourly: { limit: 250, requests: 5, renewsAt: "later" },
+      },
+    });
+  });
+
+  it("parses legacy weekly and rolling windows", () => {
+    expect(
+      parseQuotaHeader({
+        "x-synthetic-quotas": JSON.stringify({
+          weeklyTokenLimit: {
+            nextRegenAt: "later",
+            percentRemaining: 50,
+            maxCredits: "$10",
+            remainingCredits: "$5",
+            nextRegenCredits: "$1",
+          },
+          rollingFiveHourLimit: {
+            nextTickAt: "later",
+            tickPercent: 0.05,
+            remaining: 5,
+            max: 10,
+            limited: false,
+          },
+        }),
+      }),
+    ).toEqual({
+      weeklyTokenLimit: {
+        nextRegenAt: "later",
+        percentRemaining: 50,
+        maxCredits: "$10",
+        remainingCredits: "$5",
+        nextRegenCredits: "$1",
+      },
+      rollingFiveHourLimit: {
+        nextTickAt: "later",
+        tickPercent: 0.05,
+        remaining: 5,
+        max: 10,
+        limited: false,
+      },
     });
   });
 
@@ -20,7 +72,12 @@ describe("parseQuotaHeader", () => {
     ).toBeUndefined();
     expect(
       parseQuotaHeader({
-        "x-synthetic-quotas": JSON.stringify({ subscription: {} }),
+        "x-synthetic-quotas": JSON.stringify({ planWeeklyLimit: {} }),
+      }),
+    ).toBeUndefined();
+    expect(
+      parseQuotaHeader({
+        "x-synthetic-quotas": JSON.stringify({ weeklyTokenLimit: {} }),
       }),
     ).toBeUndefined();
   });

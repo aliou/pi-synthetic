@@ -20,7 +20,11 @@ afterEach(() => {
 
 describe("QuotaStore", () => {
   const sampleQuotas: QuotasResponse = {
-    subscription: { limit: 100, requests: 5, renewsAt: "2026-01-01T00:00:00Z" },
+    planWeeklyLimit: {
+      nextRegenAt: "2026-01-01T00:00:00Z",
+      percentRemaining: 75,
+      nextRegenPercent: 2,
+    },
   };
 
   describe("ingest", () => {
