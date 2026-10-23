@@ -232,6 +232,52 @@ describe("assessWindow", () => {
       expect(result.severity).toBe("warning");
     });
 
+    it("maps the plan weekly window to used percent", () => {
+      const windows = toWindows({
+        planWeeklyLimit: {
+          nextRegenAt: new Date(
+            Date.now() + (2 * 60 + 36) * 60 * 1000,
+          ).toISOString(),
+          percentRemaining: 51.7,
+          nextRegenPercent: 2,
+        },
+      });
+      const plan = windows.find((window) => window.id === "planWeeklyLimit");
+      assert(plan, "plan window should exist");
+
+      expect(plan.usedPercent).toBeCloseTo(48.3);
+      expect(plan.limitValue).toBe(100);
+      expect(plan.nextAmount).toBe("+2%");
+
+      const result = assessWindow(plan);
+      expect(result.pacePercent).toBeNull();
+      expect(result.projectedPercent).toBeCloseTo(48.3);
+      expect(result.severity).toBe("none");
+    });
+
+    it("prefers the plan window over the credit weekly window", () => {
+      const windows = toWindows({
+        planWeeklyLimit: {
+          nextRegenAt: "later",
+          percentRemaining: 50,
+          nextRegenPercent: 2,
+        },
+        weeklyTokenLimit: {
+          nextRegenAt: "later",
+          percentRemaining: 50,
+          maxCredits: "$10",
+          remainingCredits: "$5",
+          nextRegenCredits: "$1",
+        },
+      });
+      expect(windows.some((window) => window.id === "planWeeklyLimit")).toBe(
+        true,
+      );
+      expect(windows.some((window) => window.id === "weeklyTokenLimit")).toBe(
+        false,
+      );
+    });
+
     it("does not use pace when showPace is false", () => {
       // Same timestamps but showPace: false
       const w = makeWindow({

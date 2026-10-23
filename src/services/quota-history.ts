@@ -8,7 +8,14 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
-import type { QuotasResponse } from "../types/quotas";
+import type { Static } from "typebox";
+import { Value } from "typebox/value";
+import {
+  PlanWeeklyLimitSchema,
+  type QuotasResponse,
+  RollingFiveHourLimitSchema,
+  WeeklyTokenLimitSchema,
+} from "../types/quotas";
 import type { ProjectionSnapshot } from "../utils/quotas-projection";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -27,8 +34,9 @@ interface PersistedQuotaHistoryEntry {
   quotas: QuotasResponse;
 }
 
-type WeeklyQuota = NonNullable<QuotasResponse["weeklyTokenLimit"]>;
-type RollingQuota = NonNullable<QuotasResponse["rollingFiveHourLimit"]>;
+type WeeklyQuota = Static<typeof WeeklyTokenLimitSchema>;
+type PlanWeeklyQuota = Static<typeof PlanWeeklyLimitSchema>;
+type RollingQuota = Static<typeof RollingFiveHourLimitSchema>;
 
 export interface QuotaHistoryOptions {
   /** Override the state directory. `null` disables disk persistence. */
@@ -271,6 +279,9 @@ export function defaultQuotaHistoryDirectory(): string | undefined {
 
 function projectionQuotas(quotas: QuotasResponse): QuotasResponse {
   const projected: QuotasResponse = {};
+  if (quotas.planWeeklyLimit) {
+    projected.planWeeklyLimit = { ...quotas.planWeeklyLimit };
+  }
   if (quotas.weeklyTokenLimit) {
     projected.weeklyTokenLimit = { ...quotas.weeklyTokenLimit };
   }
@@ -281,7 +292,11 @@ function projectionQuotas(quotas: QuotasResponse): QuotasResponse {
 }
 
 function hasProjectionQuotas(quotas: QuotasResponse): boolean {
-  return !!(quotas.weeklyTokenLimit || quotas.rollingFiveHourLimit);
+  return !!(
+    quotas.planWeeklyLimit ||
+    quotas.weeklyTokenLimit ||
+    quotas.rollingFiveHourLimit
+  );
 }
 
 function parseHistoryLine(line: string): ProjectionSnapshot | undefined {
@@ -313,6 +328,8 @@ function parseHistoryLine(line: string): ProjectionSnapshot | undefined {
 
 function parseProjectionQuotas(value: QuotasResponse): QuotasResponse {
   const quotas: QuotasResponse = {};
+  const plan = parsePlanWeeklyQuota(value.planWeeklyLimit);
+  if (plan) quotas.planWeeklyLimit = plan;
   const weekly = parseWeeklyQuota(value.weeklyTokenLimit);
   if (weekly) quotas.weeklyTokenLimit = weekly;
   const rolling = parseRollingQuota(value.rollingFiveHourLimit);
@@ -320,50 +337,16 @@ function parseProjectionQuotas(value: QuotasResponse): QuotasResponse {
   return quotas;
 }
 
+function parsePlanWeeklyQuota(value: unknown): PlanWeeklyQuota | undefined {
+  return Value.Check(PlanWeeklyLimitSchema, value) ? value : undefined;
+}
+
 function parseWeeklyQuota(value: unknown): WeeklyQuota | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return undefined;
-  }
-  const quota = value as Record<string, unknown>;
-  if (
-    typeof quota.nextRegenAt !== "string" ||
-    typeof quota.percentRemaining !== "number" ||
-    typeof quota.maxCredits !== "string" ||
-    typeof quota.remainingCredits !== "string" ||
-    typeof quota.nextRegenCredits !== "string"
-  ) {
-    return undefined;
-  }
-  return {
-    nextRegenAt: quota.nextRegenAt,
-    percentRemaining: quota.percentRemaining,
-    maxCredits: quota.maxCredits,
-    remainingCredits: quota.remainingCredits,
-    nextRegenCredits: quota.nextRegenCredits,
-  };
+  return Value.Check(WeeklyTokenLimitSchema, value) ? value : undefined;
 }
 
 function parseRollingQuota(value: unknown): RollingQuota | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return undefined;
-  }
-  const quota = value as Record<string, unknown>;
-  if (
-    typeof quota.nextTickAt !== "string" ||
-    typeof quota.tickPercent !== "number" ||
-    typeof quota.remaining !== "number" ||
-    typeof quota.max !== "number" ||
-    typeof quota.limited !== "boolean"
-  ) {
-    return undefined;
-  }
-  return {
-    nextTickAt: quota.nextTickAt,
-    tickPercent: quota.tickPercent,
-    remaining: quota.remaining,
-    max: quota.max,
-    limited: quota.limited,
-  };
+  return Value.Check(RollingFiveHourLimitSchema, value) ? value : undefined;
 }
 
 function historyFileName(recordedAt: string): string {

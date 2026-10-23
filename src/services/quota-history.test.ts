@@ -46,6 +46,16 @@ function weeklyQuotas(remainingCredits: string): QuotasResponse {
   };
 }
 
+function planWeeklyQuotas(percentRemaining: number): QuotasResponse {
+  return {
+    planWeeklyLimit: {
+      nextRegenAt: "2026-07-06T00:00:00.000Z",
+      percentRemaining,
+      nextRegenPercent: 2,
+    },
+  };
+}
+
 describe("QuotaHistory", () => {
   it("does not create a directory during construction or initialization", async () => {
     const { history } = await temporaryHistoryPath();
@@ -132,6 +142,31 @@ describe("QuotaHistory", () => {
     expect(
       quotaHistory.getSnapshots()[0].quotas.weeklyTokenLimit?.remainingCredits,
     ).toBe("$8.00");
+  });
+
+  it("loads persisted plan weekly entries", async () => {
+    const { history } = await temporaryHistoryPath();
+    const now = Date.parse("2026-07-05T12:00:00.000Z");
+    await mkdir(history, { recursive: true });
+    await writeFile(
+      join(history, "2026-07-05.jsonl"),
+      JSON.stringify({
+        version: 1,
+        recordedAt: new Date(now - DAY_MS).toISOString(),
+        quotas: planWeeklyQuotas(51.7),
+      }),
+    );
+
+    const quotaHistory = new QuotaHistory({
+      directory: history,
+      now: () => now,
+    });
+    await quotaHistory.initialize();
+
+    expect(quotaHistory.getSnapshots()).toHaveLength(1);
+    expect(
+      quotaHistory.getSnapshots()[0].quotas.planWeeklyLimit?.percentRemaining,
+    ).toBe(51.7);
   });
 
   it("prunes files outside the retention window", async () => {

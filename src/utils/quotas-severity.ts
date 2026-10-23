@@ -67,7 +67,27 @@ export function parseCurrency(value: string): number {
 export function toWindows(quotas: QuotasResponse): QuotaWindow[] {
   const windows: QuotaWindow[] = [];
 
-  if (quotas.weeklyTokenLimit) {
+  if (quotas.planWeeklyLimit) {
+    const { planWeeklyLimit } = quotas;
+    const usedPercent = Math.max(
+      0,
+      Math.min(100, 100 - planWeeklyLimit.percentRemaining),
+    );
+    windows.push({
+      id: "planWeeklyLimit",
+      label: "Plan / week",
+      usedPercent,
+      resetsAt: new Date(planWeeklyLimit.nextRegenAt),
+      windowSeconds: 7 * 24 * 60 * 60,
+      usedValue: usedPercent,
+      limitValue: 100,
+      // nextRegenAt is the next regen tick, not the start/end of the weekly
+      // window. History-based projections handle weekly pace.
+      showPace: false,
+      nextAmount: `+${planWeeklyLimit.nextRegenPercent}%`,
+      nextLabel: "Next regen",
+    });
+  } else if (quotas.weeklyTokenLimit) {
     const { weeklyTokenLimit } = quotas;
     const limitValue = parseCurrency(weeklyTokenLimit.maxCredits);
     const remainingValue = parseCurrency(weeklyTokenLimit.remainingCredits);
