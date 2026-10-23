@@ -4,12 +4,6 @@ import type { QuotasResponse } from "../types/quotas";
 
 export type BillingMode = "subscription" | "pay-as-you-go";
 
-const SubscriptionQuotaSchema = Type.Object({
-  limit: Type.Number(),
-  requests: Type.Number(),
-  renewsAt: Type.String(),
-});
-
 const WeeklyTokenLimitSchema = Type.Object({
   nextRegenAt: Type.String(),
   percentRemaining: Type.Number(),
@@ -26,15 +20,21 @@ const RollingFiveHourLimitSchema = Type.Object({
   limited: Type.Boolean(),
 });
 
+const PlanWeeklyLimitSchema = Type.Object({
+  nextRegenAt: Type.String(),
+  percentRemaining: Type.Number(),
+  nextRegenPercent: Type.Number(),
+});
+
 /**
  * Synthetic subscription accounts expose at least one subscription quota
- * window. PAYG accounts return an empty quota object or legacy tool windows.
+ * window. PAYG accounts return an empty quota object or tool windows only.
  */
 export function detectBillingMode(
   quotas: QuotasResponse | undefined,
 ): BillingMode {
-  return Value.Check(SubscriptionQuotaSchema, quotas?.subscription) ||
-    Value.Check(WeeklyTokenLimitSchema, quotas?.weeklyTokenLimit) ||
+  return Value.Check(WeeklyTokenLimitSchema, quotas?.weeklyTokenLimit) ||
+    Value.Check(PlanWeeklyLimitSchema, quotas?.planWeeklyLimit) ||
     Value.Check(RollingFiveHourLimitSchema, quotas?.rollingFiveHourLimit)
     ? "subscription"
     : "pay-as-you-go";
