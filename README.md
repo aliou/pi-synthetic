@@ -49,16 +49,14 @@ pi -e .
 Once installed, select `synthetic` as your provider and choose from available models:
 
 ```
-/model synthetic hf:moonshotai/Kimi-K2.5
+/model synthetic hf:moonshotai/Kimi-K3
 ```
 
 ### Models
 
-Models are discovered dynamically from Synthetic's models API and cached for four hours. The hardcoded catalog in `extensions/provider/models.ts` is an offline fallback and the override source for model-specific compatibility settings (`thinkingLevelMap`, `compat`) that the API does not expose. When the API returns a model whose `id` matches a static entry, the static entry's `thinkingLevelMap` and `compat` are merged on top of the API-sourced fields.
+Models come from Synthetic's models API and are cached for four hours. A built-in list covers offline starts and carries per-model reasoning and compatibility overrides the API does not expose.
 
-Synthetic publishes permanent category model IDs — `syn:large:text`, `syn:small:text`, `syn:large:vision`, `syn:small:vision` — that route to the current best model for each category. These IDs are stable across model rotations, so using one means no reconfiguration when Synthetic swaps the underlying model. They appear in the catalog like any other model and carry their own `thinkingLevelMap` overrides in the static catalog.
-
-All user-facing model selection uses the Pi provider name `synthetic`.
+Synthetic's category IDs (`syn:large:text`, `syn:small:text`, `syn:large:vision`, `syn:small:vision`) always route to the current best model for that category, so they survive model rotations without reconfiguration.
 
 ### Web Search Tool
 
@@ -66,32 +64,11 @@ The extension registers `synthetic_web_search` — a zero-data-retention web sea
 
 ### Prompt Cache
 
-Synthetic caches prompt prefixes when the same user, model, and prefix hit the same inference node. Pi sees cache hits through the OpenAI-compatible `prompt_tokens_details.cached_tokens` field on streaming responses, which it maps to `usage.cacheRead`.
-
-This extension prices cache reads at **80% off** the API list rate (i.e., `cacheRead = input × 0.2`). This discount applies to both subscriptions and PAYG as of Synthetic v0.11.x (2026-07-22).
-
-**How the cache behaves as of 2026-07-25** (based on Synthetic staff updates):
-
-- **No explicit TTL.** Cache liveness is LRU-driven per node, not a fixed time window.
-- **Tiered storage.** L0 is GPU KV cache, L1 is CPU, and L2 is disk; hierarchical offload increases hit rates under load.
-- **Node affinity.** Synthetic routes identical user/model/prefix combinations to the same node when possible, so concurrent agents usually share the cache.
-- **No cross-request wipe.** Other requests do not automatically invalidate your cache.
-- **Load and restarts matter.** Under heavy load a request may land on a fresh machine with no cache; a node restart wipes the cache.
-- **Engine differences.** Kimi uses vLLM, which aligns caches to boundary sizes and may miss on small requests. GLM-5/5.1 uses SGLang, which is more aggressive about cache hits.
-- **Typical hit rates.** Users and staff report 80%+ cache hit rates on long-context work; reported internal figures for GLM 5.1 and Kimi K2.6 were ~82% as of 2026-06-02.
-
-Cross-session reuse is not guaranteed; reuse within a single session or a short concurrent span is the reliable case.
+Synthetic caches prompt prefixes per inference node. Pi reads cache hits from the `prompt_tokens_details.cached_tokens` field and prices them at the cache-read rate Synthetic's API reports. Reuse within a session is the reliable case; cross-session reuse is not guaranteed.
 
 ### Reasoning Levels
 
-Reasoning effort support is model-specific, not a uniform set. Synthetic's models API reports the accepted effort values per model in `reasoning_parameters.efforts`, and the extension maps them to Pi levels through each model's `thinkingLevelMap`, so Pi's level picker only offers what the selected model accepts. Across the catalog the accepted values range from `none` up to `max`:
-
-- `none`/`low`/`medium`/`high` (off plus Pi's base range): `syn:small:text`, `hf:openai/gpt-oss-120b`, `hf:zai-org/GLM-4.7-Flash`, `hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4`
-- `low`/`high`/`max`, with no `none` (reasoning always on): `syn:large:vision`, `hf:zai-org/GLM-5.3-Flash`, `hf:moonshotai/Kimi-K3`
-- `low`/`medium`/`xhigh`, with no `none` and no `high`: `syn:small:vision`, `hf:Qwen/Qwen3.8-27B`
-- `none`/`low`/`high`/`xhigh`/`max`, with no `medium`: `syn:large:text`, `hf:deepseek-ai/DeepSeek-V4.1-Flash`
-
-The `max` level is opt-in and was added in Pi 0.80.6.
+Accepted reasoning efforts differ per model. Built-in per-model mappings limit Pi's level picker to what each known model accepts. Some models cannot turn reasoning off; some accept `max`.
 
 ### Provider API
 
@@ -99,7 +76,7 @@ Synthetic serves every chat model twice: on an OpenAI-compatible `POST /openai/v
 
 Pick the surface with `/synthetic:settings` under **Provider > API** (default `openai-completions`). Changes apply after `/reload`.
 
-The Anthropic surface is the better fit for Pi where supported: real thinking blocks stream natively, tool use is first-party Anthropic `tool_use`/`tool_result`, and the cache token split (`cache_read_input_tokens`/`cache_creation_input_tokens`) is reported directly. Reasoning is binary there today: thinking is genuinely disabled via `thinking:{type:"disabled"}`, but positive effort levels are not gradated (`output_config.effort` is accepted but not acted on), and `hf:zai-org/GLM-5.3-Flash` / `syn:large:text` cannot disable reasoning at all. The `syn:large:text` alias stays on the best-effort disable list per surface; the OpenAI surface keeps full effort gradation where the model's effort enum allows it.
+The Anthropic surface streams real thinking blocks, uses native `tool_use`/`tool_result`, and reports cache reads and writes directly. Its reasoning control is on or off only: effort levels are not graded, and `syn:large:text` and `hf:zai-org/GLM-5.3-Flash` cannot turn reasoning off. The OpenAI surface keeps graded effort where the model supports it.
 
 ### Quotas Command
 
@@ -123,9 +100,7 @@ When a Synthetic model is active, the footer status bar shows live quota usage (
 
 The extension automatically notifies you when you approach or exceed your Synthetic API quotas. Notifications fire on severity transitions and escalations, not as repeated reminders for the same level. Recovered quotas can notify again if they later become risky.
 
-When quota warnings are enabled, the extension keeps bounded local history to account for rolling refills and avoid extrapolating short usage bursts across weekly quotas. Weekly projections estimate recent credit burn from daily trends across capacity tiers without treating capacity changes as usage, then apply the current tier's refill rate. Warning messages state the projection horizon. History is retained for 14 days, capped at 5 MiB, and stored under `$XDG_STATE_HOME/pi-synthetic/quota-history` or Pi's agent state directory. No history directory is created while quota warnings are disabled.
-
-For weekly credits and rolling five-hour requests, projections warn at 80%, become high at 90%, and critical when exhaustion is projected within the 24-hour or one-hour horizon respectively. Warnings also show the estimated time to 100% when usage is draining faster than it refills. Without enough history, these windows fall back to the same thresholds using current usage.
+Weekly credits and five-hour request windows are projected from recent usage, so a short burst does not trigger a weekly warning. Without enough history, warnings use current usage instead. For projections, the extension keeps up to 14 days (5 MiB) of quota history under `$XDG_STATE_HOME/pi-synthetic/quota-history` or Pi's agent state directory. Nothing is stored while quota warnings are disabled.
 
 ## Disabling Features
 
@@ -156,70 +131,21 @@ The extension paths map to the files under `extensions/` in this repo: `provider
 
 The **Utility API Proxy** setting is not a loadable extension feature. It is a regular setting controlled through `/synthetic:settings`.
 
-## Adding or Updating Models
-
-Models are hardcoded in `extensions/provider/models.ts` as concrete entries.
-
-### Adding a model
-
-1. Edit `extensions/provider/models.ts`
-2. Append a concrete model following the `SyntheticModelConfig` interface
-3. Set `id` and `name` from the Synthetic API
-4. Add `thinkingLevelMap` and `compat` overrides only when the API does not expose enough information for Pi to use the model correctly
-5. Run `pnpm run typecheck` to verify
-
-The dynamic refresh discovers new models from the API automatically on the next refresh; the static entry is only needed for offline fallback and for the overrides above.
-
-See `AGENTS.md` for the full model entry shape and the update workflow.
-
 ## Development
-
-### Setup
 
 ```bash
 git clone https://github.com/aliou/pi-synthetic.git
 cd pi-synthetic
-
-# Install dependencies (sets up pre-commit hooks)
-pnpm install && pnpm prepare
-```
-
-Pre-commit hooks run on every commit:
-- TypeScript type checking
-- Biome linting
-- Biome formatting with auto-fix
-
-### Commands
-
-```bash
-# Type check
+pnpm install
 pnpm run typecheck
-
-# Lint
 pnpm run lint
-
-# Format
-pnpm run format
-
-# Test
 pnpm run test
+pi -e .            # run Pi with the local checkout
 ```
 
-### Test Locally
+The pre-commit hook runs typecheck, lint, format, and tests. Built-in model entries live in `extensions/provider/models.ts`; `AGENTS.md` explains how they combine with the API catalog.
 
-```bash
-pi -e .
-```
-
-## Release
-
-This repository uses [Changesets](https://github.com/changesets/changesets) for versioning.
-
-**Note:** Automatic NPM publishing is currently disabled. To publish manually:
-
-1. Create a changeset: `pnpm changeset`
-2. Version packages: `pnpm version`
-3. Publish (when ready): Uncomment the publish job in `.github/workflows/publish.yml`
+Releases use [Changesets](https://github.com/changesets/changesets). After CI passes on `main`, the publish workflow opens a release PR; merging it stages the package on npm for manual promotion.
 
 ## Requirements
 
