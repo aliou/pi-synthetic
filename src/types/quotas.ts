@@ -9,32 +9,38 @@ const RequestQuotaSchema = Type.Object({
   renewsAt: Type.String(),
 });
 
+export const WeeklyTokenLimitSchema = Type.Object({
+  nextRegenAt: Type.String(),
+  percentRemaining: Type.Number(),
+  maxCredits: Type.String(),
+  remainingCredits: Type.String(),
+  nextRegenCredits: Type.String(),
+});
+
+export const RollingFiveHourLimitSchema = Type.Object({
+  nextTickAt: Type.String(),
+  tickPercent: Type.Number(),
+  remaining: Type.Number(),
+  max: Type.Number(),
+  limited: Type.Boolean(),
+});
+
+export const PlanWeeklyLimitSchema = Type.Object({
+  nextRegenAt: Type.String(),
+  percentRemaining: Type.Number(),
+  nextRegenPercent: Type.Number(),
+});
+
 export const QuotasResponseSchema = Type.Object({
-  subscription: Type.Optional(RequestQuotaSchema),
   search: Type.Optional(
     Type.Object({
       hourly: Type.Optional(RequestQuotaSchema),
     }),
   ),
   freeToolCalls: Type.Optional(RequestQuotaSchema),
-  weeklyTokenLimit: Type.Optional(
-    Type.Object({
-      nextRegenAt: Type.String(),
-      percentRemaining: Type.Number(),
-      maxCredits: Type.String(),
-      remainingCredits: Type.String(),
-      nextRegenCredits: Type.String(),
-    }),
-  ),
-  rollingFiveHourLimit: Type.Optional(
-    Type.Object({
-      nextTickAt: Type.String(),
-      tickPercent: Type.Number(),
-      remaining: Type.Number(),
-      max: Type.Number(),
-      limited: Type.Boolean(),
-    }),
-  ),
+  weeklyTokenLimit: Type.Optional(WeeklyTokenLimitSchema),
+  rollingFiveHourLimit: Type.Optional(RollingFiveHourLimitSchema),
+  planWeeklyLimit: Type.Optional(PlanWeeklyLimitSchema),
 });
 
 export type QuotasResponse = Static<typeof QuotasResponseSchema>;

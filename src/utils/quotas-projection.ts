@@ -14,6 +14,7 @@ const WEEKLY_BURN_HALF_LIFE_MS = 3 * DAY_MS;
 
 export const ROLLING_FIVE_HOUR_ID = "rollingFiveHourLimit" as const;
 export const WEEKLY_TOKEN_LIMIT_ID = "weeklyTokenLimit" as const;
+export const PLAN_WEEKLY_LIMIT_ID = "planWeeklyLimit" as const;
 
 /** Minimal snapshot view used by persistent history and projections. */
 export interface ProjectionSnapshot {
@@ -22,7 +23,10 @@ export interface ProjectionSnapshot {
 }
 
 interface Sample {
-  id: typeof ROLLING_FIVE_HOUR_ID | typeof WEEKLY_TOKEN_LIMIT_ID;
+  id:
+    | typeof ROLLING_FIVE_HOUR_ID
+    | typeof WEEKLY_TOKEN_LIMIT_ID
+    | typeof PLAN_WEEKLY_LIMIT_ID;
   at: number;
   remaining: number;
   capacity: number;
@@ -53,7 +57,11 @@ export function buildProjectionHints(
   const hints = new Map<string, ProjectionHint>();
   const samples = samplesFromSnapshots(snapshots);
 
-  for (const id of [ROLLING_FIVE_HOUR_ID, WEEKLY_TOKEN_LIMIT_ID] as const) {
+  for (const id of [
+    ROLLING_FIVE_HOUR_ID,
+    WEEKLY_TOKEN_LIMIT_ID,
+    PLAN_WEEKLY_LIMIT_ID,
+  ] as const) {
     const matching = samples.filter((sample) => sample.id === id);
     const current = matching[matching.length - 1];
     if (!current) continue;
@@ -73,6 +81,8 @@ function samplesFromSnapshots(
     if (rolling) samples.push(rolling);
     const weekly = weeklySample(snapshot);
     if (weekly) samples.push(weekly);
+    const plan = planWeeklySample(snapshot);
+    if (plan) samples.push(plan);
   }
   return samples.sort((a, b) => a.at - b.at);
 }
@@ -135,11 +145,41 @@ function weeklySample(snapshot: ProjectionSnapshot): Sample | undefined {
   };
 }
 
+function planWeeklySample(snapshot: ProjectionSnapshot): Sample | undefined {
+  const quota = snapshot.quotas.planWeeklyLimit;
+  if (!quota) return undefined;
+  const remaining = quota.percentRemaining;
+  const refillAmount = quota.nextRegenPercent;
+  if (
+    remaining < 0 ||
+    remaining > 100 ||
+    refillAmount <= 0 ||
+    refillAmount > 100
+  ) {
+    return undefined;
+  }
+
+  // The plan window is percent-based: capacity is 100% and regen ticks
+  // replenish one full capacity over seven days.
+  const refillIntervalMs = (refillAmount / 100) * WEEK_MS;
+  return {
+    id: PLAN_WEEKLY_LIMIT_ID,
+    at: snapshot.updatedAt,
+    remaining,
+    capacity: 100,
+    refillAmount,
+    refillIntervalMs,
+    minSampleSeparationMs: WEEKLY_MIN_SAMPLE_MS,
+    maxHistoryAgeMs: WEEKLY_MAX_HISTORY_MS,
+    projectionHorizonMs: DAY_MS,
+  };
+}
+
 function projectionForSample(
   current: Sample,
   samples: readonly Sample[],
 ): ProjectionHint | null {
-  if (current.id === WEEKLY_TOKEN_LIMIT_ID) {
+  if (current.id !== ROLLING_FIVE_HOUR_ID) {
     return weeklyProjectionForSample(current, samples);
   }
 
@@ -177,9 +217,7 @@ function weeklyProjectionForSample(
   const minAt = current.at - current.maxHistoryAgeMs;
   const weeklySamples = samples.filter(
     (sample) =>
-      sample.id === WEEKLY_TOKEN_LIMIT_ID &&
-      sample.at >= minAt &&
-      sample.at <= current.at,
+      sample.id === current.id && sample.at >= minAt && sample.at <= current.at,
   );
   const ratesByDay = new Map<string, DailyBurnRates>();
 

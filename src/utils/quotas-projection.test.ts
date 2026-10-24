@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { QuotasResponse } from "../types/quotas";
 import {
   buildProjectionHints,
+  PLAN_WEEKLY_LIMIT_ID,
   type ProjectionSnapshot,
   ROLLING_FIVE_HOUR_ID,
   WEEKLY_TOKEN_LIMIT_ID,
@@ -53,9 +54,72 @@ function weeklySnap(
   };
 }
 
+function planWeeklySnap(
+  percentRemaining: number,
+  atMs: number,
+): ProjectionSnapshot {
+  return {
+    quotas: {
+      planWeeklyLimit: {
+        nextRegenAt: new Date(atMs + DAY).toISOString(),
+        percentRemaining,
+        nextRegenPercent: 2,
+      },
+    },
+    updatedAt: atMs,
+  };
+}
+
 describe("buildProjectionHints", () => {
   it("returns no hints for empty snapshots", () => {
     expect(buildProjectionHints([]).size).toBe(0);
+  });
+
+  describe("plan weekly (percent)", () => {
+    it("requires at least one day of history", () => {
+      const hints = buildProjectionHints([
+        planWeeklySnap(60, 0),
+        planWeeklySnap(55, 6 * 60 * MINUTE),
+      ]);
+      expect(hints.has(PLAN_WEEKLY_LIMIT_ID)).toBe(false);
+    });
+
+    it("reports stable when daily regen covers daily usage", () => {
+      const hints = buildProjectionHints([
+        planWeeklySnap(55, 0),
+        planWeeklySnap(55, DAY),
+      ]);
+      expect(hints.get(PLAN_WEEKLY_LIMIT_ID)).toEqual({ kind: "stable" });
+    });
+
+    it("projects one day ahead from the net daily drain", () => {
+      // Remaining falls from 60% to 49% across a full regen cycle. Continuing
+      // that net drain for another day leaves 38% remaining (62% used).
+      const hints = buildProjectionHints([
+        planWeeklySnap(60, 0),
+        planWeeklySnap(49, DAY),
+      ]);
+      const hint = hints.get(PLAN_WEEKLY_LIMIT_ID);
+      expect(hint).toMatchObject({
+        kind: "projected",
+        usedPercent: 62,
+        horizonMs: DAY,
+      });
+    });
+
+    it("keeps plan and credit weekly samples separate", () => {
+      const hints = buildProjectionHints([
+        weeklySnap(4.536, 0),
+        planWeeklySnap(60, 0),
+        planWeeklySnap(49, DAY),
+      ]);
+      // The plan window never burns credit-window samples and vice versa.
+      expect(hints.has(WEEKLY_TOKEN_LIMIT_ID)).toBe(false);
+      expect(hints.get(PLAN_WEEKLY_LIMIT_ID)).toMatchObject({
+        kind: "projected",
+        usedPercent: 62,
+      });
+    });
   });
 
   it("returns no hints for a single snapshot (needs >= 2)", () => {

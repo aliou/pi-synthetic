@@ -4,7 +4,13 @@ import { detectBillingMode } from "./quotas";
 
 describe("detectBillingMode", () => {
   it.each([
-    { subscription: { limit: 1, requests: 0, renewsAt: "later" } },
+    {
+      planWeeklyLimit: {
+        nextRegenAt: "later",
+        percentRemaining: 50,
+        nextRegenPercent: 2,
+      },
+    },
     {
       weeklyTokenLimit: {
         nextRegenAt: "later",
@@ -33,9 +39,11 @@ describe("detectBillingMode", () => {
   });
 
   it("rejects malformed subscription quota windows", () => {
-    expect(detectBillingMode({ subscription: {} } as QuotasResponse)).toBe(
-      "pay-as-you-go",
-    );
+    expect(
+      detectBillingMode({
+        planWeeklyLimit: { nextRegenAt: "later" },
+      } as unknown as QuotasResponse),
+    ).toBe("pay-as-you-go");
     expect(
       detectBillingMode({
         weeklyTokenLimit: true,
