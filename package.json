@@ -16,6 +16,7 @@
   "pi": {
     "extensions": [
       "./extensions/provider/index.ts",
+      "./extensions/reasoning-content-fix/index.ts",
       "./extensions/web-search/index.ts",
       "./extensions/command-quotas/index.ts",
       "./extensions/quota-warnings/index.ts",
