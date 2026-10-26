@@ -1,5 +1,23 @@
 # @aliou/pi-synthetic
 
+## 0.30.0
+
+### Minor Changes
+
+- d38c88e: Support the plan-based weekly quota window. New Synthetic plans report
+  `planWeeklyLimit` (percent-based weekly credits) instead of
+  `weeklyTokenLimit`/`rollingFiveHourLimit`; the usage bar, quota warnings,
+  history, and refill projections now render and track it. The
+  `subscription` quota field is no longer read or stored.
+
+### Patch Changes
+
+- 228b246: Replay DeepSeek-V4.1-Flash and DeepSeek-V4.1-Flash-1017 OpenAI thinking under
+  `reasoning_content` when it was streamed under `reasoning`, without changing
+  saved session history. This preserves reasoning on tool-enabled requests;
+  server-side preservation without tool declarations remains model-dependent.
+  Other models and Anthropic requests are unchanged.
+
 ## 0.29.2
 
 ### Patch Changes
