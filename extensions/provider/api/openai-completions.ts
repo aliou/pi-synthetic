@@ -1,4 +1,8 @@
-import type { Model } from "@earendil-works/pi-ai";
+import type {
+  AssistantMessage,
+  Model,
+  TranscriptContext,
+} from "@earendil-works/pi-ai";
 import { stream, streamSimple } from "@earendil-works/pi-ai/compat";
 import {
   SYNTHETIC_BASE_URL,
@@ -9,6 +13,11 @@ import type { SyntheticModel } from "../models";
 import type { AnyStreamSimple, SyntheticApiHandler } from "./types";
 
 export { SYNTHETIC_BASE_URL };
+
+const REASONING_REPLAY_MODELS = new Set([
+  "hf:deepseek-ai/DeepSeek-V4.1-Flash",
+  "hf:deepseek-ai/DeepSeek-V4.1-Flash-1017",
+]);
 
 export function toOpenAiCompletionsModels(
   models: SyntheticModel[],
@@ -22,13 +31,48 @@ export function toOpenAiCompletionsModels(
   }));
 }
 
+function normalizeThinkingSignature(
+  block: AssistantMessage["content"][number],
+): AssistantMessage["content"][number] {
+  if (block.type !== "thinking") return block;
+  if (block.redacted) return block;
+  if (block.thinkingSignature !== "reasoning") return block;
+  return { ...block, thinkingSignature: "reasoning_content" };
+}
+
+function normalizeReasoningReplay(
+  modelId: string,
+  context: TranscriptContext,
+): TranscriptContext {
+  if (!REASONING_REPLAY_MODELS.has(modelId)) return context;
+  return {
+    ...context,
+    messages: context.messages.map((message) => {
+      if (message.role !== "assistant") return message;
+      return {
+        ...message,
+        content: message.content.map(normalizeThinkingSignature),
+      };
+    }),
+  };
+}
+
 export function createOpenAiCompletionsApi(options?: {
   streamSimple?: AnyStreamSimple;
 }): SyntheticApiHandler {
   return {
     stampModels: toOpenAiCompletionsModels,
     stream: (model, context, streamOptions) =>
-      stream(model, context, streamOptions as never),
-    streamSimple: options?.streamSimple ?? streamSimple,
+      stream(
+        model,
+        normalizeReasoningReplay(model.id, context),
+        streamOptions as never,
+      ),
+    streamSimple: (model, context, simpleOptions) =>
+      (options?.streamSimple ?? streamSimple)(
+        model,
+        normalizeReasoningReplay(model.id, context),
+        simpleOptions,
+      ),
   };
 }
