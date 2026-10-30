@@ -6,3 +6,6 @@ allowBuilds:
   "@google/genai": false
   esbuild: false
   protobufjs: false
+
+minimumReleaseAgeExclude:
+  - '@aliou/pi-utils-settings@0.24.0'

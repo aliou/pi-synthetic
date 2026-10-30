@@ -56,7 +56,7 @@
     "release": "pnpm changeset publish"
   },
   "dependencies": {
-    "@aliou/pi-utils-settings": "^0.22.0",
+    "@aliou/pi-utils-settings": "^0.24.0",
     "@aliou/pi-utils-ui": "^0.5.1"
   },
   "devDependencies": {

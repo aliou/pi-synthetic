@@ -13,8 +13,8 @@ importers:
   .:
     dependencies:
       '@aliou/pi-utils-settings':
-        specifier: ^0.22.0
-        version: 0.22.0(@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(zod@3.25.76))(@earendil-works/pi-tui@1.4.0)(ts-json-schema-generator@2.9.0)
+        specifier: ^0.24.0
+        version: 0.24.0(@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(zod@3.25.76))(@earendil-works/pi-tui@1.4.0)(ts-json-schema-generator@2.9.0)
       '@aliou/pi-utils-ui':
         specifier: ^0.5.1
         version: 0.5.1(@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(zod@3.25.76))(@earendil-works/pi-tui@1.4.0)
@@ -66,11 +66,11 @@ packages:
     peerDependencies:
       '@biomejs/biome': '>=2.4.0'
 
-  '@aliou/pi-utils-settings@0.22.0':
-    resolution: {integrity: sha512-MzKG5KTpnOVczSAZLRzA0A9gYi28VRiM7b7lh/Q5A3fs/pkcSEojZS55rptwC8qDR4J38m9DkCLrAeUNA2i8EA==}
+  '@aliou/pi-utils-settings@0.24.0':
+    resolution: {integrity: sha512-XIrqu3YhCdfpz3O7grfsTPzSOkxA36tYbblLthvqeUBfBZhNknm+jTrwB7M8giJzlwo8FeNYCqmtRZpPqULdFA==}
     hasBin: true
     peerDependencies:
-      '@earendil-works/pi-coding-agent': '>=0.74.0 <2'
+      '@earendil-works/pi-coding-agent': '>=1.4.0 <2'
       ts-json-schema-generator: '>=2.4.0 <3'
     peerDependenciesMeta:
       '@earendil-works/pi-coding-agent':
@@ -1826,7 +1826,7 @@ snapshots:
     dependencies:
       '@biomejs/biome': 2.5.2
 
-  '@aliou/pi-utils-settings@0.22.0(@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(zod@3.25.76))(@earendil-works/pi-tui@1.4.0)(ts-json-schema-generator@2.9.0)':
+  '@aliou/pi-utils-settings@0.24.0(@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(zod@3.25.76))(@earendil-works/pi-tui@1.4.0)(ts-json-schema-generator@2.9.0)':
     dependencies:
       '@aliou/pi-utils-ui': 0.5.1(@earendil-works/pi-coding-agent@1.4.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(zod@3.25.76))(@earendil-works/pi-tui@1.4.0)
     optionalDependencies:

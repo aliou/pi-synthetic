@@ -1,9 +1,11 @@
+import { bindProjectConfig } from "@aliou/pi-utils-settings";
 import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import {
   configLoader,
+  notifySyntheticConfigMessages,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
@@ -77,6 +79,7 @@ function formatStatus(ctx: ExtensionContext, windows: WindowStatus[]): string {
 
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
+  bindProjectConfig(pi, configLoader);
 
   let enabled = configLoader.getConfig().usageStatus;
 
@@ -127,6 +130,8 @@ export default async function (pi: ExtensionAPI) {
   });
 
   pi.on("session_start", (_event, ctx) => {
+    notifySyntheticConfigMessages(ctx);
+    enabled = configLoader.getConfig().usageStatus;
     renderFromStoreOrRefresh(ctx);
   });
 

@@ -1,3 +1,4 @@
+import { bindProjectConfig } from "@aliou/pi-utils-settings";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   resolveSyntheticClientOptions,
@@ -6,6 +7,7 @@ import {
 import {
   configLoader,
   emitSyntheticConfigUpdated,
+  notifySyntheticConfigMessages,
   registerSyntheticSettings,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
@@ -48,8 +50,6 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
       buildSyntheticProviderModelsFromApi,
       buildSyntheticProviderModelsFromStore,
       {
-        // The API surface only changes via /synthetic:settings + /reload,
-        // so reading it once at load is safe. New sessions re-run load.
         api: configLoader.getConfig().api,
       },
     ),
@@ -58,6 +58,7 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
 
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
+  bindProjectConfig(pi, configLoader);
   await seedSyntheticConfigIfMissing();
 
   const initialConfig = configLoader.getConfig();
@@ -67,6 +68,7 @@ export default async function (pi: ExtensionAPI) {
   let getApiKey: (() => Promise<string | undefined>) | undefined;
 
   registerSyntheticProvider(pi);
+  let registeredApi = initialConfig.api;
 
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
     const config = (data as SyntheticConfigUpdatedPayload).config;
@@ -171,6 +173,12 @@ export default async function (pi: ExtensionAPI) {
   });
 
   pi.on("session_start", async (_event, ctx) => {
+    notifySyntheticConfigMessages(ctx);
+    const config = configLoader.getConfig();
+    if (config.api !== registeredApi) {
+      registerSyntheticProvider(pi);
+      registeredApi = config.api;
+    }
     loadedFeatures.clear();
     quotaStore.clear();
     getApiKey = () => ctx.modelRegistry.getApiKeyForProvider("synthetic");
