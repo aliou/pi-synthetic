@@ -4,7 +4,11 @@ import {
   SyntheticClient,
   type SyntheticUtilityApiConfig,
 } from "../../src/client";
-import { configLoader } from "../../src/config";
+import {
+  configLoader,
+  SYNTHETIC_CONFIG_UPDATED_EVENT,
+  type SyntheticConfigUpdatedPayload,
+} from "../../src/config";
 import { QuotasComponent } from "./components/quotas-display";
 
 const MISSING_AUTH_MESSAGE =
@@ -21,13 +25,22 @@ async function buildQuotasClient(
 }
 
 export function registerQuotasCommand(pi: ExtensionAPI): void {
+  let config = configLoader.getConfig();
+
+  pi.on("session_start", () => {
+    config = configLoader.getConfig();
+  });
+
+  pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
+    config = (data as SyntheticConfigUpdatedPayload).config;
+  });
+
   pi.registerCommand("synthetic:quotas", {
     description: "Display Synthetic API usage quotas",
     handler: async (_args, ctx) => {
-      const config = configLoader.getConfig();
       if (!config.quotasCommand) {
         ctx.ui.notify(
-          "Synthetic quotas command is disabled. Restart Pi to unload the command after re-enabling or disabling it.",
+          "Synthetic quotas command is disabled. Enable it in /synthetic:settings.",
           "warning",
         );
         return;

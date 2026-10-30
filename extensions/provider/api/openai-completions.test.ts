@@ -150,7 +150,7 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
     const replay = payloads[0].messages.find((m) => m.role === "assistant");
 
     expect(result.stopReason).toBe("stop");
-    expect(replay?.content).toContain("Remember the earlier plan.");
+    expect(replay?.content).not.toContain("Remember the earlier plan.");
     expect(replay?.content).toContain("Noted.");
     expect(replay).not.toHaveProperty("reasoning");
     expect(replay).not.toHaveProperty("reasoning_content");

@@ -6,7 +6,10 @@ import {
   SettingsDetailEditor,
   type SettingsSection,
 } from "@aliou/pi-utils-settings";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 import type { SettingItem } from "@earendil-works/pi-tui";
 import pkg from "../package.json" with { type: "json" };
 import {
@@ -89,14 +92,8 @@ export const configLoader = new ConfigLoader<
   ResolvedSyntheticConfig
 >("synthetic", DEFAULT_CONFIG, { migrations, schemaUrl });
 
-/**
- * Seed the global config file on first use. When no config file exists in
- * any scope, this writes the current defaults with configVersion.
- *
- * Must be called after `configLoader.load()`.
- */
 export async function seedSyntheticConfigIfMissing(): Promise<void> {
-  if (configLoader.hasConfig("global") || configLoader.hasConfig("local")) {
+  if (configLoader.hasConfig("global")) {
     return;
   }
   try {
@@ -104,6 +101,12 @@ export async function seedSyntheticConfigIfMissing(): Promise<void> {
   } catch {
     // Ignore seed failures. Defaults still resolve in memory.
     return;
+  }
+}
+
+export function notifySyntheticConfigMessages(ctx: ExtensionContext): void {
+  for (const message of configLoader.drainMessages()) {
+    ctx.ui.notify(message, "warning");
   }
 }
 
