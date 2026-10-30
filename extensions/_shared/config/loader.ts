@@ -3,6 +3,7 @@ import {
   ConfigLoader,
   type Migration,
 } from "@aliou/pi-utils-settings";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import pkg from "../../../package.json" with { type: "json" };
 import type {
   ResolvedSyntheticConfig,
@@ -41,7 +42,7 @@ export const configLoader = new ConfigLoader<
  * Must be called after `configLoader.load()`.
  */
 export async function seedSyntheticConfigIfMissing(): Promise<void> {
-  if (configLoader.hasConfig("global") || configLoader.hasConfig("local")) {
+  if (configLoader.hasConfig("global")) {
     return;
   }
   try {
@@ -49,5 +50,11 @@ export async function seedSyntheticConfigIfMissing(): Promise<void> {
   } catch {
     // Ignore seed failures. Defaults still resolve in memory.
     return;
+  }
+}
+
+export function notifySyntheticConfigMessages(ctx: ExtensionContext): void {
+  for (const message of configLoader.drainMessages()) {
+    ctx.ui.notify(message, "warning");
   }
 }

@@ -1,9 +1,10 @@
 import { join } from "node:path";
-import {
-  type ExtensionAPI,
-  type ExtensionContext,
-  getAgentDir,
+import { bindProjectConfig } from "@aliou/pi-utils-settings";
+import type {
+  ExtensionAPI,
+  ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import {
   SYNTHETIC_CONFIG_UPDATED_EVENT,
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
@@ -18,7 +19,10 @@ import {
   type SyntheticQuotasUpdatedPayload,
 } from "../../src/types/quotas";
 import { buildProjectionHints } from "../../src/utils/quotas-projection";
-import { configLoader } from "../_shared/config/loader";
+import {
+  configLoader,
+  notifySyntheticConfigMessages,
+} from "../_shared/config/loader";
 import { readQuotas, requestQuotas } from "../_shared/quota-events";
 
 function quotaHistoryDirectory(): string {
@@ -31,15 +35,19 @@ function quotaHistoryDirectory(): string {
 
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
+  bindProjectConfig(pi, configLoader);
 
-  let enabled = configLoader.getConfig().quotaWarnings;
+  let enabled = false;
 
   const notifier = new QuotaWarningNotifier();
   const history = new QuotaHistory({ directory: quotaHistoryDirectory() });
   let historyReady = Promise.resolve();
-  if (enabled) {
-    historyReady = history.initialize();
-    await historyReady;
+
+  function setEnabled(value: boolean): void {
+    if (enabled === value) return;
+    enabled = value;
+    notifier.clearAlertState();
+    if (enabled) historyReady = history.initialize();
   }
 
   async function evaluateSnapshot(
@@ -85,20 +93,15 @@ export default async function (pi: ExtensionAPI) {
   });
 
   pi.events.on(SYNTHETIC_CONFIG_UPDATED_EVENT, (data: unknown) => {
-    const wasEnabled = enabled;
-    enabled = (data as SyntheticConfigUpdatedPayload).config.quotaWarnings;
-
-    // Only reset alert state when the feature itself is toggled, so unrelated
-    // config changes do not re-trigger one-time warnings.
-    if (wasEnabled !== enabled) {
-      notifier.clearAlertState();
-      if (enabled) historyReady = history.initialize();
-    }
+    setEnabled((data as SyntheticConfigUpdatedPayload).config.quotaWarnings);
   });
 
   // Alert transitions and quota history are account-wide, so neither is reset
   // on session/model changes. The user can toggle warnings to reset alerts.
-  pi.on("session_start", (_event, ctx) => {
+  pi.on("session_start", async (_event, ctx) => {
+    notifySyntheticConfigMessages(ctx);
+    setEnabled(configLoader.getConfig().quotaWarnings);
+    await historyReady;
     evaluateFromStoreOrRefresh(ctx);
   });
 
