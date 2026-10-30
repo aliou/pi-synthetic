@@ -1,3 +1,4 @@
+import { bindProjectConfig } from "@aliou/pi-utils-settings";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -19,7 +20,10 @@ import {
   type RiskSeverity,
   toWindows,
 } from "../../src/utils/quotas-severity";
-import { configLoader } from "../_shared/config/loader";
+import {
+  configLoader,
+  notifySyntheticConfigMessages,
+} from "../_shared/config/loader";
 import { readQuotas, requestQuotas } from "../_shared/quota-events";
 
 const EXTENSION_ID = "synthetic-usage";
@@ -77,6 +81,7 @@ function formatStatus(ctx: ExtensionContext, windows: WindowStatus[]): string {
 
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
+  bindProjectConfig(pi, configLoader);
 
   let enabled = configLoader.getConfig().usageStatus;
 
@@ -127,6 +132,8 @@ export default async function (pi: ExtensionAPI) {
   });
 
   pi.on("session_start", (_event, ctx) => {
+    notifySyntheticConfigMessages(ctx);
+    enabled = configLoader.getConfig().usageStatus;
     renderFromStoreOrRefresh(ctx);
   });
 

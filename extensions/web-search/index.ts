@@ -1,3 +1,4 @@
+import { bindProjectConfig } from "@aliou/pi-utils-settings";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   resolveSyntheticClientOptions,
@@ -11,7 +12,10 @@ import {
 } from "../../src/config";
 import { detectBillingMode } from "../../src/utils/quotas";
 import { SYNTHETIC_WEB_SEARCH_TOOL } from "../../src/web-search";
-import { configLoader } from "../_shared/config/loader";
+import {
+  configLoader,
+  notifySyntheticConfigMessages,
+} from "../_shared/config/loader";
 import { registerSyntheticWebSearchTool } from "./tool";
 
 export type WebSearchEntitlement = "unknown" | "subscription" | "pay-as-you-go";
@@ -40,6 +44,7 @@ function syncToolActivation(pi: ExtensionAPI, active: boolean): void {
 
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
+  bindProjectConfig(pi, configLoader);
 
   let config = configLoader.getConfig();
   let entitlement: WebSearchEntitlement = "unknown";
@@ -94,7 +99,9 @@ export default async function (pi: ExtensionAPI) {
   }
 
   pi.on("session_start", async (_event, ctx) => {
+    notifySyntheticConfigMessages(ctx);
     cancelQuotaCheck();
+    config = configLoader.getConfig();
     entitlement = "unknown";
     getApiKey = () => ctx.modelRegistry.getApiKeyForProvider("synthetic");
     syncActivation();
