@@ -1,4 +1,5 @@
 import type {
+  Api,
   AssistantMessage,
   Model,
   TranscriptContext,
@@ -9,14 +10,10 @@ import {
   SYNTHETIC_PROVIDER_ID,
   SYNTHETIC_REQUEST_HEADERS,
 } from "../constants";
-import type { SyntheticModel } from "../models";
+import type { ReasoningReplayField, SyntheticModel } from "../models";
 import type { AnyStreamSimple, SyntheticApiHandler } from "./types";
 
 export { SYNTHETIC_BASE_URL };
-
-const REASONING_REPLAY_MODELS = new Set([
-  "hf:deepseek-ai/DeepSeek-V4.1-Flash-1017",
-]);
 
 export function toOpenAiCompletionsModels(
   models: SyntheticModel[],
@@ -32,25 +29,29 @@ export function toOpenAiCompletionsModels(
 
 function normalizeThinkingSignature(
   block: AssistantMessage["content"][number],
+  field: ReasoningReplayField,
 ): AssistantMessage["content"][number] {
   if (block.type !== "thinking") return block;
   if (block.redacted) return block;
   if (block.thinkingSignature !== "reasoning") return block;
-  return { ...block, thinkingSignature: "reasoning_content" };
+  return { ...block, thinkingSignature: field };
 }
 
 function normalizeReasoningReplay(
-  modelId: string,
+  model: Model<Api>,
   context: TranscriptContext,
 ): TranscriptContext {
-  if (!REASONING_REPLAY_MODELS.has(modelId)) return context;
+  const { reasoningReplayField } = model as Partial<SyntheticModel>;
+  if (!reasoningReplayField) return context;
   return {
     ...context,
     messages: context.messages.map((message) => {
       if (message.role !== "assistant") return message;
       return {
         ...message,
-        content: message.content.map(normalizeThinkingSignature),
+        content: message.content.map((block) =>
+          normalizeThinkingSignature(block, reasoningReplayField),
+        ),
       };
     }),
   };
@@ -64,13 +65,13 @@ export function createOpenAiCompletionsApi(options?: {
     stream: (model, context, streamOptions) =>
       stream(
         model,
-        normalizeReasoningReplay(model.id, context),
+        normalizeReasoningReplay(model, context),
         streamOptions as never,
       ),
     streamSimple: (model, context, simpleOptions) =>
       (options?.streamSimple ?? streamSimple)(
         model,
-        normalizeReasoningReplay(model.id, context),
+        normalizeReasoningReplay(model, context),
         simpleOptions,
       ),
   };

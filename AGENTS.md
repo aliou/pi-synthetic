@@ -29,6 +29,8 @@ To add a model, append to `SYNTHETIC_MODELS` using the API's `id`/`name`, set `r
 
 The `syn:large:text`, `syn:small:text`, `syn:large:vision`, and `syn:small:vision` IDs are Synthetic's permanent category model IDs routing to the current best model per category. They are concrete catalog entries carrying their own `thinkingLevelMap` overrides, not aliases.
 
+`reasoningReplayField` is a static override set on concrete models only (currently `hf:deepseek-ai/DeepSeek-V4.1-Flash-1017`). It tells the OpenAI handler to replay thinking under that field instead of `reasoning`. During an API refresh, every model whose `hugging_face_id` matches a model carrying the override inherits it, so category IDs replay like the model they route to. The resolved value is persisted in the models store; `hugging_face_id` is not. Do not set it on category IDs.
+
 ## Versioning
 
 Uses changesets. Run `pnpm changeset` before committing user-facing changes.

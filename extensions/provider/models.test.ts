@@ -257,6 +257,73 @@ describe("Synthetic models", () => {
     expect(compat?.supportsReasoningEffort).toBe(true);
   });
 
+  it("buildSyntheticProviderModelsFromApi gives routed IDs the reasoning replay field of their target model", () => {
+    const apiModel = (
+      id: string,
+      huggingFaceId: string,
+    ): SyntheticApiModel => ({
+      id,
+      name: id,
+      provider: "synthetic",
+      hugging_face_id: huggingFaceId,
+      input_modalities: ["text"],
+      output_modalities: ["text"],
+      context_length: 128000,
+      max_output_length: 32768,
+      pricing: {
+        prompt: "$0.000001",
+        completion: "$0.000002",
+        input_cache_reads: "$0.000001",
+        input_cache_writes: "0",
+      },
+      supported_features: ["reasoning"],
+    });
+    const deepseek = "deepseek-ai/DeepSeek-V4.1-Flash-1017";
+    const glm = "zai-org/GLM-4.7-Flash";
+
+    const models = buildSyntheticProviderModelsFromApi([
+      apiModel("syn:large:text", deepseek),
+      apiModel("syn:small:text", glm),
+      apiModel(`hf:${deepseek}`, deepseek),
+      apiModel(`hf:${glm}`, glm),
+    ]);
+    const fields = Object.fromEntries(
+      models.map((m) => [m.id, m.reasoningReplayField]),
+    );
+
+    expect(fields).toEqual({
+      "syn:large:text": "reasoning_content",
+      "syn:small:text": undefined,
+      [`hf:${deepseek}`]: "reasoning_content",
+      [`hf:${glm}`]: undefined,
+    });
+  });
+
+  it("buildSyntheticProviderModelsFromStore keeps the persisted reasoning replay field", () => {
+    const stored = (id: string, reasoningReplayField?: string) => ({
+      id,
+      name: id,
+      reasoning: true,
+      reasoningReplayField,
+      input: ["text"],
+      cost: { input: 0.6, output: 1.2, cacheRead: 0.03, cacheWrite: 0 },
+      contextWindow: 524288,
+      maxTokens: 65536,
+    });
+
+    const models = buildSyntheticProviderModelsFromStore([
+      stored("syn:large:text", "reasoning_content"),
+      stored("syn:small:vision"),
+      stored("hf:deepseek-ai/DeepSeek-V4.1-Flash-1017"),
+    ]);
+
+    expect(models.map((m) => m.reasoningReplayField)).toEqual([
+      "reasoning_content",
+      undefined,
+      "reasoning_content",
+    ]);
+  });
+
   it("buildSyntheticProviderModelsFromApi preserves unknown API models", () => {
     const apiModels: SyntheticApiModel[] = [
       {

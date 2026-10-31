@@ -9,7 +9,11 @@
 import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 import type { SyntheticApiModel } from "../../src/client/types";
 
-export type SyntheticModel = Extract<ProviderModelConfig, { type?: "chat" }>;
+export type ReasoningReplayField = "reasoning_content";
+
+export type SyntheticModel = Extract<ProviderModelConfig, { type?: "chat" }> & {
+  reasoningReplayField?: ReasoningReplayField;
+};
 
 export const SYNTHETIC_MODELS: SyntheticModel[] = [
   // API: syn:large:text → ctx=524288, out=65536
@@ -291,6 +295,7 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     id: "hf:deepseek-ai/DeepSeek-V4.1-Flash-1017",
     name: "deepseek-ai/DeepSeek-V4.1-Flash-1017",
     reasoning: true,
+    reasoningReplayField: "reasoning_content",
     thinkingLevelMap: {
       off: "none",
       minimal: null,
@@ -417,11 +422,15 @@ function apiModelSupportsReasoning(model: SyntheticApiModel): boolean {
   return model.supported_features?.includes("reasoning") ?? false;
 }
 
-function apiModelToSyntheticModel(model: SyntheticApiModel): SyntheticModel {
+function apiModelToSyntheticModel(
+  model: SyntheticApiModel,
+  reasoningReplayField: ReasoningReplayField | undefined,
+): SyntheticModel {
   return {
     id: model.id,
     name: model.name,
     reasoning: apiModelSupportsReasoning(model),
+    reasoningReplayField,
     input: apiInputModalities(model),
     cost: {
       input: parseApiPrice(model.pricing.prompt),
@@ -483,6 +492,8 @@ function mergeWithStaticOverride(
 
   return {
     ...apiModel,
+    reasoningReplayField:
+      apiModel.reasoningReplayField ?? override.reasoningReplayField,
     thinkingLevelMap: override.thinkingLevelMap ?? apiModel.thinkingLevelMap,
     compat: {
       ...apiModel.compat,
@@ -495,25 +506,48 @@ export function buildSyntheticProviderModels(): SyntheticModel[] {
   return SYNTHETIC_MODELS.map(finalizeModel);
 }
 
+function validateApiModels(apiModels: readonly unknown[]): SyntheticApiModel[] {
+  return apiModels.map((model, index) => {
+    if (isValidApiModel(model)) return model;
+    const id =
+      model && typeof model === "object" && "id" in model
+        ? String((model as { id: unknown }).id)
+        : String(index);
+    throw new Error(`Synthetic API returned invalid model entry "${id}"`);
+  });
+}
+
+function replayFieldsByRoutedModel(
+  apiModels: readonly SyntheticApiModel[],
+  overrides: ReadonlyMap<string, SyntheticModel>,
+): Map<string, ReasoningReplayField> {
+  const fields = new Map<string, ReasoningReplayField>();
+  for (const model of apiModels) {
+    const field = overrides.get(model.id)?.reasoningReplayField;
+    if (field && model.hugging_face_id) {
+      fields.set(model.hugging_face_id, field);
+    }
+  }
+  return fields;
+}
+
 export function buildSyntheticProviderModelsFromApi(
   apiModels: readonly unknown[],
 ): SyntheticModel[] {
   const overrides = new Map(SYNTHETIC_MODELS.map((m) => [m.id, m]));
+  const models = validateApiModels(apiModels);
+  const replayFields = replayFieldsByRoutedModel(models, overrides);
 
-  return apiModels
-    .map((model, index) => {
-      if (!isValidApiModel(model)) {
-        const id =
-          model && typeof model === "object" && "id" in model
-            ? String((model as { id: unknown }).id)
-            : String(index);
-        throw new Error(`Synthetic API returned invalid model entry "${id}"`);
-      }
-      return mergeWithStaticOverride(
-        apiModelToSyntheticModel(model),
+  return models
+    .map((model) =>
+      mergeWithStaticOverride(
+        apiModelToSyntheticModel(
+          model,
+          replayFields.get(model.hugging_face_id ?? ""),
+        ),
         overrides.get(model.id),
-      );
-    })
+      ),
+    )
     .map(finalizeModel);
 }
 

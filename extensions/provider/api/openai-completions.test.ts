@@ -14,7 +14,10 @@ import { SYNTHETIC_PROVIDER_ID } from "../constants";
 import { createOpenAiCompletionsApi } from "./openai-completions";
 import type { AnyStreamSimple } from "./types";
 
+const replay = { reasoningReplayField: "reasoning_content" as const };
+
 const model: Model<"openai-completions"> = {
+  ...replay,
   id: "hf:deepseek-ai/DeepSeek-V4.1-Flash-1017",
   name: "DeepSeek Flash",
   provider: SYNTHETIC_PROVIDER_ID,
@@ -111,15 +114,20 @@ function transport() {
 describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
   it.each([
     {
-      id: "hf:deepseek-ai/DeepSeek-V4.1-Flash-1017",
+      reasoningReplayField: "reasoning_content" as const,
       field: "reasoning_content",
     },
-    { id: "hf:zai-org/GLM-4.7-Flash", field: "reasoning" },
-    { id: "hf:openai/gpt-oss-120b", field: "reasoning" },
-    { id: "hf:deepseek-ai/untested-model", field: "reasoning" },
-    { id: "syn:large:text", field: "reasoning" },
-  ])("uses $field for $id", async ({ id, field }) => {
-    const target: Model<"openai-completions"> = { ...model, id };
+    { reasoningReplayField: undefined, field: "reasoning" },
+  ])("uses $field when reasoningReplayField is $reasoningReplayField", async ({
+    reasoningReplayField,
+    field,
+  }) => {
+    const id = "syn:large:text";
+    const target: Model<"openai-completions"> = {
+      ...model,
+      ...{ reasoningReplayField },
+      id,
+    };
     const context = transcript(assistant(undefined, { model: id }));
     const before = structuredClone(context);
     const { fetch, payloads } = transport();

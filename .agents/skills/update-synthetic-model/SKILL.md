@@ -266,6 +266,7 @@ Only add or change `compat` when live behavior, provider quirks, or current repo
 Model-level fields:
 
 - `thinkingLevelMap` — maps Pi thinking levels to provider-specific values; `null` hides a level from the UI
+- `reasoningReplayField` — replays OpenAI thinking under this field (e.g. `reasoning_content`) instead of `reasoning`. Set it only on concrete `hf:` models; category IDs inherit it at refresh time through `hugging_face_id`
 
 Compat fields:
 
