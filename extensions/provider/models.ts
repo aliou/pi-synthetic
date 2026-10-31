@@ -13,7 +13,7 @@ export type SyntheticModel = Extract<ProviderModelConfig, { type?: "chat" }>;
 
 export const SYNTHETIC_MODELS: SyntheticModel[] = [
   // API: syn:large:text → ctx=524288, out=65536
-  // Routes to DeepSeek-V4.1-Flash. The API advertises reasoning efforts
+  // Routes to DeepSeek-V4.1-Flash-1017. The API advertises reasoning efforts
   // ["none", "low", "high", "xhigh", "max"]; map them by identity.
   {
     id: "syn:large:text",
@@ -98,10 +98,8 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     maxTokens: 65536,
   },
   // API: syn:small:vision → ctx=524288, out=65536
-  // Now routes to DeepSeek-V4.1-Flash (previously Qwen3.8-27B): context
-  // doubled to 524288 and pricing moved to the DeepSeek tier. The API
-  // advertises reasoning efforts ["none", "low", "high", "xhigh", "max"];
-  // map them by identity.
+  // Routes to DeepSeek-V4.1-Flash-1017. The API advertises reasoning efforts
+  // ["none", "low", "high", "xhigh", "max"]; map them by identity.
   {
     id: "syn:small:vision",
     name: "syn:small:vision",
@@ -129,7 +127,7 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     maxTokens: 65536,
   },
   // API: infinite:small:vision → ctx=524288, out=65536
-  // Routes to DeepSeek-V4.1-Flash with vision enabled; the API reports zero
+  // Routes to DeepSeek-V4.1-Flash-1017 with vision enabled; the API reports zero
   // per-token pricing for this tier. The API advertises reasoning efforts
   // ["none", "low", "high", "xhigh", "max"]; map them by identity.
   {
@@ -284,40 +282,11 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     contextWindow: 196608,
     maxTokens: 65536,
   },
-  // API: hf:deepseek-ai/DeepSeek-V4.1-Flash → ctx=524288, out=65536
-  // The API advertises reasoning efforts ["none", "low", "high", "xhigh",
-  // "max"]; map them by identity.
-  {
-    id: "hf:deepseek-ai/DeepSeek-V4.1-Flash",
-    name: "deepseek-ai/DeepSeek-V4.1-Flash",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: "low",
-      medium: null,
-      high: "high",
-      xhigh: "xhigh",
-      max: "max",
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text", "image"],
-    cost: {
-      input: 0.6,
-      output: 1.2,
-      cacheRead: 0.03,
-      cacheWrite: 0,
-    },
-    contextWindow: 524288,
-    maxTokens: 65536,
-  },
   // API: hf:deepseek-ai/DeepSeek-V4.1-Flash-1017 → ctx=524288, out=65536
-  // Pinned 10/17 snapshot of DeepSeek-V4.1-Flash; runtime behavior matches
-  // the floating model ("none" disables reasoning, vision works, high/max
-  // scale reasoning length). The API advertises reasoning efforts ["none",
-  // "low", "high", "xhigh", "max"]; map them by identity.
+  // Pinned 10/17 snapshot of DeepSeek-V4.1-Flash ("none" disables reasoning,
+  // vision works, high/max scale reasoning length). The API advertises
+  // reasoning efforts ["none", "low", "high", "xhigh", "max"]; map them by
+  // identity.
   {
     id: "hf:deepseek-ai/DeepSeek-V4.1-Flash-1017",
     name: "deepseek-ai/DeepSeek-V4.1-Flash-1017",
@@ -396,32 +365,6 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
       input: 0.45,
       output: 2.2,
       cacheRead: 0.09,
-      cacheWrite: 0,
-    },
-    contextWindow: 262144,
-    maxTokens: 65536,
-  },
-  // API: hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 → ctx=262144, out=65536
-  {
-    id: "hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
-    name: "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: "medium",
-      high: null,
-      xhigh: null,
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text"],
-    cost: {
-      input: 0.3,
-      output: 1,
-      cacheRead: 0.06,
       cacheWrite: 0,
     },
     contextWindow: 262144,

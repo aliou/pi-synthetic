@@ -15,7 +15,6 @@ import type { AnyStreamSimple, SyntheticApiHandler } from "./types";
 export { SYNTHETIC_BASE_URL };
 
 const REASONING_REPLAY_MODELS = new Set([
-  "hf:deepseek-ai/DeepSeek-V4.1-Flash",
   "hf:deepseek-ai/DeepSeek-V4.1-Flash-1017",
 ]);
 

@@ -15,7 +15,7 @@ import { createOpenAiCompletionsApi } from "./openai-completions";
 import type { AnyStreamSimple } from "./types";
 
 const model: Model<"openai-completions"> = {
-  id: "hf:deepseek-ai/DeepSeek-V4.1-Flash",
+  id: "hf:deepseek-ai/DeepSeek-V4.1-Flash-1017",
   name: "DeepSeek Flash",
   provider: SYNTHETIC_PROVIDER_ID,
   api: "openai-completions",
