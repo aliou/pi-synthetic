@@ -1,5 +1,12 @@
 # @aliou/pi-synthetic
 
+## 0.30.1
+
+### Patch Changes
+
+- 57d774b: Remove `hf:deepseek-ai/DeepSeek-V4.1-Flash` and `hf:nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4` from the fallback catalog; Synthetic no longer serves them.
+- f7a348a: Replay OpenAI reasoning like the model a Synthetic ID routes to. Category IDs that route to DeepSeek-V4.1-Flash-1017 (`syn:large:text`, `syn:small:vision`, `infinite:small:vision`) now replay thinking under `reasoning_content`, like the model itself. The routing is resolved when the model catalog refreshes.
+
 ## 0.30.0
 
 ### Minor Changes
