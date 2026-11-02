@@ -1,4 +1,6 @@
 import type { Provider } from "@earendil-works/pi-ai";
+import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
+import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import { createProvider } from "@earendil-works/pi-ai/models";
 import {
   SYNTHETIC_BASE_URL,
@@ -21,10 +23,11 @@ export type { SyntheticProviderOptions };
 export default function createSyntheticProvider(
   options?: SyntheticProviderOptions,
 ): Provider {
-  const handler = createApiHandler(
-    options?.api ?? "openai-completions",
-    options,
-  );
+  const handler = createApiHandler(options?.api ?? "openai-completions", {
+    ...options,
+    openAiUpstream: openAICompletionsApi(),
+    messagesUpstream: anthropicMessagesApi(),
+  });
   return createProvider({
     id: SYNTHETIC_PROVIDER_ID,
     name: "Synthetic",

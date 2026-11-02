@@ -1,4 +1,8 @@
-import type { ApiKeyAuth, Provider } from "@earendil-works/pi-ai";
+import type {
+  ApiKeyAuth,
+  Provider,
+  ProviderStreams,
+} from "@earendil-works/pi-ai";
 import { createAnthropicMessagesApi } from "./api/anthropic-messages";
 import { createOpenAiCompletionsApi } from "./api/openai-completions";
 import type { SyntheticApiHandler } from "./api/types";
@@ -73,6 +77,9 @@ export function createSyntheticApiKeyAuth(): ApiKeyAuth {
 export interface SyntheticProviderOptions {
   /** Active API surface; resolved once. Changes need a `/reload`. */
   api?: SyntheticApi;
+  /** pi-ai stream implementations, supplied by the host (compat on pi, lazy constructors standalone). */
+  openAiUpstream?: ProviderStreams;
+  messagesUpstream?: ProviderStreams;
   openAiStreamSimple?: SyntheticApiHandler["streamSimple"];
   messagesStreamSimple?: SyntheticApiHandler["streamSimple"];
 }
@@ -83,10 +90,12 @@ export function createApiHandler(
 ): SyntheticApiHandler {
   if (api === "anthropic-messages") {
     return createAnthropicMessagesApi({
+      upstream: options?.messagesUpstream,
       streamSimple: options?.messagesStreamSimple,
     });
   }
   return createOpenAiCompletionsApi({
+    upstream: options?.openAiUpstream,
     streamSimple: options?.openAiStreamSimple,
   });
 }

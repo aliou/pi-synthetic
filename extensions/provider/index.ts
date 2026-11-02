@@ -1,3 +1,7 @@
+import {
+  anthropicMessagesApi,
+  openAICompletionsApi,
+} from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   resolveSyntheticClientOptions,
@@ -52,6 +56,10 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
         // The API surface only changes via /synthetic:settings + /reload,
         // so reading it once at load is safe. New sessions re-run load.
         api: configLoader.getConfig().api,
+        // pi's extension loader resolves pi-ai/compat to its bundled view;
+        // the lazy subpaths in src/ are not aliased and fail to resolve.
+        openAiUpstream: openAICompletionsApi(),
+        messagesUpstream: anthropicMessagesApi(),
       },
     ),
   );

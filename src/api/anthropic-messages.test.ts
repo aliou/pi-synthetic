@@ -1,5 +1,6 @@
 import type { Api, Model, TranscriptContext } from "@earendil-works/pi-ai";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
+import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
 import { describe, expect, it, vi } from "vitest";
 import {
   SYNTHETIC_ANTHROPIC_BASE_URL,
@@ -8,6 +9,12 @@ import {
 } from "../constants";
 import type { SyntheticModel } from "../models";
 import { createAnthropicMessagesApi } from "./anthropic-messages";
+
+const createHandler = (
+  options?: Parameters<typeof createAnthropicMessagesApi>[0],
+) =>
+  createAnthropicMessagesApi({ upstream: anthropicMessagesApi(), ...options });
+
 import type { AnyStreamSimple } from "./types";
 
 const baseModel: SyntheticModel = {
@@ -37,10 +44,7 @@ const reasoningModel: SyntheticModel = {
 };
 
 describe("stamping", () => {
-  const stamped = createAnthropicMessagesApi().stampModels([
-    baseModel,
-    reasoningModel,
-  ]);
+  const stamped = createHandler().stampModels([baseModel, reasoningModel]);
 
   it("stamps api, messages baseUrl, and headers", () => {
     for (const model of stamped) {
@@ -88,9 +92,10 @@ describe("stamping", () => {
       ...reasoningModel,
       id: "syn:large:text",
     };
-    const [stampedGlm, stampedAlias] = createAnthropicMessagesApi().stampModels(
-      [glm, alias],
-    );
+    const [stampedGlm, stampedAlias] = createHandler().stampModels([
+      glm,
+      alias,
+    ]);
     expect(stampedGlm.thinkingLevelMap?.off).toBeNull();
     expect(stampedAlias.thinkingLevelMap?.off).toBeNull();
   });
@@ -103,7 +108,7 @@ describe("stamping", () => {
       "hf:openai/gpt-oss-120b",
       "hf:moonshotai/Kimi-K3",
     ];
-    for (const model of createAnthropicMessagesApi().stampModels(
+    for (const model of createHandler().stampModels(
       ids.map((id) => ({ ...reasoningModel, id })),
     )) {
       expect(model.thinkingLevelMap?.off).toBe("none");
@@ -122,11 +127,9 @@ describe("streaming", () => {
     const fake = fakeStreamSimple();
     const onPayload = vi.fn();
     const model = { id: "x" } as Model<Api>;
-    createAnthropicMessagesApi({ streamSimple: fake }).streamSimple(
-      model,
-      transcript,
-      { onPayload } as never,
-    );
+    createHandler({ streamSimple: fake }).streamSimple(model, transcript, {
+      onPayload,
+    } as never);
 
     expect(fake).toHaveBeenCalledOnce();
     expect(fake.mock.calls[0]?.[0]).toBe(model);
@@ -135,7 +138,7 @@ describe("streaming", () => {
 
   it("injects Authorization Bearer from the resolved api key", () => {
     const fake = fakeStreamSimple();
-    createAnthropicMessagesApi({ streamSimple: fake }).streamSimple(
+    createHandler({ streamSimple: fake }).streamSimple(
       { id: "x" } as Model<Api>,
       transcript,
       { apiKey: "syn-key" } as never,
@@ -151,7 +154,7 @@ describe("streaming", () => {
 
   it("merges the Bearer header with caller headers", () => {
     const fake = fakeStreamSimple();
-    createAnthropicMessagesApi({ streamSimple: fake }).streamSimple(
+    createHandler({ streamSimple: fake }).streamSimple(
       { id: "x" } as Model<Api>,
       transcript,
       { apiKey: "k", headers: { "X-Custom": "v" } } as never,
@@ -169,7 +172,7 @@ describe("streaming", () => {
   it("leaves options without an api key untouched (anonymous)", () => {
     const fake = fakeStreamSimple();
     const anonymous = {} as never;
-    createAnthropicMessagesApi({ streamSimple: fake }).streamSimple(
+    createHandler({ streamSimple: fake }).streamSimple(
       { id: "x" } as Model<Api>,
       transcript,
       anonymous,

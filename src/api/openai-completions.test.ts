@@ -8,10 +8,17 @@ import {
   createAssistantMessageEventStream,
   normalizeContext,
 } from "@earendil-works/pi-ai";
+import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import { Type } from "typebox";
 import { describe, expect, it, vi } from "vitest";
 import { SYNTHETIC_PROVIDER_ID } from "../constants";
 import { createOpenAiCompletionsApi } from "./openai-completions";
+
+const createHandler = (
+  options?: Parameters<typeof createOpenAiCompletionsApi>[0],
+) =>
+  createOpenAiCompletionsApi({ upstream: openAICompletionsApi(), ...options });
+
 import type { AnyStreamSimple } from "./types";
 
 const replay = { reasoningReplayField: "reasoning_content" as const };
@@ -131,7 +138,7 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
     const context = transcript(assistant(undefined, { model: id }));
     const before = structuredClone(context);
     const { fetch, payloads } = transport();
-    const result = await createOpenAiCompletionsApi()
+    const result = await createHandler()
       [entry](target, context, { apiKey: "test-key", fetch })
       .result();
 
@@ -152,7 +159,7 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
     const context = transcript(assistant(undefined, overrides));
     const before = structuredClone(context);
     const { fetch, payloads } = transport();
-    const result = await createOpenAiCompletionsApi()
+    const result = await createHandler()
       [entry](model, context, { apiKey: "test-key", fetch })
       .result();
     const replay = payloads[0].messages.find((m) => m.role === "assistant");
@@ -171,7 +178,7 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
     const context = transcript(assistant(), withTools);
     const before = structuredClone(context);
     const { fetch, payloads } = transport();
-    const result = await createOpenAiCompletionsApi()
+    const result = await createHandler()
       [entry](model, context, { apiKey: "test-key", fetch })
       .result();
 
@@ -196,7 +203,7 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
         return { ...body, temperature: 0.25 };
       },
     );
-    const result = await createOpenAiCompletionsApi()
+    const result = await createHandler()
       [entry](model, transcript(), { apiKey: "test-key", fetch, onPayload })
       .result();
 
@@ -207,7 +214,7 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
 
   it("preserves in-place payload changes when the caller returns undefined", async () => {
     const { fetch, payloads } = transport();
-    const result = await createOpenAiCompletionsApi()
+    const result = await createHandler()
       [entry](model, transcript(), {
         apiKey: "test-key",
         fetch,
@@ -249,7 +256,7 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
     });
     const before = structuredClone(context);
     const { fetch, payloads } = transport();
-    const result = await createOpenAiCompletionsApi()
+    const result = await createHandler()
       [entry](model, context, { apiKey: "test-key", fetch })
       .result();
 
@@ -291,7 +298,7 @@ describe("delegation", () => {
       createAssistantMessageEventStream(),
     );
     const options = { onPayload: vi.fn(), headers: { "X-Test": "value" } };
-    createOpenAiCompletionsApi({ streamSimple: delegate }).streamSimple(
+    createHandler({ streamSimple: delegate }).streamSimple(
       model,
       context,
       options,
@@ -313,10 +320,7 @@ describe("delegation", () => {
     const delegate = vi.fn<AnyStreamSimple>(() =>
       createAssistantMessageEventStream(),
     );
-    createOpenAiCompletionsApi({ streamSimple: delegate }).streamSimple(
-      model,
-      context,
-    );
+    createHandler({ streamSimple: delegate }).streamSimple(model, context);
 
     const forwarded = delegate.mock.calls[0][1].messages[2] as AssistantMessage;
     expect(forwarded.content[0]).toBe(block);

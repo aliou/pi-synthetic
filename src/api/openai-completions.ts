@@ -2,9 +2,9 @@ import type {
   Api,
   AssistantMessage,
   Model,
+  ProviderStreams,
   TranscriptContext,
 } from "@earendil-works/pi-ai";
-import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import {
   SYNTHETIC_BASE_URL,
   SYNTHETIC_PROVIDER_ID,
@@ -58,9 +58,15 @@ function normalizeReasoningReplay(
 }
 
 export function createOpenAiCompletionsApi(options?: {
+  upstream?: ProviderStreams;
   streamSimple?: AnyStreamSimple;
 }): SyntheticApiHandler {
-  const streams = openAICompletionsApi();
+  if (!options?.upstream) {
+    throw new Error(
+      "createOpenAiCompletionsApi requires an upstream: pass pi-ai's openAICompletionsApi() streams",
+    );
+  }
+  const streams = options.upstream;
   return {
     stampModels: toOpenAiCompletionsModels,
     stream: (model, context, streamOptions) =>

@@ -1,5 +1,9 @@
-import type { Api, Model, ProviderHeaders } from "@earendil-works/pi-ai";
-import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
+import type {
+  Api,
+  Model,
+  ProviderHeaders,
+  ProviderStreams,
+} from "@earendil-works/pi-ai";
 import {
   SYNTHETIC_ANTHROPIC_BASE_URL,
   SYNTHETIC_PROVIDER_ID,
@@ -75,9 +79,15 @@ export function withBearerAuth<T extends OptionsWithAuth>(
 }
 
 export function createAnthropicMessagesApi(options?: {
+  upstream?: ProviderStreams;
   streamSimple?: AnyStreamSimple;
 }): SyntheticApiHandler {
-  const streams = anthropicMessagesApi();
+  if (!options?.upstream) {
+    throw new Error(
+      "createAnthropicMessagesApi requires an upstream: pass pi-ai's anthropicMessagesApi() streams",
+    );
+  }
+  const streams = options.upstream;
   return {
     stampModels,
     stream: (model, context, streamOptions) =>

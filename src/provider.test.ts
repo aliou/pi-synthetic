@@ -4,6 +4,8 @@ import type {
   RefreshModelsContext,
 } from "@earendil-works/pi-ai";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
+import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
+import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import { describe, expect, it, vi } from "vitest";
 import type { AnyStreamSimple } from "./api/types";
 import type { SyntheticApiModel } from "./client/types";
@@ -52,7 +54,11 @@ function createProvider(
     fetchApiModels,
     identityBuild,
     identityBuild,
-    options.providerOptions,
+    {
+      openAiUpstream: openAICompletionsApi(),
+      messagesUpstream: anthropicMessagesApi(),
+      ...options.providerOptions,
+    },
   );
   return { provider, fetchApiModels };
 }
