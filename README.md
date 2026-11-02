@@ -102,6 +102,21 @@ The extension automatically notifies you when you approach or exceed your Synthe
 
 Weekly credits and five-hour request windows are projected from recent usage, so a short burst does not trigger a weekly warning. Without enough history, warnings use current usage instead. For projections, the extension keeps up to 14 days (5 MiB) of quota history under `$XDG_STATE_HOME/pi-synthetic/quota-history` or Pi's agent state directory. Nothing is stored while quota warnings are disabled.
 
+## Library Use
+
+The provider is also available without Pi as `@aliou/pi-synthetic/provider`. The default export builds a pi-ai `Provider`:
+
+```ts
+import { createModels } from "@earendil-works/pi-ai";
+import createSyntheticProvider from "@aliou/pi-synthetic/provider";
+
+const models = createModels({ credentials, modelsStore });
+models.setProvider(createSyntheticProvider({ api: "openai-completions" }));
+await models.refresh();
+```
+
+The baseline catalog always lists. An online refresh fetches the live catalog from Synthetic; `refresh({ allowNetwork: false })` restores the host's stored catalog. The provider stays refreshable without credentials: stored keys and `SYNTHETIC_API_KEY` resolve first, then anonymous access to the public catalog.
+
 ## Disabling Features
 
 Each feature (provider, web search, quotas command, usage status, quota warnings) is a separate Pi extension. Disable individual features either through the `pi config` TUI or by editing `~/.pi/agent/settings.json`.
