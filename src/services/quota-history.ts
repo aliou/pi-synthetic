@@ -7,7 +7,6 @@ import {
   stat,
 } from "node:fs/promises";
 import { join } from "node:path";
-import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { Static } from "typebox";
 import { Value } from "typebox/value";
 import {
@@ -39,8 +38,8 @@ type PlanWeeklyQuota = Static<typeof PlanWeeklyLimitSchema>;
 type RollingQuota = Static<typeof RollingFiveHourLimitSchema>;
 
 export interface QuotaHistoryOptions {
-  /** Override the state directory. `null` disables disk persistence. */
-  directory?: string | null;
+  /** State directory. `null` disables disk persistence. */
+  directory: string | null;
   now?: () => number;
   retentionMs?: number;
   minWriteIntervalMs?: number;
@@ -77,11 +76,8 @@ export class QuotaHistory {
   private lastPersistedSignature: string | undefined;
   private writeQueue: Promise<void> = Promise.resolve();
 
-  constructor(options: QuotaHistoryOptions = {}) {
-    this.directory =
-      options.directory === null
-        ? undefined
-        : (options.directory ?? defaultQuotaHistoryDirectory());
+  constructor(options: QuotaHistoryOptions) {
+    this.directory = options.directory === null ? undefined : options.directory;
     this.now = options.now ?? Date.now;
     this.retentionMs = options.retentionMs ?? DEFAULT_RETENTION_MS;
     this.minWriteIntervalMs =
@@ -267,14 +263,6 @@ export class QuotaHistory {
     }
     return files.sort((a, b) => a.name.localeCompare(b.name));
   }
-}
-
-export function defaultQuotaHistoryDirectory(): string | undefined {
-  const explicitStateHome = process.env.XDG_STATE_HOME?.trim();
-  if (explicitStateHome) {
-    return join(explicitStateHome, "pi-synthetic", "quota-history");
-  }
-  return join(getAgentDir(), "state", "pi-synthetic", "quota-history");
 }
 
 function projectionQuotas(quotas: QuotasResponse): QuotasResponse {
