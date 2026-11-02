@@ -17,6 +17,7 @@ import {
   buildSyntheticProviderModelsFromStore,
 } from "../../src/models";
 import { createSyntheticProvider } from "../../src/provider";
+import { fetchSyntheticApiModels } from "../../src/refresh-models";
 import { type QuotaSnapshot, QuotaStore } from "../../src/services/quota-store";
 import {
   parseQuotaHeader,
@@ -44,11 +45,7 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
   pi.registerProvider(
     createSyntheticProvider(
       staticModels,
-      async (apiKey, signal) => {
-        const client = new SyntheticClient({ apiKey });
-        const result = await client.models({ signal });
-        return result.data ?? [];
-      },
+      fetchSyntheticApiModels,
       buildSyntheticProviderModelsFromApi,
       buildSyntheticProviderModelsFromStore,
       {
