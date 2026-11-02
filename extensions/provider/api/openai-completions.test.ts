@@ -148,7 +148,7 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
     { provider: "other-provider" },
     { api: "anthropic-messages" },
     { model: "other-model" },
-  ])("keeps Pi's cross-model conversion for %j", async (overrides) => {
+  ])("drops cross-model thinking for %j", async (overrides) => {
     const context = transcript(assistant(undefined, overrides));
     const before = structuredClone(context);
     const { fetch, payloads } = transport();
@@ -158,8 +158,7 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
     const replay = payloads[0].messages.find((m) => m.role === "assistant");
 
     expect(result.stopReason).toBe("stop");
-    expect(replay?.content).toContain("Remember the earlier plan.");
-    expect(replay?.content).toContain("Noted.");
+    expect(replay?.content).toBe("Noted.");
     expect(replay).not.toHaveProperty("reasoning");
     expect(replay).not.toHaveProperty("reasoning_content");
     expect(context).toEqual(before);
