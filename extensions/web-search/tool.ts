@@ -18,7 +18,7 @@ import {
   type SyntheticSearchResponse,
   type SyntheticSearchResult,
 } from "../../src/client";
-import { configLoader } from "../../src/config";
+import { configLoader } from "../_shared/config/loader";
 
 export const SYNTHETIC_WEB_SEARCH_TOOL = "synthetic_web_search" as const;
 const MAX_INLINE_SEARCH_BYTES = 20_000;

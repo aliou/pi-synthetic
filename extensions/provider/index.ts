@@ -4,16 +4,12 @@ import {
   SyntheticClient,
 } from "../../src/client";
 import {
-  configLoader,
-  emitSyntheticConfigUpdated,
-  registerSyntheticSettings,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
   type SyntheticExtensionsRegisterPayload,
   type SyntheticFeatureId,
-  seedSyntheticConfigIfMissing,
 } from "../../src/config";
 import { type QuotaSnapshot, QuotaStore } from "../../src/services/quota-store";
 import {
@@ -26,6 +22,14 @@ import {
   type SyntheticQuotasRequestPayload,
   type SyntheticQuotasSnapshotPayload,
 } from "../../src/types/quotas";
+import {
+  configLoader,
+  seedSyntheticConfigIfMissing,
+} from "../_shared/config/loader";
+import {
+  emitSyntheticConfigUpdated,
+  registerSyntheticSettings,
+} from "../_shared/config/settings";
 import { SYNTHETIC_OVERFLOW_PATTERN } from "./context-overflow";
 import {
   buildSyntheticProviderModels,
