@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ToolCallHeader, ToolFooter } from "@aliou/pi-utils-ui";
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
-import { defineTool, keyHint } from "@earendil-works/pi-coding-agent";
+import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
 import type { Static } from "typebox";
 import {
@@ -159,7 +159,10 @@ export const syntheticWebSearchTool = defineTool({
           text += theme.fg("dim", ` (+${results.length - 1} more)`);
         }
       }
-      text += theme.fg("muted", ` ${keyHint("app.tools.expand", "to expand")}`);
+      text += theme.fg(
+        "muted",
+        ` ${context.keyHint("app.tools.expand", "to expand")}`,
+      );
       container.addChild(new Text(text, 0, 0));
     } else {
       // Expanded: show each result with title, URL, date, and snippet
@@ -218,7 +221,7 @@ export const syntheticWebSearchTool = defineTool({
     if (!expanded) {
       footerItems.push({
         label: "",
-        value: keyHint("app.tools.expand", "to expand"),
+        value: context.keyHint("app.tools.expand", "to expand"),
       });
     }
     container.addChild(new Text("", 0, 0));
