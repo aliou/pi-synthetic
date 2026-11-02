@@ -7,6 +7,7 @@ import type {
   ModelsStoreEntry,
   RefreshModelsContext,
 } from "@earendil-works/pi-ai";
+import { SyntheticClient } from "./client";
 import type { SyntheticApiModel } from "./client/types";
 import type {
   buildSyntheticProviderModels,
@@ -20,6 +21,15 @@ export type FetchSyntheticApiModels = (
   apiKey: string | undefined,
   signal?: AbortSignal,
 ) => Promise<readonly SyntheticApiModel[]>;
+
+export const fetchSyntheticApiModels: FetchSyntheticApiModels = async (
+  apiKey,
+  signal,
+) => {
+  const client = new SyntheticClient({ apiKey });
+  const result = await client.models({ signal });
+  return result.data ?? [];
+};
 
 function isFreshStoreEntry(
   entry: Readonly<ModelsStoreEntry> | undefined,

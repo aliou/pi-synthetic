@@ -1,4 +1,4 @@
-import type { Provider } from "@earendil-works/pi-ai";
+import type { ApiKeyAuth, Provider } from "@earendil-works/pi-ai";
 import { createAnthropicMessagesApi } from "./api/anthropic-messages";
 import { createOpenAiCompletionsApi } from "./api/openai-completions";
 import type { SyntheticApiHandler } from "./api/types";
@@ -28,6 +28,48 @@ export {
   SYNTHETIC_REQUEST_HEADERS,
 };
 
+export function createSyntheticApiKeyAuth(): ApiKeyAuth {
+  return {
+    name: "Synthetic API key",
+    login: async (interaction) => ({
+      type: "api_key" as const,
+      key: await interaction.prompt({
+        type: "secret",
+        message: "Enter Synthetic API key",
+      }),
+    }),
+    check: async ({ ctx, credential }) => {
+      if (credential?.type === "api_key" && credential.key) {
+        return { type: "api_key" as const, source: "stored credential" };
+      }
+      if (await ctx.env(SYNTHETIC_API_KEY_ENV)) {
+        return { type: "api_key" as const, source: SYNTHETIC_API_KEY_ENV };
+      }
+      // Anonymous: catalog endpoints are public and proxy mode (aperture)
+      // handles auth gateway-side, so the provider stays available.
+      return { type: "api_key" as const, source: "anonymous" };
+    },
+    resolve: async ({ ctx, credential, signal }) => {
+      signal.throwIfAborted();
+      if (credential?.type === "api_key" && credential.key) {
+        return {
+          auth: { apiKey: credential.key },
+          env: credential.env,
+          source: "stored credential",
+        };
+      }
+      const envKey = await ctx.env(SYNTHETIC_API_KEY_ENV);
+      signal.throwIfAborted();
+      if (envKey) {
+        return { auth: { apiKey: envKey }, source: SYNTHETIC_API_KEY_ENV };
+      }
+      // Anonymous: catalog endpoints are public and proxy mode (aperture)
+      // handles auth gateway-side, so the provider stays available.
+      return { auth: { apiKey: "" }, source: "anonymous" };
+    },
+  };
+}
+
 export interface SyntheticProviderOptions {
   /** Active API surface; resolved once. Changes need a `/reload`. */
   api?: SyntheticApi;
@@ -35,7 +77,7 @@ export interface SyntheticProviderOptions {
   messagesStreamSimple?: SyntheticApiHandler["streamSimple"];
 }
 
-function createApiHandler(
+export function createApiHandler(
   api: SyntheticApi,
   options?: SyntheticProviderOptions,
 ): SyntheticApiHandler {
@@ -73,47 +115,7 @@ export function createSyntheticProvider(
     name: "Synthetic",
     baseUrl: SYNTHETIC_BASE_URL,
     headers: SYNTHETIC_REQUEST_HEADERS,
-    auth: {
-      apiKey: {
-        name: "Synthetic API key",
-        login: async (interaction) => ({
-          type: "api_key",
-          key: await interaction.prompt({
-            type: "secret",
-            message: "Enter Synthetic API key",
-          }),
-        }),
-        check: async ({ ctx, credential }) => {
-          if (credential?.type === "api_key" && credential.key) {
-            return { type: "api_key", source: "stored credential" };
-          }
-          if (await ctx.env(SYNTHETIC_API_KEY_ENV)) {
-            return { type: "api_key", source: SYNTHETIC_API_KEY_ENV };
-          }
-          // Anonymous: catalog endpoints are public and proxy mode (aperture)
-          // handles auth gateway-side, so the provider stays available.
-          return { type: "api_key", source: "anonymous" };
-        },
-        resolve: async ({ ctx, credential, signal }) => {
-          signal.throwIfAborted();
-          if (credential?.type === "api_key" && credential.key) {
-            return {
-              auth: { apiKey: credential.key },
-              env: credential.env,
-              source: "stored credential",
-            };
-          }
-          const envKey = await ctx.env(SYNTHETIC_API_KEY_ENV);
-          signal.throwIfAborted();
-          if (envKey) {
-            return { auth: { apiKey: envKey }, source: SYNTHETIC_API_KEY_ENV };
-          }
-          // Anonymous: catalog endpoints are public and proxy mode (aperture)
-          // handles auth gateway-side, so the provider stays available.
-          return { auth: { apiKey: "" }, source: "anonymous" };
-        },
-      },
-    },
+    auth: { apiKey: createSyntheticApiKeyAuth() },
     getModels: () => handler.stampModels(canonicalModels),
     refreshModels: async (context) => {
       const refreshed = await refreshCatalog(context);
