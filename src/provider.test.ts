@@ -5,8 +5,8 @@ import type {
 } from "@earendil-works/pi-ai";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import { describe, expect, it, vi } from "vitest";
-import type { SyntheticApiModel } from "../../src/client/types";
 import type { AnyStreamSimple } from "./api/types";
+import type { SyntheticApiModel } from "./client/types";
 import type { SyntheticModel } from "./models";
 import {
   createSyntheticProvider,

@@ -1,5 +1,5 @@
 import type { Api, Model, ProviderHeaders } from "@earendil-works/pi-ai";
-import { stream, streamSimple } from "@earendil-works/pi-ai/compat";
+import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
 import {
   SYNTHETIC_ANTHROPIC_BASE_URL,
   SYNTHETIC_PROVIDER_ID,
@@ -77,12 +77,13 @@ export function withBearerAuth<T extends OptionsWithAuth>(
 export function createAnthropicMessagesApi(options?: {
   streamSimple?: AnyStreamSimple;
 }): SyntheticApiHandler {
+  const streams = anthropicMessagesApi();
   return {
     stampModels,
     stream: (model, context, streamOptions) =>
-      stream(model, context, withBearerAuth(streamOptions) as never),
+      streams.stream(model, context, withBearerAuth(streamOptions) as never),
     streamSimple: (model, context, simpleOptions) =>
-      (options?.streamSimple ?? streamSimple)(
+      (options?.streamSimple ?? streams.streamSimple)(
         model,
         context,
         withBearerAuth(simpleOptions) as never,
