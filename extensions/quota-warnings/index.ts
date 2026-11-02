@@ -1,6 +1,8 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
+import { join } from "node:path";
+import {
+  type ExtensionAPI,
+  type ExtensionContext,
+  getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 import {
   configLoader,
@@ -19,13 +21,21 @@ import {
 import { buildProjectionHints } from "../../src/utils/quotas-projection";
 import { readQuotas, requestQuotas } from "../_shared/quota-events";
 
+function quotaHistoryDirectory(): string {
+  const explicitStateHome = process.env.XDG_STATE_HOME?.trim();
+  if (explicitStateHome) {
+    return join(explicitStateHome, "pi-synthetic", "quota-history");
+  }
+  return join(getAgentDir(), "state", "pi-synthetic", "quota-history");
+}
+
 export default async function (pi: ExtensionAPI) {
   await configLoader.load();
 
   let enabled = configLoader.getConfig().quotaWarnings;
 
   const notifier = new QuotaWarningNotifier();
-  const history = new QuotaHistory();
+  const history = new QuotaHistory({ directory: quotaHistoryDirectory() });
   let historyReady = Promise.resolve();
   if (enabled) {
     historyReady = history.initialize();
