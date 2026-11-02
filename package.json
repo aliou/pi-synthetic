@@ -29,6 +29,10 @@
     "./provider": {
       "types": "./dist/provider/index.d.ts",
       "import": "./dist/provider/index.js"
+    },
+    "./durable": {
+      "types": "./dist/durable/index.d.ts",
+      "import": "./dist/durable/index.js"
     }
   },
   "publishConfig": {
@@ -44,8 +48,10 @@
     "!extensions/**/*.test.ts"
   ],
   "peerDependencies": {
+    "@earendil-works/chord": "1.5.0",
     "@earendil-works/pi-ai": "1.5.0",
     "@earendil-works/pi-coding-agent": ">=1.0.0",
+    "@earendil-works/pi-durable": "1.5.0",
     "@earendil-works/pi-tui": ">=1.0.0",
     "typebox": "*"
   },
@@ -72,8 +78,10 @@
     "@aliou/biome-plugins": "^0.11.0",
     "@biomejs/biome": "^2.5.2",
     "@changesets/cli": "^2.27.11",
+    "@earendil-works/chord": "1.5.0",
     "@earendil-works/pi-ai": "1.5.0",
     "@earendil-works/pi-coding-agent": "1.5.0",
+    "@earendil-works/pi-durable": "1.5.0",
     "@earendil-works/pi-tui": "1.5.0",
     "@types/node": "^25.0.10",
     "husky": "^9.1.7",
@@ -85,10 +93,16 @@
     "vitest": "^4.0.18"
   },
   "peerDependenciesMeta": {
+    "@earendil-works/chord": {
+      "optional": true
+    },
     "@earendil-works/pi-ai": {
       "optional": true
     },
     "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "@earendil-works/pi-durable": {
       "optional": true
     },
     "@earendil-works/pi-tui": {
