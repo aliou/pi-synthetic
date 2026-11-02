@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SyntheticApiModel } from "../../src/client/types";
+import type { SyntheticApiModel } from "./client/types";
 import {
   buildSyntheticProviderModels,
   buildSyntheticProviderModelsFromApi,

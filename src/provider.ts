@@ -1,8 +1,8 @@
 import type { Provider } from "@earendil-works/pi-ai";
-import type { SyntheticApi } from "../../src/config";
 import { createAnthropicMessagesApi } from "./api/anthropic-messages";
 import { createOpenAiCompletionsApi } from "./api/openai-completions";
 import type { SyntheticApiHandler } from "./api/types";
+import type { SyntheticApi } from "./config";
 import {
   SYNTHETIC_ANTHROPIC_BASE_URL,
   SYNTHETIC_API_KEY_ENV,

@@ -4,7 +4,7 @@ import type {
   Model,
   TranscriptContext,
 } from "@earendil-works/pi-ai";
-import { stream, streamSimple } from "@earendil-works/pi-ai/compat";
+import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 import {
   SYNTHETIC_BASE_URL,
   SYNTHETIC_PROVIDER_ID,
@@ -60,16 +60,17 @@ function normalizeReasoningReplay(
 export function createOpenAiCompletionsApi(options?: {
   streamSimple?: AnyStreamSimple;
 }): SyntheticApiHandler {
+  const streams = openAICompletionsApi();
   return {
     stampModels: toOpenAiCompletionsModels,
     stream: (model, context, streamOptions) =>
-      stream(
+      streams.stream(
         model,
         normalizeReasoningReplay(model, context),
         streamOptions as never,
       ),
     streamSimple: (model, context, simpleOptions) =>
-      (options?.streamSimple ?? streamSimple)(
+      (options?.streamSimple ?? streams.streamSimple)(
         model,
         normalizeReasoningReplay(model, context),
         simpleOptions,

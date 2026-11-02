@@ -7,7 +7,7 @@ import type {
   ModelsStoreEntry,
   RefreshModelsContext,
 } from "@earendil-works/pi-ai";
-import type { SyntheticApiModel } from "../../src/client/types";
+import type { SyntheticApiModel } from "./client/types";
 import type {
   buildSyntheticProviderModels,
   buildSyntheticProviderModelsFromApi,

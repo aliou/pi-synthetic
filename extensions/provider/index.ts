@@ -11,6 +11,12 @@ import {
   type SyntheticExtensionsRegisterPayload,
   type SyntheticFeatureId,
 } from "../../src/config";
+import {
+  buildSyntheticProviderModels,
+  buildSyntheticProviderModelsFromApi,
+  buildSyntheticProviderModelsFromStore,
+} from "../../src/models";
+import { createSyntheticProvider } from "../../src/provider";
 import { type QuotaSnapshot, QuotaStore } from "../../src/services/quota-store";
 import {
   parseQuotaHeader,
@@ -31,12 +37,6 @@ import {
   registerSyntheticSettings,
 } from "../_shared/config/settings";
 import { SYNTHETIC_OVERFLOW_PATTERN } from "./context-overflow";
-import {
-  buildSyntheticProviderModels,
-  buildSyntheticProviderModelsFromApi,
-  buildSyntheticProviderModelsFromStore,
-} from "./models";
-import { createSyntheticProvider } from "./provider";
 
 export function registerSyntheticProvider(pi: ExtensionAPI): void {
   const staticModels = buildSyntheticProviderModels();

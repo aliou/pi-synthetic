@@ -6,12 +6,17 @@
 // Synthetic API does not expose. cacheRead stores the price reported by the
 // API's input_cache_reads field directly.
 
-import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
-import type { SyntheticApiModel } from "../../src/client/types";
+import type { Model } from "@earendil-works/pi-ai";
+import type { SyntheticApiModel } from "./client/types";
 
 export type ReasoningReplayField = "reasoning_content";
 
-export type SyntheticModel = Extract<ProviderModelConfig, { type?: "chat" }> & {
+type SyntheticModelConfig = Omit<
+  Model<"openai-completions" | "anthropic-messages">,
+  "api" | "provider" | "baseUrl"
+>;
+
+export type SyntheticModel = SyntheticModelConfig & {
   reasoningReplayField?: ReasoningReplayField;
 };
 
@@ -167,7 +172,7 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
   // effort including 'none', so reasoning cannot be disabled on this surface
   // — hide 'off'. Expose minimal/low/medium/high/xhigh; hide 'max'.
   // (The Anthropic surface genuinely disables via thinking:{type:"disabled"};
-  // see extensions/provider/api/anthropic-messages.ts.)
+  // see src/api/anthropic-messages.ts.)
   {
     id: "hf:openai/gpt-oss-120b",
     name: "openai/gpt-oss-120b",

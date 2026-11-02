@@ -1,6 +1,6 @@
 import type { RefreshModelsContext } from "@earendil-works/pi-ai";
 import { describe, expect, it, vi } from "vitest";
-import type { SyntheticApiModel } from "../../src/client/types";
+import type { SyntheticApiModel } from "./client/types";
 import {
   buildSyntheticProviderModels,
   buildSyntheticProviderModelsFromApi,
