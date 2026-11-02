@@ -5,7 +5,6 @@ import {
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 import {
-  configLoader,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
@@ -19,6 +18,7 @@ import {
   type SyntheticQuotasUpdatedPayload,
 } from "../../src/types/quotas";
 import { buildProjectionHints } from "../../src/utils/quotas-projection";
+import { configLoader } from "../_shared/config/loader";
 import { readQuotas, requestQuotas } from "../_shared/quota-events";
 
 function quotaHistoryDirectory(): string {

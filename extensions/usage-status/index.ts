@@ -3,7 +3,6 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import {
-  configLoader,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
@@ -20,6 +19,7 @@ import {
   type RiskSeverity,
   toWindows,
 } from "../../src/utils/quotas-severity";
+import { configLoader } from "../_shared/config/loader";
 import { readQuotas, requestQuotas } from "../_shared/quota-events";
 
 const EXTENSION_ID = "synthetic-usage";

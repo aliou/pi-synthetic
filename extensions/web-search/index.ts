@@ -4,13 +4,13 @@ import {
   SyntheticClient,
 } from "../../src/client";
 import {
-  configLoader,
   SYNTHETIC_CONFIG_UPDATED_EVENT,
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
 } from "../../src/config";
 import { detectBillingMode } from "../../src/utils/quotas";
+import { configLoader } from "../_shared/config/loader";
 import {
   registerSyntheticWebSearchTool,
   SYNTHETIC_WEB_SEARCH_TOOL,

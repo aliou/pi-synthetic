@@ -4,7 +4,7 @@ import {
   SyntheticClient,
   type SyntheticUtilityApiConfig,
 } from "../../src/client";
-import { configLoader } from "../../src/config";
+import { configLoader } from "../_shared/config/loader";
 import { QuotasComponent } from "./components/quotas-display";
 
 const MISSING_AUTH_MESSAGE =
