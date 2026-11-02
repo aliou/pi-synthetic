@@ -10,11 +10,9 @@ import {
   type SyntheticConfigUpdatedPayload,
 } from "../../src/config";
 import { detectBillingMode } from "../../src/utils/quotas";
+import { SYNTHETIC_WEB_SEARCH_TOOL } from "../../src/web-search";
 import { configLoader } from "../_shared/config/loader";
-import {
-  registerSyntheticWebSearchTool,
-  SYNTHETIC_WEB_SEARCH_TOOL,
-} from "./tool";
+import { registerSyntheticWebSearchTool } from "./tool";
 
 export type WebSearchEntitlement = "unknown" | "subscription" | "pay-as-you-go";
 
