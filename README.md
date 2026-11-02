@@ -117,6 +117,19 @@ await models.refresh();
 
 The baseline catalog always lists. An online refresh fetches the live catalog from Synthetic; `refresh({ allowNetwork: false })` restores the host's stored catalog. The provider stays refreshable without credentials: stored keys and `SYNTHETIC_API_KEY` resolve first, then anonymous access to the public catalog.
 
+The durable extension is available without Pi as `@aliou/pi-synthetic/durable`. The default export builds a pi-durable `Extension`:
+
+```ts
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { createRegistry, Harness, MemoryStorage } from "@earendil-works/pi-durable";
+import createSyntheticExtension from "@aliou/pi-synthetic/durable";
+
+const registry = createRegistry();
+registry.install(createSyntheticExtension());
+```
+
+The durable extension ships only the `synthetic_web_search` tool, with the fixed `synthetic_` prefix stored conversations rely on. It reads no settings: the API key comes from the host's `Models` (`getAuth("synthetic")`) or the `apiKey` option, and the utility API proxy comes from the `proxyUrl`/`proxyRequiresAuth` options. Truncated results are saved through the host's execution environment when one exists; without one, results stay truncated inline. Re-run after a crash is safe: the tool is a read-only query.
+
 ## Disabling Features
 
 Each feature (provider, web search, quotas command, usage status, quota warnings) is a separate Pi extension. Disable individual features either through the `pi config` TUI or by editing `~/.pi/agent/settings.json`.
