@@ -4,214 +4,39 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ToolCallHeader, ToolFooter } from "@aliou/pi-utils-ui";
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
-import {
-  defineTool,
-  formatSize,
-  keyHint,
-  truncateHead,
-} from "@earendil-works/pi-coding-agent";
+import { defineTool, keyHint } from "@earendil-works/pi-coding-agent";
 import { Container, Text } from "@earendil-works/pi-tui";
-import { type Static, Type } from "typebox";
+import type { Static } from "typebox";
 import {
   resolveSyntheticClientOptions,
   SyntheticClient,
   type SyntheticSearchResponse,
-  type SyntheticSearchResult,
 } from "../../src/client";
+import {
+  formatSize,
+  formatWebSearchResults,
+  type SearchOutput,
+  SearchOutputSchema,
+  SearchParams,
+  SYNTHETIC_WEB_SEARCH_TOOL,
+  type WebSearchResultDetails,
+} from "../../src/web-search";
 import { configLoader } from "../_shared/config/loader";
-
-export const SYNTHETIC_WEB_SEARCH_TOOL = "synthetic_web_search" as const;
-const MAX_INLINE_SEARCH_BYTES = 20_000;
-const MAX_INLINE_SEARCH_RESULT_BYTES = 4_000;
-const MAX_INLINE_SEARCH_RESULT_LINES = 1_000;
-
-// Byte budget for structuredContent, split evenly across results.
-export const MAX_STRUCTURED_SEARCH_BYTES = 1_048_576;
-
-export type WebSearchResultDetails = {
-  title: string;
-  url: string;
-  published: string;
-  truncated: boolean;
-  tempFilePath?: string;
-  totalLines: number;
-  totalBytes: number;
-  excerptBytes: number;
-};
 
 interface WebSearchDetails {
   results?: WebSearchResultDetails[];
   query?: string;
 }
 
-const SearchParams = Type.Object({
-  query: Type.String({
-    description: "The search query. Be specific for best results.",
-  }),
-});
-
 type SearchParamsType = Static<typeof SearchParams>;
 
-export const SearchOutputSchema = Type.Object({
-  query: Type.String(),
-  results: Type.Array(
-    Type.Object({
-      title: Type.String(),
-      url: Type.String(),
-      published: Type.String(),
-      text: Type.String({
-        description: `Full result body, cut only at ${formatSize(MAX_STRUCTURED_SEARCH_BYTES)} total shared evenly across results. Longer bodies are truncated; the full body is in tempFilePath.`,
-      }),
-      truncated: Type.Boolean({
-        description:
-          "True when the text was cut at the structured-output budget. The full body is in tempFilePath.",
-      }),
-      tempFilePath: Type.Optional(Type.String()),
-    }),
-  ),
-});
-
-export type SearchOutput = Static<typeof SearchOutputSchema>;
-
-type WriteSearchResultFile = (
-  path: string,
-  content: string,
-  encoding: "utf8",
-) => Promise<void>;
-
-interface FormatWebSearchResultsOptions {
-  maxInlineBytes?: number;
-  maxInlineBytesPerResult?: number;
-  maxStructuredBytes?: number;
-  writeResultFile?: WriteSearchResultFile;
-}
-
-function truncateUtf8(value: string, maxBytes: number): string {
-  let content = "";
-  let bytes = 0;
-
-  for (const character of value) {
-    const characterBytes = Buffer.byteLength(character);
-    if (bytes + characterBytes > maxBytes) {
-      break;
-    }
-    content += character;
-    bytes += characterBytes;
-  }
-
-  return content;
-}
-
-export async function formatWebSearchResults(
-  results: SyntheticSearchResult[],
-  {
-    maxInlineBytes = MAX_INLINE_SEARCH_BYTES,
-    maxInlineBytesPerResult = MAX_INLINE_SEARCH_RESULT_BYTES,
-    maxStructuredBytes = MAX_STRUCTURED_SEARCH_BYTES,
-    writeResultFile = writeFile,
-  }: FormatWebSearchResultsOptions = {},
-): Promise<{
-  content: string;
-  resultDetails: WebSearchResultDetails[];
-  structuredResults: SearchOutput["results"];
-  maxBytesPerResult: number;
-  maxStructuredBytesPerResult: number;
-}> {
-  const maxBytesPerResult =
-    results.length === 0
-      ? 0
-      : Math.min(
-          maxInlineBytesPerResult,
-          Math.floor(maxInlineBytes / results.length),
-        );
-  const maxStructuredBytesPerResult =
-    results.length === 0 ? 0 : Math.floor(maxStructuredBytes / results.length);
-  let content = `Found ${results.length} result(s):\n\n`;
-  const resultDetails: WebSearchResultDetails[] = [];
-  const structuredResults: SearchOutput["results"] = [];
-
-  for (const result of results) {
-    const slug = result.title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "")
-      .slice(0, 40);
-    const truncation = truncateHead(result.text, {
-      maxLines: MAX_INLINE_SEARCH_RESULT_LINES,
-      maxBytes: maxBytesPerResult,
-    });
-
-    let inline = truncation.content;
-    let tempFilePath: string | undefined;
-    let excerptBytes = Buffer.byteLength(inline);
-
-    if (truncation.truncated) {
-      // truncateHead preserves complete lines. Fall back to a byte-safe prefix
-      // when a single line is larger than the shared result budget.
-      if (!inline) {
-        inline = truncateUtf8(result.text, maxBytesPerResult);
-      }
-      excerptBytes = Buffer.byteLength(inline);
-
-      // Keep an equally sized excerpt for every result, while preserving the
-      // complete response outside the model context for targeted follow-up.
-      tempFilePath = join(
-        tmpdir(),
-        `pi-synthetic-search-${slug}-${randomBytes(4).toString("hex")}.md`,
-      );
-      await writeResultFile(tempFilePath, result.text, "utf8");
-      const separator = inline ? "\n\n" : "";
-      inline += `${separator}[Content truncated to ${formatSize(excerptBytes)}. Full result saved to: ${tempFilePath}. Use the read tool to inspect it.]`;
-    }
-
-    content += `## ${result.title}\n`;
-    content += `URL: ${result.url}\n`;
-    content += `Published: ${result.published}\n`;
-    content += `\n${inline}\n`;
-    content += "\n---\n\n";
-
-    const structuredText =
-      truncation.totalBytes <= maxStructuredBytesPerResult
-        ? result.text
-        : truncateUtf8(result.text, maxStructuredBytesPerResult);
-    const structured: {
-      title: string;
-      url: string;
-      published: string;
-      text: string;
-      truncated: boolean;
-      tempFilePath?: string;
-    } = {
-      title: result.title,
-      url: result.url,
-      published: result.published,
-      text: structuredText,
-      truncated: Buffer.byteLength(structuredText) < truncation.totalBytes,
-    };
-    if (tempFilePath !== undefined) {
-      structured.tempFilePath = tempFilePath;
-    }
-    structuredResults.push(structured);
-
-    resultDetails.push({
-      title: result.title,
-      url: result.url,
-      published: result.published,
-      truncated: truncation.truncated,
-      tempFilePath,
-      totalLines: truncation.totalLines,
-      totalBytes: truncation.totalBytes,
-      excerptBytes,
-    });
-  }
-
-  return {
-    content,
-    resultDetails,
-    structuredResults,
-    maxBytesPerResult,
-    maxStructuredBytesPerResult,
-  };
+async function saveResultFile(text: string, slug: string): Promise<string> {
+  const path = join(
+    tmpdir(),
+    `pi-synthetic-search-${slug}-${randomBytes(4).toString("hex")}.md`,
+  );
+  await writeFile(path, text, "utf8");
+  return path;
 }
 
 export const syntheticWebSearchTool = defineTool({
@@ -260,7 +85,9 @@ export const syntheticWebSearchTool = defineTool({
     }
 
     const { content, resultDetails, structuredResults } =
-      await formatWebSearchResults(data.results);
+      await formatWebSearchResults(data.results, {
+        saveResult: saveResultFile,
+      });
     const structuredContent: SearchOutput = {
       query: params.query,
       results: structuredResults,
