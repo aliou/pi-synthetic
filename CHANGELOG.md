@@ -1,5 +1,18 @@
 # @aliou/pi-synthetic
 
+## 0.31.0
+
+### Minor Changes
+
+- d4aedd5: Add the `/durable` entry point: `createSyntheticExtension(options?)` builds a standalone pi-durable `Extension` carrying the `synthetic_web_search` tool. It reads no settings — credentials resolve through the host's `Models` or the `apiKey` option, and the utility API proxy comes from the `proxyUrl`/`proxyRequiresAuth` options. Truncated results save through the host's execution environment when one exists.
+- 1a49471: Add the `/provider` entry point: `createSyntheticProvider(options?)` builds a standalone pi-ai `Provider` without the pi coding agent. Models refresh through the host's models store; the baseline catalog always lists, and the catalog stays refreshable without credentials.
+
+### Patch Changes
+
+- 0f9118d: Ship `CHANGELOG.md` in the npm tarball so pi can show the changelog when the extension updates.
+- 556760e: Use the `keyHint()` injected into the tool render context for the web-search expand hint instead of importing it from `@earendil-works/pi-coding-agent`. An import can resolve to the extension's own copy of the package, which does not see pi's keybindings, so the hint rendered without the key. Raises the pi-coding-agent peer range to `>=1.5.0`.
+- f51aa6f: Apply project settings only after Pi trusts the project, keeping untrusted proxy URLs and config migrations inactive. Refresh runtime settings after trusted project config loads and keep the quotas command available for runtime toggles.
+
 ## 0.30.1
 
 ### Patch Changes
