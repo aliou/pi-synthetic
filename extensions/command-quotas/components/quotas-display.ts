@@ -1,7 +1,7 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { DynamicBorder } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
-import { Loader, matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
+import { Loader, matchesKey } from "@earendil-works/pi-tui";
 import type { QuotasResponse } from "../../../src/types/quotas";
 import {
   assessWindow,
@@ -10,6 +10,7 @@ import {
   type QuotaWindow,
   toWindows,
 } from "../../../src/utils/quotas-severity";
+import { truncateToWidth } from "../../shared/truncate";
 
 type QuotasState =
   | { type: "loading" }

@@ -125,31 +125,31 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
       field: "reasoning_content",
     },
     { reasoningReplayField: undefined, field: "reasoning" },
-  ])("uses $field when reasoningReplayField is $reasoningReplayField", async ({
-    reasoningReplayField,
-    field,
-  }) => {
-    const id = "syn:large:text";
-    const target: Model<"openai-completions"> = {
-      ...model,
-      ...{ reasoningReplayField },
-      id,
-    };
-    const context = transcript(assistant(undefined, { model: id }));
-    const before = structuredClone(context);
-    const { fetch, payloads } = transport();
-    const result = await createHandler()
-      [entry](target, context, { apiKey: "test-key", fetch })
-      .result();
+  ])(
+    "uses $field when reasoningReplayField is $reasoningReplayField",
+    async ({ reasoningReplayField, field }) => {
+      const id = "syn:large:text";
+      const target: Model<"openai-completions"> = {
+        ...model,
+        ...{ reasoningReplayField },
+        id,
+      };
+      const context = transcript(assistant(undefined, { model: id }));
+      const before = structuredClone(context);
+      const { fetch, payloads } = transport();
+      const result = await createHandler()
+        [entry](target, context, { apiKey: "test-key", fetch })
+        .result();
 
-    expect(result.stopReason).toBe("stop");
-    expect(payloads[0].messages.find((m) => m.role === "assistant")).toEqual({
-      role: "assistant",
-      content: "Noted.",
-      [field]: "Remember the earlier plan.",
-    });
-    expect(context).toEqual(before);
-  });
+      expect(result.stopReason).toBe("stop");
+      expect(payloads[0].messages.find((m) => m.role === "assistant")).toEqual({
+        role: "assistant",
+        content: "Noted.",
+        [field]: "Remember the earlier plan.",
+      });
+      expect(context).toEqual(before);
+    },
+  );
 
   it.each([
     { provider: "other-provider" },
@@ -171,26 +171,26 @@ describe.each(["stream", "streamSimple"] as const)("%s replay", (entry) => {
     expect(context).toEqual(before);
   });
 
-  it.each([
-    false,
-    true,
-  ])("replays thinking with tools=%s", async (withTools) => {
-    const context = transcript(assistant(), withTools);
-    const before = structuredClone(context);
-    const { fetch, payloads } = transport();
-    const result = await createHandler()
-      [entry](model, context, { apiKey: "test-key", fetch })
-      .result();
+  it.each([false, true])(
+    "replays thinking with tools=%s",
+    async (withTools) => {
+      const context = transcript(assistant(), withTools);
+      const before = structuredClone(context);
+      const { fetch, payloads } = transport();
+      const result = await createHandler()
+        [entry](model, context, { apiKey: "test-key", fetch })
+        .result();
 
-    expect(result.stopReason).toBe("stop");
-    expect(fetch).toHaveBeenCalledOnce();
-    expect(payloads[0].messages.find((m) => m.role === "assistant")).toEqual({
-      role: "assistant",
-      content: "Noted.",
-      reasoning_content: "Remember the earlier plan.",
-    });
-    expect(context).toEqual(before);
-  });
+      expect(result.stopReason).toBe("stop");
+      expect(fetch).toHaveBeenCalledOnce();
+      expect(payloads[0].messages.find((m) => m.role === "assistant")).toEqual({
+        role: "assistant",
+        content: "Noted.",
+        reasoning_content: "Remember the earlier plan.",
+      });
+      expect(context).toEqual(before);
+    },
+  );
 
   it("preserves async payload replacements after normalizing replay", async () => {
     const { fetch, payloads } = transport();

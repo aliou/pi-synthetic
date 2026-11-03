@@ -76,8 +76,8 @@
     "@aliou/pi-utils-ui": "^0.5.1"
   },
   "devDependencies": {
-    "@aliou/biome-plugins": "^0.11.0",
-    "@biomejs/biome": "^2.5.2",
+    "@aliou/biome-plugins": "^0.16.0",
+    "@biomejs/biome": "^2.6.4",
     "@changesets/cli": "^2.27.11",
     "@earendil-works/chord": "1.5.0",
     "@earendil-works/pi-ai": "catalog:",

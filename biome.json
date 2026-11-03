@@ -1,17 +1,7 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.2/schema.json",
-  "plugins": [
-    "./node_modules/@aliou/biome-plugins/plugins/no-buried-await.grit",
-    "./node_modules/@aliou/biome-plugins/plugins/no-emojis.grit",
-    "./node_modules/@aliou/biome-plugins/plugins/no-empty-catch.grit",
-    "./node_modules/@aliou/biome-plugins/plugins/no-homedir.grit",
-    "./node_modules/@aliou/biome-plugins/plugins/no-inline-imports.grit",
-    "./node_modules/@aliou/biome-plugins/plugins/no-inner-types.grit",
-    "./node_modules/@aliou/biome-plugins/plugins/no-is-record.grit",
-    "./node_modules/@aliou/biome-plugins/plugins/no-js-import-extension.grit",
-    "./node_modules/@aliou/biome-plugins/plugins/no-ts-import-extension.grit",
-    "./node_modules/@aliou/biome-plugins/plugins/pi-no-node-exec.grit"
-  ],
+  "$schema": "https://biomejs.dev/schemas/2.6.4/schema.json",
+  "extends": ["@aliou/biome-plugins/configs/pi"],
+  "plugins": ["@aliou/biome-plugins/no-homedir"],
   "vcs": {
     "enabled": true,
     "clientKind": "git",
