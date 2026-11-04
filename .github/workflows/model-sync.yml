@@ -46,6 +46,11 @@ jobs:
         run: |
           label="model-sync"
 
+          if [ ! -s sync-output.md ]; then
+            echo "sync-models.ts exited ${{ steps.compare.outputs.exit_code }} without producing output. Check the 'Compare models with upstream' step logs."
+            exit 1
+          fi
+
           existing_count=$(gh issue list \
             --label "$label" \
             --state open \
