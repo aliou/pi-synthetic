@@ -1,9 +1,9 @@
+import type { SyntheticApiModel } from "../src/client/types";
 import {
   parseApiPrice,
   SYNTHETIC_MODELS,
   type SyntheticModel,
-} from "../extensions/provider/models";
-import type { SyntheticApiModel } from "../src/client/types";
+} from "../src/models";
 
 const API_URL = "https://api.synthetic.new/openai/v1/models";
 const EPSILON = 0.001;
@@ -109,7 +109,7 @@ function compare(
     }
 
     // The catalog stores the API's input_cache_reads price directly (see the
-    // header comment in extensions/provider/models.ts), so compare as-is.
+    // header comment in src/models.ts), so compare as-is.
     const apiCacheReadCost = parseApiPrice(apiModel.pricing.input_cache_reads);
     if (Math.abs(apiCacheReadCost - hardcoded.cost.cacheRead) > EPSILON) {
       differences.push({
@@ -204,7 +204,7 @@ async function main(): Promise<void> {
       "Price changes",
       "The upstream provider changed pricing for these models. Update the catalog so Pi reports correct costs.",
       priceChanges,
-      "Update `cost.input` / `cost.output` / `cost.cacheRead` in `extensions/provider/models.ts`.",
+      "Update `cost.input` / `cost.output` / `cost.cacheRead` in `src/models.ts`.",
     );
     sections.push("", section);
   }
@@ -214,7 +214,7 @@ async function main(): Promise<void> {
       "New upstream models",
       "These models are in the upstream API but missing from the catalog. Add them so they are selectable.",
       newModels,
-      "Add entries to `SYNTHETIC_MODELS` in `extensions/provider/models.ts`.",
+      "Add entries to `SYNTHETIC_MODELS` in `src/models.ts`.",
     );
     sections.push("", section);
   }
@@ -226,7 +226,7 @@ async function main(): Promise<void> {
         "Other drift",
         "Field-level drift that is neither a price change nor a new model.",
         other,
-        "Update `extensions/provider/models.ts` accordingly.",
+        "Update `src/models.ts` accordingly.",
       ),
     );
   }
