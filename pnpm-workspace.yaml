@@ -19,3 +19,4 @@ minimumReleaseAgeExclude:
   - '@earendil-works/pi-tui@1.5.0'
   - '@earendil-works/chord@1.5.0'
   - '@earendil-works/pi-durable@1.5.0'
+  - '@aliou/biome-plugins@0.17.0'
