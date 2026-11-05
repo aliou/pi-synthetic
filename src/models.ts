@@ -323,6 +323,32 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     contextWindow: 524288,
     maxTokens: 65536,
   },
+  {
+    id: "hf:moonshotai/Kimi-K3.1-Pro",
+    name: "moonshotai/Kimi-K3.1-Pro",
+    reasoning: true,
+    thinkingLevelMap: {
+      off: null,
+      minimal: "minimal",
+      low: "low",
+      medium: "medium",
+      high: "high",
+      xhigh: "xhigh",
+      max: "max",
+    },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 2,
+      output: 10,
+      cacheRead: 0.2,
+      cacheWrite: 0,
+    },
+    contextWindow: 524288,
+    maxTokens: 65536,
+  },
   // API: hf:moonshotai/Kimi-K3 → ctx=524288, out=65536
   // Backend accepts thinking_effort in ['high', 'low', 'max']; 'none' disables
   // reasoning, 'medium' is rejected. 'low' produces no reasoning content, so
