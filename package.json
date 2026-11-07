@@ -73,10 +73,10 @@
   },
   "dependencies": {
     "@aliou/pi-utils-settings": "^0.24.0",
-    "@aliou/pi-utils-ui": "^0.5.1"
+    "@aliou/pi-utils-ui": "^0.6.0"
   },
   "devDependencies": {
-    "@aliou/biome-plugins": "^0.17.0",
+    "@aliou/biome-plugins": "0.18.1",
     "@biomejs/biome": "^2.6.4",
     "@changesets/cli": "^2.27.11",
     "@earendil-works/chord": "1.5.0",
