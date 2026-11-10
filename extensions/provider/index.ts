@@ -45,6 +45,9 @@ import {
 } from "../_shared/config/settings";
 import { SYNTHETIC_OVERFLOW_PATTERN } from "./context-overflow";
 
+/** Synthetic relays upstream inference timeouts as HTTP 408 responses. */
+const SYNTHETIC_TIMEOUT_PATTERN = /408 status code/i;
+
 export function registerSyntheticProvider(pi: ExtensionAPI): void {
   const staticModels = buildSyntheticProviderModels();
 
@@ -148,12 +151,22 @@ export default async function (pi: ExtensionAPI) {
 
     const errorMessage = msg.errorMessage ?? "";
     if (errorMessage.includes("context_length_exceeded")) return;
-    if (!SYNTHETIC_OVERFLOW_PATTERN.test(errorMessage)) return;
+    if (SYNTHETIC_OVERFLOW_PATTERN.test(errorMessage)) {
+      return {
+        message: {
+          ...msg,
+          errorMessage: `context_length_exceeded: ${errorMessage}`,
+        },
+      };
+    }
 
+    if (!SYNTHETIC_TIMEOUT_PATTERN.test(errorMessage)) return;
+
+    // Pi retries error messages containing "timeout"; the 408 status itself is not retried.
     return {
       message: {
         ...msg,
-        errorMessage: `context_length_exceeded: ${errorMessage}`,
+        errorMessage: `timeout: ${errorMessage}`,
       },
     };
   });
