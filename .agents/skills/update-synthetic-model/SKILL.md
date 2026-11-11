@@ -285,9 +285,14 @@ When done:
 1. Ensure `src/models.ts` is updated with any new, removed, or changed models and compatibility overrides.
 2. Re-run `pnpm test -- src/models.test.ts`.
 3. If the change is user-facing, prepare a changeset per repo conventions.
-4. Commit the model update and changeset. **Never use `--no-verify`.**
-5. If the pre-commit hooks fail (typecheck, lint, test), **stash the model changes** (`git stash`) and investigate the failing hook. Fix the underlying issue but **do not commit the fix yourself** — report the findings to the user and let them decide.
-6. Summarize what changed, including newly added, removed, or materially corrected models.
+4. Check for open drift issues with `gh issue list --label model-sync --state open`.
+   If this commit resolves one, mention it in the commit message with `Fixes #N`
+   so it closes when the commit reaches `main`.
+5. Commit the model update and changeset. **Never use `--no-verify`.**
+6. If the pre-commit hooks fail (typecheck, lint, test), **stash the model changes** (`git stash`) and investigate the failing hook. Fix the underlying issue but **do not commit the fix yourself** — report the findings to the user and let them decide.
+7. Summarize what changed, including newly added, removed, or materially corrected models.
+
+Do not add issue-closing keywords for issues this commit does not fully resolve.
 
 ## Known repo paths
 
