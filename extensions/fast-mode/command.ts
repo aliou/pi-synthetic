@@ -1,11 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { isFastModeModelId } from "../../src/fast-mode";
 import { toggleFastMode } from "../_shared/fast-mode";
 
 export function registerFastModeCommand(pi: ExtensionAPI): void {
   pi.registerCommand("synthetic:fast", {
     description:
-      "Switch the current model to its Synthetic fast variant (uses twice more quota)",
+      "Toggle the Synthetic fast variant of the current model (uses twice more quota)",
     handler: async (_args, ctx) => {
       if (ctx.model?.provider !== "synthetic") {
         ctx.ui.notify(
@@ -15,21 +14,11 @@ export function registerFastModeCommand(pi: ExtensionAPI): void {
         return;
       }
 
-      if (isFastModeModelId(ctx.model.id)) {
+      toggleFastMode(pi, (payload) => {
         ctx.ui.notify(
-          "Synthetic: already in fast mode, switch model with /model",
+          `Synthetic: fast mode ${payload.enabled ? "enabled (uses twice more quota)" : "disabled"}`,
           "info",
         );
-        return;
-      }
-
-      toggleFastMode(pi, (payload) => {
-        if (payload.enabled) {
-          ctx.ui.notify(
-            "Synthetic: fast mode enabled (uses twice more quota)",
-            "info",
-          );
-        }
       });
     },
   });
