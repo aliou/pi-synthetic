@@ -103,6 +103,7 @@ function createRuntime(trusted: boolean) {
     hasUI: false,
     tools: [],
     executeTool: vi.fn(),
+    sessionManager: { getEntries: () => [] },
   } as unknown as ExtensionToolContext;
   const pi = {
     on: (
@@ -119,6 +120,7 @@ function createRuntime(trusted: boolean) {
         for (const handler of listeners.get(name) ?? []) void handler(data);
       },
     },
+    appendEntry: vi.fn(),
     registerProvider: vi.fn<(provider: Provider) => void>(),
     registerCommand: (
       name: string,

@@ -9,6 +9,7 @@ import {
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
   type SyntheticConfigUpdatedPayload,
 } from "../../src/config";
+import { isFastModeModelId } from "../../src/fast-mode";
 import type {
   QuotasResponse,
   SyntheticQuotasSnapshotPayload,
@@ -27,6 +28,7 @@ import {
 import { readQuotas, requestQuotas } from "../_shared/quota-events";
 
 const EXTENSION_ID = "synthetic-usage";
+const FAST_STATUS_ID = "synthetic-fast";
 
 type WindowStatus = {
   label: string;
@@ -85,6 +87,17 @@ export default async function (pi: ExtensionAPI) {
 
   let enabled = configLoader.getConfig().usageStatus;
 
+  function renderFastMode(ctx: ExtensionContext): void {
+    if (!ctx.hasUI) return;
+    const fast =
+      ctx.model?.provider === "synthetic" && isFastModeModelId(ctx.model.id);
+    if (!fast) {
+      ctx.ui.setStatus(FAST_STATUS_ID, undefined);
+      return;
+    }
+    ctx.ui.setStatus(FAST_STATUS_ID, ctx.ui.theme.fg("dim", "\u26a1"));
+  }
+
   function renderSnapshot(
     ctx: ExtensionContext,
     snapshot: SyntheticQuotasSnapshotPayload | undefined,
@@ -134,26 +147,32 @@ export default async function (pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
     notifySyntheticConfigMessages(ctx);
     enabled = configLoader.getConfig().usageStatus;
+    renderFastMode(ctx);
     renderFromStoreOrRefresh(ctx);
   });
 
   pi.on("model_select", (_event, ctx) => {
+    renderFastMode(ctx);
     renderFromStoreOrRefresh(ctx);
   });
 
   pi.on("agent_end", (_event, ctx) => {
+    renderFastMode(ctx);
     renderFromStoreOrRefresh(ctx);
   });
 
   pi.on("turn_end", (_event, ctx) => {
+    renderFastMode(ctx);
     renderFromStoreOrRefresh(ctx);
   });
 
   pi.on("session_before_switch", (_event, ctx) => {
+    if (ctx.hasUI) ctx.ui.setStatus(FAST_STATUS_ID, undefined);
     clearStatus(ctx);
   });
 
   pi.on("session_shutdown", (_event, ctx) => {
+    if (ctx.hasUI) ctx.ui.setStatus(FAST_STATUS_ID, undefined);
     clearStatus(ctx);
   });
 

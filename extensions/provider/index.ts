@@ -1,4 +1,5 @@
 import { bindProjectConfig } from "@aliou/pi-utils-settings";
+import type { Model } from "@earendil-works/pi-ai";
 import {
   anthropicMessagesApi,
   openAICompletionsApi,
@@ -12,10 +13,18 @@ import {
   SYNTHETIC_CONFIG_UPDATED_EVENT,
   SYNTHETIC_EXTENSIONS_REGISTER_EVENT,
   SYNTHETIC_EXTENSIONS_REQUEST_EVENT,
+  SYNTHETIC_FAST_CHANGED_EVENT,
+  SYNTHETIC_FAST_TOGGLE_EVENT,
   type SyntheticConfigUpdatedPayload,
   type SyntheticExtensionsRegisterPayload,
+  type SyntheticFastTogglePayload,
   type SyntheticFeatureId,
 } from "../../src/config";
+import {
+  isFastModeModelId,
+  toBareModel,
+  toFastModel,
+} from "../../src/fast-mode";
 import {
   buildSyntheticProviderModels,
   buildSyntheticProviderModelsFromApi,
@@ -59,6 +68,7 @@ export function registerSyntheticProvider(pi: ExtensionAPI): void {
       buildSyntheticProviderModelsFromStore,
       {
         api: configLoader.getConfig().api,
+        fastModels: configLoader.getConfig().fastModels,
         // pi's extension loader resolves pi-ai/compat to its bundled view;
         // the lazy subpaths in src/ are not aliased and fail to resolve.
         openAiUpstream: openAICompletionsApi(),
@@ -78,6 +88,7 @@ export default async function (pi: ExtensionAPI) {
   let utilityApiProxyRequiresAuth = initialConfig.proxyRequiresAuth;
   const quotaStore = new QuotaStore();
   let getApiKey: (() => Promise<string | undefined>) | undefined;
+  let currentSyntheticModel: Model<string> | undefined;
 
   registerSyntheticProvider(pi);
   let registeredApi = initialConfig.api;
@@ -184,14 +195,40 @@ export default async function (pi: ExtensionAPI) {
     respond(toSnapshotPayload(quotaStore.getSnapshot()));
   });
 
+  pi.events.on(SYNTHETIC_FAST_TOGGLE_EVENT, async (data: unknown) => {
+    const { enabled, respond } = data as SyntheticFastTogglePayload;
+    const model = currentSyntheticModel;
+    if (model?.provider !== "synthetic") {
+      respond?.({ enabled: false });
+      return;
+    }
+    const turnOn = enabled ?? !isFastModeModelId(model.id);
+    const target = turnOn ? toFastModel(model) : toBareModel(model);
+    if (target.id === model.id) {
+      respond?.({ enabled: isFastModeModelId(model.id) });
+      return;
+    }
+    const switched = await pi.setModel(target);
+    if (!switched) return;
+    const enabledNow = isFastModeModelId(target.id);
+    pi.events.emit(SYNTHETIC_FAST_CHANGED_EVENT, { enabled: enabledNow });
+    respond?.({ enabled: enabledNow });
+  });
+
+  pi.on("model_select", (_event, ctx) => {
+    currentSyntheticModel = ctx.model;
+  });
+
   pi.on("session_before_switch", () => {
     quotaStore.clear();
     getApiKey = undefined;
+    currentSyntheticModel = undefined;
   });
 
   pi.on("session_shutdown", () => {
     quotaStore.clear();
     getApiKey = undefined;
+    currentSyntheticModel = undefined;
   });
 
   pi.on("session_start", async (_event, ctx) => {
@@ -204,6 +241,7 @@ export default async function (pi: ExtensionAPI) {
     loadedFeatures.clear();
     quotaStore.clear();
     getApiKey = () => ctx.modelRegistry.getApiKeyForProvider("synthetic");
+    currentSyntheticModel = ctx.model;
     pi.events.emit(SYNTHETIC_EXTENSIONS_REQUEST_EVENT, undefined);
     emitSyntheticConfigUpdated(pi);
   });
