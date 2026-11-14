@@ -77,20 +77,19 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     maxTokens: 65536,
   },
   // API: syn:large:vision → ctx=524288, out=65536
-  // Routes to Kimi-K3. Backend accepts thinking_effort in ['high', 'low', 'max'];
-  // 'none' disables reasoning, 'medium' is rejected. 'low' produces no reasoning
-  // content, so hide it; expose off/high/max.
+  // Routes to Kimi-K3.1-Pro. Reasoning is always on ('none' still produces
+  // reasoning content), so the off level is hidden.
   {
     id: "syn:large:vision",
     name: "syn:large:vision",
     reasoning: true,
     thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: null,
+      off: null,
+      minimal: "minimal",
+      low: "low",
+      medium: "medium",
       high: "high",
-      xhigh: null,
+      xhigh: "xhigh",
       max: "max",
     },
     compat: {
@@ -98,9 +97,9 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     },
     input: ["text", "image"],
     cost: {
-      input: 3,
-      output: 15,
-      cacheRead: 0.45,
+      input: 2,
+      output: 10,
+      cacheRead: 0.2,
       cacheWrite: 0,
     },
     contextWindow: 524288,
@@ -344,36 +343,6 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
       input: 2,
       output: 10,
       cacheRead: 0.2,
-      cacheWrite: 0,
-    },
-    contextWindow: 524288,
-    maxTokens: 65536,
-  },
-  // API: hf:moonshotai/Kimi-K3 → ctx=524288, out=65536
-  // Backend accepts thinking_effort in ['high', 'low', 'max']; 'none' disables
-  // reasoning, 'medium' is rejected. 'low' produces no reasoning content, so
-  // hide it; expose off/high/max.
-  {
-    id: "hf:moonshotai/Kimi-K3",
-    name: "moonshotai/Kimi-K3",
-    reasoning: true,
-    thinkingLevelMap: {
-      off: "none",
-      minimal: null,
-      low: null,
-      medium: null,
-      high: "high",
-      xhigh: null,
-      max: "max",
-    },
-    compat: {
-      supportsReasoningEffort: true,
-    },
-    input: ["text", "image"],
-    cost: {
-      input: 3,
-      output: 15,
-      cacheRead: 0.45,
       cacheWrite: 0,
     },
     contextWindow: 524288,
