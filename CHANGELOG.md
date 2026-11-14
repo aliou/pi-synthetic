@@ -1,5 +1,12 @@
 # @aliou/pi-synthetic
 
+## 0.31.2
+
+### Patch Changes
+
+- b1c7633: Sync model catalog with Synthetic: `syn:large:vision` now routes to Kimi-K3.1-Pro with updated pricing ($2/$10 per 1M, $0.20 cache read) and its level map; remove `hf:moonshotai/Kimi-K3`, which is no longer served.
+- 1bf7ede: Retry Synthetic HTTP 408 responses. Synthetic relays upstream inference backend timeouts as `408 status code (no body)`, which Pi's retry classifier did not treat as transient, so a model call failed outright. The provider extension now rewrites those error messages with a `timeout:` prefix, matching Pi's retryable error pattern like the existing `context_length_exceeded:` normalization.
+
 ## 0.31.1
 
 ### Patch Changes
