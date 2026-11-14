@@ -172,7 +172,7 @@ pnpm run test
 pi -e .            # run Pi with the local checkout
 ```
 
-The Nix dev shell installs pre-commit hooks for Biome, frozen-lockfile checks, and typechecking. Built-in model entries live in `extensions/provider/models.ts`; `AGENTS.md` explains how they combine with the API catalog.
+The Nix dev shell installs pre-commit hooks for Biome, frozen-lockfile checks, and typechecking. Built-in model entries live in `src/models.ts`; `AGENTS.md` explains how they combine with the API catalog.
 
 Releases use [Changesets](https://github.com/changesets/changesets). After CI passes on `main`, the publish workflow opens a release PR; merging it stages the package on npm for manual promotion.
 
