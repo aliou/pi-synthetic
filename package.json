@@ -18,6 +18,7 @@
       "./extensions/provider/index.ts",
       "./extensions/web-search/index.ts",
       "./extensions/command-quotas/index.ts",
+      "./extensions/fast-mode/index.ts",
       "./extensions/quota-warnings/index.ts",
       "./extensions/usage-status/index.ts"
     ],

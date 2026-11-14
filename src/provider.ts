@@ -14,6 +14,7 @@ import {
   SYNTHETIC_PROVIDER_ID,
   SYNTHETIC_REQUEST_HEADERS,
 } from "./constants";
+import { buildFastModeModels } from "./fast-mode";
 import type {
   buildSyntheticProviderModelsFromApi,
   buildSyntheticProviderModelsFromStore,
@@ -82,22 +83,24 @@ export interface SyntheticProviderOptions {
   messagesUpstream?: ProviderStreams;
   openAiStreamSimple?: SyntheticApiHandler["streamSimple"];
   messagesStreamSimple?: SyntheticApiHandler["streamSimple"];
+  fastModels?: boolean;
 }
 
 export function createApiHandler(
   api: SyntheticApi,
   options?: SyntheticProviderOptions,
 ): SyntheticApiHandler {
-  if (api === "anthropic-messages") {
-    return createAnthropicMessagesApi({
-      upstream: options?.messagesUpstream,
-      streamSimple: options?.messagesStreamSimple,
-    });
-  }
-  return createOpenAiCompletionsApi({
-    upstream: options?.openAiUpstream,
-    streamSimple: options?.openAiStreamSimple,
-  });
+  const handler =
+    api === "anthropic-messages"
+      ? createAnthropicMessagesApi({
+          upstream: options?.messagesUpstream,
+          streamSimple: options?.messagesStreamSimple,
+        })
+      : createOpenAiCompletionsApi({
+          upstream: options?.openAiUpstream,
+          streamSimple: options?.openAiStreamSimple,
+        });
+  return handler;
 }
 
 export function createSyntheticProvider(
@@ -112,6 +115,8 @@ export function createSyntheticProvider(
     options,
   );
   let canonicalModels = staticModels;
+  const withFastModels = (models: SyntheticModel[]): SyntheticModel[] =>
+    options?.fastModels ? [...models, ...buildFastModeModels(models)] : models;
   const refreshCatalog = createSyntheticRefreshModels(
     staticModels,
     fetchApiModels,
@@ -125,7 +130,7 @@ export function createSyntheticProvider(
     baseUrl: SYNTHETIC_BASE_URL,
     headers: SYNTHETIC_REQUEST_HEADERS,
     auth: { apiKey: createSyntheticApiKeyAuth() },
-    getModels: () => handler.stampModels(canonicalModels),
+    getModels: () => handler.stampModels(withFastModels(canonicalModels)),
     refreshModels: async (context) => {
       const refreshed = await refreshCatalog(context);
       // Fresh store: the refresh intentionally skipped the network; adopt the

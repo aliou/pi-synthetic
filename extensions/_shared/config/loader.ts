@@ -17,6 +17,7 @@ export const SYNTHETIC_CONFIG_VERSION = pkg.version;
 const DEFAULT_CONFIG: ResolvedSyntheticConfig = {
   configVersion: SYNTHETIC_CONFIG_VERSION,
   api: "openai-completions",
+  fastModels: false,
   webSearch: true,
   quotasCommand: true,
   usageStatus: false,

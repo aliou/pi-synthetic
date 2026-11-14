@@ -12,6 +12,10 @@
           "$ref": "#/definitions/SyntheticApi",
           "description": "Which API serves model requests. Changes require a reload."
         },
+        "fastModels": {
+          "type": "boolean",
+          "description": "Register fast variants of every catalog model in /model. Changes require a reload."
+        },
         "webSearch": {
           "type": "boolean"
         },

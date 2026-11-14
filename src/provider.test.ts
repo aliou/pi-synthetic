@@ -187,6 +187,28 @@ describe("api delegation", () => {
   });
 });
 
+describe("fast catalog models", () => {
+  it("registers fast variants when fastModels is set", () => {
+    const { provider } = createProvider({
+      providerOptions: { fastModels: true },
+    });
+
+    const models = provider.getModels();
+    expect(models.map((m) => m.id)).toContain("fast:syn:static");
+    const fast = models.find((m) => m.id === "fast:syn:static");
+    expect(fast?.cost.input).toBe(staticModels[0].cost.input * 2);
+    expect(fast?.cost.output).toBe(staticModels[0].cost.output * 2);
+  });
+
+  it("does not register fast variants by default", () => {
+    const { provider } = createProvider();
+
+    expect(provider.getModels().map((m) => m.id)).not.toContain(
+      "fast:syn:static",
+    );
+  });
+});
+
 describe("auth.apiKey.resolve", () => {
   it("prefers the stored credential", async () => {
     const { provider } = createProvider();

@@ -51,6 +51,7 @@ export function registerSyntheticSettings(
       const webSearch = tabConfig?.webSearch ?? resolved.webSearch;
       const quotasCommand = tabConfig?.quotasCommand ?? resolved.quotasCommand;
       const usageStatus = tabConfig?.usageStatus ?? resolved.usageStatus;
+      const fastModels = tabConfig?.fastModels ?? resolved.fastModels;
       const quotaWarnings = tabConfig?.quotaWarnings ?? resolved.quotaWarnings;
       const proxyUrl = tabConfig?.proxyUrl ?? resolved.proxyUrl;
       const proxyRequiresAuth =
@@ -70,6 +71,13 @@ export function registerSyntheticSettings(
               currentValue: tabConfig?.api ?? resolved.api,
               values: ["openai-completions", "anthropic-messages"],
             },
+            featureRow(
+              "fastModels",
+              "Fast Models",
+              "Register fast variants of every catalog model in /model. Requests to fast models use twice more quota. Toggle per session with /synthetic:fast. Applies after /reload.",
+              fastModels,
+              loaded.has("fastModels"),
+            ),
           ],
         },
         {
@@ -215,6 +223,7 @@ export function registerSyntheticSettings(
 
       const featureIds = new Set<string>([
         "webSearch",
+        "fastModels",
         "quotasCommand",
         "usageStatus",
         "quotaWarnings",
@@ -231,6 +240,8 @@ export function registerSyntheticSettings(
       switch (id) {
         case "webSearch":
           return { ...config, webSearch: enabled };
+        case "fastModels":
+          return { ...config, fastModels: enabled };
         case "quotasCommand":
           return { ...config, quotasCommand: enabled };
         case "usageStatus":

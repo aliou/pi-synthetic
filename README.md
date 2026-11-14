@@ -31,6 +31,7 @@ The `syn:large:text`-style category IDs always route to the current best model i
 
 - **Web search** — adds an optional `synthetic_web_search` tool, zero data retention. It appears once a session-start check confirms a Synthetic subscription. [Read more about it](https://dev.synthetic.new/docs/synthetic/search).
 - **Provider API** — pick the OpenAI-compatible or Anthropic-compatible surface under `/synthetic:settings` → **Provider > API** (default `openai-completions`, applies after `/reload`). The Anthropic surface streams real thinking blocks and native tool calls; some models cannot turn reasoning off on it.
+- **Fast mode** — `/synthetic:fast` switches the current session's model to its `fast:` variant (twice the quota usage); switch back with `/model`. Optionally enable **Provider > Fast Models** to register a `fast:` variant of every model for direct selection in `/model` (applies after `/reload`). The usage widget shows `⚡` while a fast model is selected.
 - **Quotas** — `/synthetic:quotas` shows current usage; the footer widget shows live quota percentages; quota warnings notify on severity transitions. History for projections is stored locally (up to 14 days) and only while warnings are enabled.
 
 ## Library Use

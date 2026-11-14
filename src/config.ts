@@ -1,5 +1,6 @@
 export type SyntheticFeatureId =
   | "webSearch"
+  | "fastModels"
   | "quotasCommand"
   | "usageStatus"
   | "quotaWarnings";
@@ -25,6 +26,8 @@ export interface SyntheticConfig {
   configVersion?: string;
   /** Which API serves model requests. Changes require a reload. */
   api?: SyntheticApi;
+  /** Register fast variants of every catalog model in /model. Changes require a reload. */
+  fastModels?: boolean;
   webSearch?: boolean;
   quotasCommand?: boolean;
   usageStatus?: boolean;
@@ -36,12 +39,26 @@ export interface SyntheticConfig {
 export interface ResolvedSyntheticConfig {
   configVersion: string;
   api: SyntheticApi;
+  fastModels: boolean;
   webSearch: boolean;
   quotasCommand: boolean;
   usageStatus: boolean;
   quotaWarnings: boolean;
   proxyUrl: string;
   proxyRequiresAuth: boolean;
+}
+
+export const SYNTHETIC_FAST_TOGGLE_EVENT = "synthetic:fast:toggle" as const;
+
+export interface SyntheticFastTogglePayload {
+  enabled?: boolean;
+  respond?: (payload: SyntheticFastChangedPayload) => void;
+}
+
+export const SYNTHETIC_FAST_CHANGED_EVENT = "synthetic:fast:changed" as const;
+
+export interface SyntheticFastChangedPayload {
+  enabled: boolean;
 }
 
 export const SYNTHETIC_CONFIG_UPDATED_EVENT =
