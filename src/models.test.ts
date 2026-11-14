@@ -228,17 +228,17 @@ describe("Synthetic models", () => {
   it("buildSyntheticProviderModelsFromApi merges API data with static overrides", () => {
     const apiModels: SyntheticApiModel[] = [
       {
-        id: "hf:moonshotai/Kimi-K3",
-        name: "moonshotai/Kimi-K3",
+        id: "hf:moonshotai/Kimi-K3.1-Pro",
+        name: "moonshotai/Kimi-K3.1-Pro",
         provider: "synthetic",
         input_modalities: ["text", "image"],
         output_modalities: ["text"],
         context_length: 524288,
         max_output_length: 65536,
         pricing: {
-          prompt: "$0.000003",
-          completion: "$0.000015",
-          input_cache_reads: "$0.00000045",
+          prompt: "$0.000002",
+          completion: "$0.00001",
+          input_cache_reads: "$0.0000002",
           input_cache_writes: "0",
         },
         supported_features: ["reasoning"],
@@ -249,9 +249,9 @@ describe("Synthetic models", () => {
     expect(models).toHaveLength(1);
 
     const model = models[0];
-    expect(model.id).toBe("hf:moonshotai/Kimi-K3");
-    expect(model.cost.input).toBe(3);
-    expect(model.cost.cacheRead).toBeCloseTo(0.45);
+    expect(model.id).toBe("hf:moonshotai/Kimi-K3.1-Pro");
+    expect(model.cost.input).toBe(2);
+    expect(model.cost.cacheRead).toBeCloseTo(0.2);
     expect(model.thinkingLevelMap?.max).toBe("max");
     const compat = model.compat as Record<string, unknown> | undefined;
     expect(compat?.supportsReasoningEffort).toBe(true);
