@@ -1,5 +1,11 @@
 # @aliou/pi-synthetic
 
+## 0.32.1
+
+### Patch Changes
+
+- 1f1ee8b: `/synthetic:fast` now toggles off as well: running it while a fast model is selected switches back to the regular variant instead of only reporting that fast mode is active.
+
 ## 0.32.0
 
 ### Minor Changes
