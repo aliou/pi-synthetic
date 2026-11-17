@@ -138,9 +138,9 @@ function createRuntime(trusted: boolean) {
     ctx,
     commands,
     notify,
-    emit: async (name: string) => {
+    emit: async (name: string, data?: unknown) => {
       for (const handler of handlers.get(name) ?? [])
-        await handler({} as never, ctx);
+        await handler((data ?? {}) as never, ctx);
     },
     requestQuotas: async () => {
       await Promise.all(
@@ -587,6 +587,34 @@ describe("synthetic:fast", () => {
       provider: "synthetic",
       id: "fast:m1",
     });
+    await runtime.emit("session_shutdown");
+  });
+
+  it("ingests quota headers routed through a virtual model", async () => {
+    const { runtime } = await loadFastModeExtensions();
+    runtime.ctx.model = virtualModel;
+    const updated = vi.fn();
+    runtime.pi.events.on("synthetic:quotas:updated", updated);
+    await runtime.emit("after_provider_response", {
+      status: 200,
+      headers: {
+        "x-synthetic-quotas": JSON.stringify({
+          freeToolCalls: {
+            limit: 100,
+            requests: 5,
+            renewsAt: "2026-01-01T00:00:00Z",
+          },
+        }),
+      },
+    });
+    expect(updated).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "header" }),
+    );
+    await runtime.emit("after_provider_response", {
+      status: 200,
+      headers: {},
+    });
+    expect(updated).toHaveBeenCalledTimes(1);
     await runtime.emit("session_shutdown");
   });
 });

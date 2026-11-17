@@ -148,8 +148,7 @@ export default async function (pi: ExtensionAPI) {
     };
   }
 
-  pi.on("after_provider_response", (event, ctx) => {
-    if (ctx.model?.provider !== "synthetic") return;
+  pi.on("after_provider_response", (event) => {
     const quotas = parseQuotaHeader(event.headers);
     if (quotas) quotaStore.ingest(quotas, "header");
   });
