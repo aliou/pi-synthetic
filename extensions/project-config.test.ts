@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { ConfigStore } from "@aliou/pi-utils-settings";
-import type { Provider } from "@earendil-works/pi-ai";
+import type { Model, Provider } from "@earendil-works/pi-ai";
 import type {
   ExtensionAPI,
   ExtensionCommandContext,
@@ -29,6 +29,7 @@ import {
   seedSyntheticConfigIfMissing,
 } from "./_shared/config/loader";
 import commandQuotas from "./command-quotas";
+import fastMode from "./fast-mode";
 import provider from "./provider";
 import quotaWarnings from "./quota-warnings";
 import usageStatus from "./usage-status";
@@ -130,6 +131,7 @@ function createRuntime(trusted: boolean) {
     getAllTools: () => [],
     getActiveTools: () => [],
     setActiveTools: vi.fn(),
+    setModel: vi.fn(async (_model: Model<string>) => true),
   };
   return {
     pi,
@@ -385,3 +387,206 @@ describe.each(Object.entries(extensions))(
     );
   },
 );
+
+const syntheticModel: Model<string> = {
+  id: "m1",
+  name: "m1",
+  api: "openai-completions",
+  provider: "synthetic",
+  baseUrl: "https://api.example/v1",
+  input: ["text"],
+  cost: { input: 1, output: 2, cacheRead: 0.5, cacheWrite: 0.5 },
+  reasoning: false,
+  contextWindow: 200000,
+  maxTokens: 8192,
+};
+const fastModel: Model<string> = {
+  ...syntheticModel,
+  id: "fast:m1",
+  name: "fast:m1",
+  cost: { input: 2, output: 4, cacheRead: 1, cacheWrite: 1 },
+};
+const virtualModel = {
+  id: "auto",
+  name: "Auto",
+  api: "pi-virtual",
+  provider: "latest",
+  baseUrl: "",
+  input: ["text"],
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  reasoning: false,
+  contextWindow: 0,
+  maxTokens: 0,
+} as unknown as Model<string>;
+const otherModel: Model<string> = {
+  ...syntheticModel,
+  provider: "acme",
+  id: "other",
+  name: "other",
+};
+
+function responseEntry(provider: string, model: string, stopReason = "stop") {
+  return {
+    type: "message",
+    id: `${provider}-${model}-${stopReason}`,
+    parentId: null,
+    timestamp: new Date(0).toISOString(),
+    message: {
+      role: "assistant",
+      content: [],
+      api: "openai-completions",
+      provider,
+      model,
+      usage: {},
+      stopReason,
+      timestamp: 0,
+    },
+  };
+}
+
+function fastModeCommandContext(
+  runtime: ReturnType<typeof createRuntime>,
+  model: Model<string> | undefined,
+  branch: unknown[],
+  catalog: Model<string>[],
+) {
+  return {
+    ...runtime.ctx,
+    model,
+    sessionManager: { getBranch: () => branch },
+    modelRegistry: {
+      ...runtime.ctx.modelRegistry,
+      find: (provider: string, modelId: string) =>
+        provider === "synthetic"
+          ? catalog.find((entry) => entry.id === modelId)
+          : undefined,
+    },
+  } as unknown as ExtensionCommandContext;
+}
+
+async function loadFastModeExtensions() {
+  const runtime = createRuntime(true);
+  await provider(runtime.pi as unknown as ExtensionAPI);
+  await fastMode(runtime.pi as unknown as ExtensionAPI);
+  await runtime.emit("session_start");
+  const command = runtime.commands.get("synthetic:fast");
+  if (!command) throw new Error("synthetic:fast command not registered");
+  return { runtime, command };
+}
+
+describe("synthetic:fast", () => {
+  it("toggles on from a virtual model routed to a Synthetic model", async () => {
+    const { runtime, command } = await loadFastModeExtensions();
+    const context = fastModeCommandContext(
+      runtime,
+      virtualModel,
+      [responseEntry("synthetic", "m1")],
+      [syntheticModel, fastModel],
+    );
+    await command.handler("", context);
+    await vi.waitFor(() =>
+      expect(runtime.pi.setModel).toHaveBeenCalledTimes(1),
+    );
+    expect(runtime.pi.setModel.mock.calls[0]?.[0]).toMatchObject({
+      provider: "synthetic",
+      id: "fast:m1",
+    });
+    expect(runtime.notify).toHaveBeenCalledWith(
+      "Synthetic: fast mode enabled (uses twice more quota)",
+      "info",
+    );
+    await runtime.emit("session_shutdown");
+  });
+
+  it("toggles off from a virtual model routed to a fast Synthetic model", async () => {
+    const { runtime, command } = await loadFastModeExtensions();
+    const context = fastModeCommandContext(
+      runtime,
+      virtualModel,
+      [responseEntry("synthetic", "fast:m1")],
+      [syntheticModel, fastModel],
+    );
+    await command.handler("", context);
+    await vi.waitFor(() =>
+      expect(runtime.pi.setModel).toHaveBeenCalledTimes(1),
+    );
+    expect(runtime.pi.setModel.mock.calls[0]?.[0]).toMatchObject({
+      provider: "synthetic",
+      id: "m1",
+    });
+    expect(runtime.notify).toHaveBeenCalledWith(
+      "Synthetic: fast mode disabled",
+      "info",
+    );
+    await runtime.emit("session_shutdown");
+  });
+
+  it.each([
+    ["without a routed response", []],
+    ["routed to another provider", [responseEntry("acme", "other")]],
+  ])("reports a virtual model %s", async (_name, branch) => {
+    const { runtime, command } = await loadFastModeExtensions();
+    const context = fastModeCommandContext(runtime, virtualModel, branch, [
+      syntheticModel,
+      fastModel,
+    ]);
+    await command.handler("", context);
+    expect(runtime.notify).toHaveBeenCalledWith(
+      "Synthetic: fast mode is unavailable until the virtual model routes to a Synthetic model",
+      "error",
+    );
+    expect(runtime.pi.setModel).not.toHaveBeenCalled();
+    await runtime.emit("session_shutdown");
+  });
+
+  it("toggles a selected Synthetic model", async () => {
+    const { runtime, command } = await loadFastModeExtensions();
+    const context = fastModeCommandContext(
+      runtime,
+      syntheticModel,
+      [],
+      [syntheticModel, fastModel],
+    );
+    await command.handler("", context);
+    await vi.waitFor(() =>
+      expect(runtime.pi.setModel).toHaveBeenCalledTimes(1),
+    );
+    expect(runtime.pi.setModel.mock.calls[0]?.[0]).toMatchObject({
+      provider: "synthetic",
+      id: "fast:m1",
+    });
+    await runtime.emit("session_shutdown");
+  });
+
+  it("reports a selected non-Synthetic model", async () => {
+    const { runtime, command } = await loadFastModeExtensions();
+    const context = fastModeCommandContext(
+      runtime,
+      otherModel,
+      [responseEntry("synthetic", "m1")],
+      [syntheticModel, fastModel],
+    );
+    await command.handler("", context);
+    expect(runtime.notify).toHaveBeenCalledWith(
+      "Synthetic: fast mode requires a Synthetic model",
+      "error",
+    );
+    expect(runtime.pi.setModel).not.toHaveBeenCalled();
+    await runtime.emit("session_shutdown");
+  });
+
+  it("resolves the selected Synthetic model when the toggle event carries none", async () => {
+    const { runtime } = await loadFastModeExtensions();
+    runtime.ctx.model = syntheticModel;
+    await runtime.emit("session_start");
+    runtime.pi.events.emit("synthetic:fast:toggle", { enabled: true });
+    await vi.waitFor(() =>
+      expect(runtime.pi.setModel).toHaveBeenCalledTimes(1),
+    );
+    expect(runtime.pi.setModel.mock.calls[0]?.[0]).toMatchObject({
+      provider: "synthetic",
+      id: "fast:m1",
+    });
+    await runtime.emit("session_shutdown");
+  });
+});

@@ -196,8 +196,12 @@ export default async function (pi: ExtensionAPI) {
   });
 
   pi.events.on(SYNTHETIC_FAST_TOGGLE_EVENT, async (data: unknown) => {
-    const { enabled, respond } = data as SyntheticFastTogglePayload;
-    const model = currentSyntheticModel;
+    const {
+      enabled,
+      model: requested,
+      respond,
+    } = data as SyntheticFastTogglePayload;
+    const model = requested ?? currentSyntheticModel;
     if (model?.provider !== "synthetic") {
       respond?.({ enabled: false });
       return;

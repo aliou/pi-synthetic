@@ -1,3 +1,5 @@
+import type { Model } from "@earendil-works/pi-ai";
+
 export type SyntheticFeatureId =
   | "webSearch"
   | "fastModels"
@@ -52,6 +54,7 @@ export const SYNTHETIC_FAST_TOGGLE_EVENT = "synthetic:fast:toggle" as const;
 
 export interface SyntheticFastTogglePayload {
   enabled?: boolean;
+  model?: Model<string>;
   respond?: (payload: SyntheticFastChangedPayload) => void;
 }
 
