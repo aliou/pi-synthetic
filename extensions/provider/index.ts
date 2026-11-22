@@ -148,8 +148,7 @@ export default async function (pi: ExtensionAPI) {
     };
   }
 
-  pi.on("after_provider_response", (event, ctx) => {
-    if (ctx.model?.provider !== "synthetic") return;
+  pi.on("after_provider_response", (event) => {
     const quotas = parseQuotaHeader(event.headers);
     if (quotas) quotaStore.ingest(quotas, "header");
   });
@@ -196,8 +195,12 @@ export default async function (pi: ExtensionAPI) {
   });
 
   pi.events.on(SYNTHETIC_FAST_TOGGLE_EVENT, async (data: unknown) => {
-    const { enabled, respond } = data as SyntheticFastTogglePayload;
-    const model = currentSyntheticModel;
+    const {
+      enabled,
+      model: requested,
+      respond,
+    } = data as SyntheticFastTogglePayload;
+    const model = requested ?? currentSyntheticModel;
     if (model?.provider !== "synthetic") {
       respond?.({ enabled: false });
       return;
