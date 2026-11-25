@@ -1,5 +1,14 @@
 # @aliou/pi-synthetic
 
+## 0.32.2
+
+### Patch Changes
+
+- dbd312c: Add `hf:thinkingmachines/Inkling-2-Mini` to the hardcoded model catalog (1M context, vision input, reasoning with low/medium/xhigh efforts).
+- bceff53: - `/synthetic:fast` now works while a virtual model that routes to a Synthetic model is selected.
+  - `/synthetic:fast` explains when a virtual model has not routed to a Synthetic model yet.
+  - Quota updates from responses routed through a virtual model are now ingested.
+
 ## 0.32.1
 
 ### Patch Changes
