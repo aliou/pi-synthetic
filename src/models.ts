@@ -375,6 +375,37 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     contextWindow: 262144,
     maxTokens: 65536,
   },
+  // API: hf:thinkingmachines/Inkling-2-Mini → ctx=1024000, out=65536
+  // The API advertises reasoning efforts ["low", "medium", "xhigh"]; map them
+  // by identity and hide the rest. Runtime check: 'none' still reasons (the
+  // model card confirms minimum effort does not disable reasoning), so off is
+  // hidden. Thinking replays under the default 'reasoning' field.
+  {
+    id: "hf:thinkingmachines/Inkling-2-Mini",
+    name: "thinkingmachines/Inkling-2-Mini",
+    reasoning: true,
+    thinkingLevelMap: {
+      off: null,
+      minimal: null,
+      low: "low",
+      medium: "medium",
+      high: null,
+      xhigh: "xhigh",
+      max: null,
+    },
+    compat: {
+      supportsReasoningEffort: true,
+    },
+    input: ["text", "image"],
+    cost: {
+      input: 0.08,
+      output: 0.4,
+      cacheRead: 0.02,
+      cacheWrite: 0,
+    },
+    contextWindow: 1024000,
+    maxTokens: 65536,
+  },
 ];
 
 export function isValidApiModel(model: unknown): model is SyntheticApiModel {
