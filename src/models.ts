@@ -105,8 +105,7 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     contextWindow: 524288,
     maxTokens: 65536,
   },
-  // API: syn:small:vision → ctx=524288, out=65536
-  // Routes to DeepSeek-V4.1-Flash-1017. The API advertises reasoning efforts
+  // syn:small:vision. The API advertises reasoning efforts
   // ["none", "low", "high", "xhigh", "max"]; map them by identity.
   {
     id: "syn:small:vision",
@@ -126,12 +125,12 @@ export const SYNTHETIC_MODELS: SyntheticModel[] = [
     },
     input: ["text", "image"],
     cost: {
-      input: 0.6,
-      output: 1.2,
-      cacheRead: 0.03,
+      input: 0.08,
+      output: 0.4,
+      cacheRead: 0.02,
       cacheWrite: 0,
     },
-    contextWindow: 524288,
+    contextWindow: 1024000,
     maxTokens: 65536,
   },
   // API: infinite:small:vision → ctx=524288, out=65536
